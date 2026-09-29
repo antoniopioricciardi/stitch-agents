@@ -19,6 +19,23 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 
 ---
 
+## 2026-09-29 — Step 2 (minimal slice): BC oracles, default task, Panda, cam0 and cam1
+
+- **Setup:** `stitch/models.py`: CNN encoder (4 stride-2 convs + linear, 128×128 RGB → d = 256) and MLP controller
+  on [z, proprio (25-d: qpos, qvel, TCP pose; no goal)] → 7-d EE delta action. BC (MSE), 500 demos per camera,
+  20k steps, batch 256, Adam 3e-4, random-shift augmentation; seeds 0, 1, 2. Evaluation: 100 episodes, seeds
+  10000+ (disjoint from the demos), max 120 steps, success = PickCube success at any step. Blind checks on the same
+  agents: z = 0 (zeros) and z = latent of a random training frame, redrawn every step (shuffled).
+- **Hypotheses:**
+  - Oracle (full z): 60–85% on both cameras; cam1 (side view, more robot occlusion) a bit lower than cam0.
+  - Blind (zeros and shuffled): ≤ 5%. Proprio has no cube or goal position, and both are randomised (±10 cm cube,
+    ±10 cm × 0–30 cm goal), so the controller cannot solve the task without the image.
+  - ~5 min training per agent on the RTX 5070 Ti.
+- **Result:**
+- **Takeaway:**
+
+---
+
 ## 2026-09-29 — Step 1: ManiSkill3 PickCube variants + motion-planning demos
 
 - **Env** (`stitch/envs.py`, ManiSkill 3.0.1): PickCube, Panda / xArm6. Visual: camera ×3, look (colour/texture) ×3,
@@ -28,7 +45,8 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
   across visual variants; a state restored in another visual variant renders the same poses (paired frames for SAPS).
   Goal region inside the frame for all 3 cameras. 1 CPU env, 128×128 RGB: ~650 steps/s step+render, ~900 frames/s render only.
 - **Demos:** mplib motion planner (joint targets) → converted to EE delta pose (7-d, both robots) by ManiSkill's
-  replay conversion → frames rendered from the converted rollout's states in cam0 and cam1.
+  replay conversion. Stored for every demo: actions, full env states, proprio, planner phase, `steps_to_grasp`, seed.
+  Pixels rendered from the converted states only for default/Panda (cam0, cam1, cam2); the rest on demand later.
 - **Expectations (before running):**
   - Panda, default task, N = 10: planner success ~100% (20/20 in a probe), conversion success ≥ 90%,
     ~85–95 EE steps per demo, ~2–3 s per demo (0.8 s planning + conversion + rendering).
@@ -55,8 +73,21 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
   | carry = lift + move to goal, one screw motion (29.2) | 1.27, 0.075 | 1.91, 0.40 |
 
   Grasp start step: identical to default for physics in 10/10 seeds, for actuation in 9/10 (one demo +3 steps from clipping).
-- **Takeaway:**
-  - Motion-planning demos are cheap (~0.5 s each, 1 CPU env) and 100% successful on Panda/default; ≥100 per combination is minutes.
+- **Result 3, full collection** (500 attempts per combination, seeds 0–499, 6 runs in parallel on 6 CPU cores;
+  `results/20260929_step1_demos_<task>_<robot>/`):
+
+  | task | robot | planner success | conversion success | demos saved | EE steps (mean) | time per demo |
+  |---|---|---|---|---|---|---|
+  | default | Panda | 99.6% | 100% | 498 | 78.3 | 0.65 s (3 cameras rendered) |
+  | actuation | Panda | 99.6% | 100% | 498 | 79.0 | 0.33 s |
+  | goal | Panda | 99.2% | 100% | 496 | 80.8 | 0.34 s |
+  | default | xArm6 | 99.2% | 100% | 496 | 80.0 | 1.37 s |
+  | actuation | xArm6 | 99.2% | 100% | 496 | 80.5 | 1.38 s |
+  | goal | xArm6 | 99.4% | 100% | 497 | 83.7 | 1.39 s |
+
+- **Takeaway (Step 1 closed, 2026-09-30):**
+  - Motion-planning demos are cheap and reliable: ≥99% planner success and 100% conversion on every combination,
+    0.3–1.4 s per demo. The xArm6 planner (RRT*, not seeded by ManiSkill) is not exactly reproducible from the seed.
   - **Physics (friction 0.1, 10× mass) is not a task shift for this expert**: identical actions until the grasp,
     ≤0.075 difference while carrying. Replaced by **actuation** (EE-delta bounds ×0.5), which roughly doubles the
     arm actions for the same motion. Physics could only come back with an expert that reacts to it.

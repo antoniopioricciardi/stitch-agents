@@ -1,0 +1,113 @@
+{
+ "summary": {
+  "n": 10,
+  "plan_success": 1.0,
+  "conv_success_given_plan": 1.0,
+  "saved": 10,
+  "mean_len_ee": 72.8,
+  "mean_len_joint": 72.5,
+  "mean_time_per_demo": 0.5026589632034302
+ },
+ "demos": [
+  {
+   "seed": 0,
+   "plan_success": true,
+   "plan_time": 0.10268878936767578,
+   "len_joint": 74,
+   "conv_success": true,
+   "conv_time": 0.20889735221862793,
+   "len_ee": 74,
+   "render_time": 0.20018768310546875
+  },
+  {
+   "seed": 1,
+   "plan_success": true,
+   "plan_time": 0.10116887092590332,
+   "len_joint": 74,
+   "conv_success": true,
+   "conv_time": 0.2027113437652588,
+   "len_ee": 74,
+   "render_time": 0.1929454803466797
+  },
+  {
+   "seed": 2,
+   "plan_success": true,
+   "plan_time": 0.07549881935119629,
+   "len_joint": 50,
+   "conv_success": true,
+   "conv_time": 0.1378645896911621,
+   "len_ee": 50,
+   "render_time": 0.13923907279968262
+  },
+  {
+   "seed": 3,
+   "plan_success": true,
+   "plan_time": 0.10328340530395508,
+   "len_joint": 86,
+   "conv_success": true,
+   "conv_time": 0.24267029762268066,
+   "len_ee": 86,
+   "render_time": 0.2249448299407959
+  },
+  {
+   "seed": 4,
+   "plan_success": true,
+   "plan_time": 0.09780335426330566,
+   "len_joint": 76,
+   "conv_success": true,
+   "conv_time": 0.20889043807983398,
+   "len_ee": 76,
+   "render_time": 0.19790220260620117
+  },
+  {
+   "seed": 5,
+   "plan_success": true,
+   "plan_time": 0.11219072341918945,
+   "len_joint": 88,
+   "conv_success": true,
+   "conv_time": 0.24920010566711426,
+   "len_ee": 91,
+   "render_time": 0.2943747043609619
+  },
+  {
+   "seed": 6,
+   "plan_success": true,
+   "plan_time": 0.116790771484375,
+   "len_joint": 70,
+   "conv_success": true,
+   "conv_time": 0.18869256973266602,
+   "len_ee": 70,
+   "render_time": 0.1877148151397705
+  },
+  {
+   "seed": 7,
+   "plan_success": true,
+   "plan_time": 0.12950682640075684,
+   "len_joint": 74,
+   "conv_success": true,
+   "conv_time": 0.205216646194458,
+   "len_ee": 74,
+   "render_time": 0.19529247283935547
+  },
+  {
+   "seed": 8,
+   "plan_success": true,
+   "plan_time": 0.06740546226501465,
+   "len_joint": 49,
+   "conv_success": true,
+   "conv_time": 0.13307833671569824,
+   "len_ee": 49,
+   "render_time": 0.12996912002563477
+  },
+  {
+   "seed": 9,
+   "plan_success": true,
+   "plan_time": 0.13527464866638184,
+   "len_joint": 84,
+   "conv_success": true,
+   "conv_time": 0.22246289253234863,
+   "len_ee": 84,
+   "render_time": 0.22272300720214844
+  }
+ ]
+}
