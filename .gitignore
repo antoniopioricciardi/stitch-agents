@@ -1,0 +1,21 @@
+results/
+data/
+.venv/
+mario/.venv/
+mario/data/
+
+# environments and caches
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# data, checkpoints and run outputs (large, regenerable)
+results/
+mario/data/
+*.pt
+*.npz
+*.7z
+
+# papers (PDFs, downloadable from arXiv)
+papers/
