@@ -31,8 +31,35 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
   - Blind (zeros and shuffled): ≤ 5%. Proprio has no cube or goal position, and both are randomised (±10 cm cube,
     ±10 cm × 0–30 cm goal), so the controller cannot solve the task without the image.
   - ~5 min training per agent on the RTX 5070 Ti.
-- **Result:**
+- **Result 1, first attempt — negative** (single-step RGB BC, 6-d rotation control; `results/20260929_step2_bc_cam{0,1}/`):
+  0/100 for every seed and camera, with full z, zeros and shuffled alike (one 1/100 in shuffled). Training ~7.8 min
+  per agent (two runs sharing the GPU). The policies move but never grasp (closest approach 3–16 cm).
+- **Result 2, sanity check** (is it a pipeline bug?). Pipeline: replaying stored actions in the evaluation env
+  succeeds 5/5; proprio matches to 1e-4; frames match except 1–2 edge pixels. Then BC from the **true state**
+  (z = cube pose + goal position, same controller; `results/20260930_step2_state_bc_*/`, seed 0, 160-step limit):
+
+  | z | control | recipe | eval seeds: success any step / at end | training seeds 0–9: any step |
+  |---|---|---|---|---|
+  | pixels (Result 1) | pose (7-d) | single step | 0.00 / — | 1/10 cam0, 2/10 cam1 |
+  | state, cube quaternion | pose (7-d) | single step | 0.00 / 0.00 | 1/10 |
+  | state, cube quaternion | pose (7-d) | chunk | 0.05 / 0.03 | 2/10 |
+  | state, cube yaw as sin/cos(4·yaw) | pose (7-d) | single step | 0.00 / 0.00 | 1/10 |
+  | state, cube yaw as sin/cos(4·yaw) | pose (7-d) | chunk | **0.45 / 0.26** | 5/10 |
+  | state, cube quaternion | pos (4-d) | single step | 0.00 / 0.00 | 1/10 |
+  | state, cube quaternion | pos (4-d) | chunk | 0.02 / 0.02 | 3/10 |
+
+  single step = one action per step; chunk = 2-step history, 16-step chunk, 8 executed. Both standardise proprio
+  and actions per dimension. The sin/cos(4·yaw) rows are a one-off diagnostic (not a committed script).
+- **Why it fails:** the planner stops at rest at the end of every segment. Before descending, the expert sits
+  ~5 cm above the cube for 2–3 steps with near-zero actions, then accelerates. From the state alone that looks
+  like "stay still": the state-BC policies (pos, chunk) stop 4–6 cm above the cube in 19/20 episodes and close
+  the gripper there, at steps 24–37, where the expert would start descending.
 - **Takeaway:**
+  - Not a pipeline bug: the same controller fails from the true state. The failure comes from the demos
+    (timed rest pauses between planner segments) combined with plain MSE BC.
+  - Chunking helps only once the rotation target is continuous (5% → 45%). Position-only control alone does not help (2%).
+  - Candidate fixes (to decide): drop the rest pauses from the demos (steps with near-zero arm action and an
+    unchanged gripper); a diffusion/flow head on the chunk; a time/phase input. The pixel recipe waits until state BC works.
 
 ---
 
