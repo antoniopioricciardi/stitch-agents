@@ -1,0 +1,54 @@
+{
+ "pipeline_equality": [
+  {
+   "episode": 0,
+   "max_pixel_diff": 124,
+   "max_proprio_diff": 8.448958396911621e-05,
+   "replay_success": true
+  },
+  {
+   "episode": 1,
+   "max_pixel_diff": 159,
+   "max_proprio_diff": 0.00013874471187591553,
+   "replay_success": true
+  },
+  {
+   "episode": 2,
+   "max_pixel_diff": 3,
+   "max_proprio_diff": 7.548928260803223e-05,
+   "replay_success": true
+  },
+  {
+   "episode": 3,
+   "max_pixel_diff": 134,
+   "max_proprio_diff": 7.482545333914459e-05,
+   "replay_success": true
+  },
+  {
+   "episode": 4,
+   "max_pixel_diff": 121,
+   "max_proprio_diff": 7.277727127075195e-05,
+   "replay_success": true
+  }
+ ],
+ "state_bc": {
+  "train_time_s": 8.474846601486206,
+  "final_loss": 0.00017072710033971816,
+  "eval_seeds": {
+   "success": 0.0,
+   "mean_len": 120.0
+  },
+  "train_seeds_0_9": {
+   "success": 0.1,
+   "mean_len": 108.1
+  }
+ },
+ "pixel_cam0_seed0_train_seeds_0_9": {
+  "success": 0.1,
+  "mean_len": 108.1
+ },
+ "pixel_cam1_seed0_train_seeds_0_9": {
+  "success": 0.2,
+  "mean_len": 101.9
+ }
+}

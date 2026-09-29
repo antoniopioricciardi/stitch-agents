@@ -1,6 +1,7 @@
 """Step 1: motion-planning demos for one (task, robot), converted to EE delta pose; pixels only for the Step 2 slice.
 
-Usage: uv run python scripts/collect_demos.py <task> <robot> <N>
+Usage: uv run python scripts/collect_demos.py <task> <robot> <N> [control_mode]
+  control_mode: pd_ee_delta_pose (default, 7-d) or pd_ee_delta_pos (position only, 4-d; output folder gets '_pos')
 
 Per demo (seed = SEED0 + i):
   1. plan with ManiSkill's mplib solution (pd_joint_pos), recording the joint targets and the phase of each step;
@@ -11,7 +12,7 @@ Per demo (seed = SEED0 + i):
 Only demos where both planning and conversion succeed are saved.
 
 Output, results/<date>_step1_demos_<task>_<robot>/:
-  demos.npz: action (T,7) EE delta pose, proprio (T,P), task, episode, seed, phase, steps_to_grasp, t, state (T,S)
+  demos.npz: action (T,7) EE delta pose or (T,4) EE delta position, proprio (T,P), task, episode, seed, phase, steps_to_grasp, t, state (T,S)
     — one row per converted step, aligned with action (state and proprio are taken before the action);
   <domain>.npz per rendered visual variant: the same keys plus obs (T,128,128,3) uint8 and domain;
     phase = planner segment (see PHASES); steps_to_grasp = steps until the gripper has closed (0 at the first
@@ -39,13 +40,14 @@ from mani_skill.examples.motionplanning.xarm6.motionplanner import XArm6RobotiqM
 from mani_skill.trajectory.utils.actions.conversion import from_pd_joint_pos_to_ee
 
 TASK, ROBOT, N = sys.argv[1], sys.argv[2], int(sys.argv[3])
+CONTROL = sys.argv[4] if len(sys.argv) > 4 else "pd_ee_delta_pose"
 SEED0 = 0
 # cameras 0, 1, 2 with default look and light, for Step 2 (default task, Panda) only
 VISUALS = [(0, 0, 0), (1, 0, 0), (2, 0, 0)] if (TASK, ROBOT) == ("default", "panda") else []
 # the planner's own segments: approach = move above the cube, descend = move down to the grasp pose,
 # grasp = close the gripper, carry = lift + move to goal (a single straight screw motion, so no separate lift)
 PHASES = ["approach", "descend", "grasp", "carry"]
-OUT = Path("results") / f"{date.today():%Y%m%d}_step1_demos_{TASK}_{ROBOT}"
+OUT = Path("results") / (f"{date.today():%Y%m%d}_step1_demos_{TASK}_{ROBOT}" + ("_pos" if CONTROL == "pd_ee_delta_pos" else ""))
 OUT.mkdir(parents=True, exist_ok=True)
 
 
@@ -93,8 +95,8 @@ def phase_of(t, starts):
 
 
 env_jp = Recorder(make_env(task=TASK, robot=ROBOT, obs_mode="state", control_mode="pd_joint_pos"))
-env_ee_raw = make_env(task=TASK, robot=ROBOT, obs_mode="state", control_mode="pd_ee_delta_pose")
-render_envs = {v: make_env(v, TASK, ROBOT, obs_mode="rgb", control_mode="pd_ee_delta_pose") for v in VISUALS}
+env_ee_raw = make_env(task=TASK, robot=ROBOT, obs_mode="state", control_mode=CONTROL)
+render_envs = {v: make_env(v, TASK, ROBOT, obs_mode="rgb", control_mode=CONTROL) for v in VISUALS}
 domain_name = {v: f"cam{v[0]}_look{v[1]}_light{v[2]}" for v in VISUALS}
 
 demo_keys = ["action", "proprio", "episode", "seed", "phase", "steps_to_grasp", "t", "state"]
@@ -131,7 +133,7 @@ for i in range(N):
                 return self.env.step(action)
 
         env_jp.states, env_jp.actions = [], []
-        info = from_pd_joint_pos_to_ee("pd_ee_delta_pose", joint_actions, env_jp, Counter(env_ee))
+        info = from_pd_joint_pos_to_ee(CONTROL, joint_actions, env_jp, Counter(env_ee))
         d["conv_success"] = bool(info["success"].item())
     d["conv_time"] = time.time() - t0
 
@@ -178,5 +180,5 @@ summary = dict(
 )
 print(json.dumps(summary, indent=1))
 json.dump(dict(task=TASK, robot=ROBOT, n=N, seed0=SEED0, visuals=[domain_name[v] for v in VISUALS], phases=PHASES,
-               control_mode="pd_ee_delta_pose", proprio="qpos, qvel, tcp_pose"), open(OUT / "config.json", "w"), indent=1)
+               control_mode=CONTROL, proprio="qpos, qvel, tcp_pose"), open(OUT / "config.json", "w"), indent=1)
 json.dump(dict(summary=summary, demos=demos), open(OUT / "metrics.json", "w"), indent=1)

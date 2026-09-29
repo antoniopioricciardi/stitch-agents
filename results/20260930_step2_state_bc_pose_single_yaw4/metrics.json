@@ -1,0 +1,14 @@
+{
+ "train_time_s": 10.226966619491577,
+ "final_loss": 0.00784226693212986,
+ "eval_seeds": {
+  "success_once": 0.0,
+  "success_at_end": 0.0,
+  "mean_first_success": null
+ },
+ "train_seeds_0_9": {
+  "success_once": 0.1,
+  "success_at_end": 0.0,
+  "mean_first_success": 1.0
+ }
+}

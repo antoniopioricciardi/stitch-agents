@@ -140,8 +140,8 @@ class StitchPickCubeEnv(PickCubeEnv):
                 self.goal_site.set_pose(Pose.create_from_pq(p))
 
 
-# 120 steps: converted motion-planning demos take 49-94 control steps, more than PickCube's default 50
-register_env("StitchPickCube-v1", max_episode_steps=120)(StitchPickCubeEnv)
+# 160 steps: ~2x the mean converted demo length (~78 steps; ManiSkill's advice for imitation learning)
+register_env("StitchPickCube-v1", max_episode_steps=160)(StitchPickCubeEnv)
 
 
 def make_env(visual=(0, 0, 0), task="default", robot="panda", obs_mode="rgb", control_mode="pd_joint_pos"):
