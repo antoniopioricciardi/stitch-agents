@@ -52,7 +52,7 @@ Step 9 (CARLA) can move to the NeurIPS/CoRL version.
 
 > Read CLAUDE.md and PROJECT.md. In `stitch/envs.py`, write `make_env(visual, task, robot)` for ManiSkill3, starting from a single task (PickCube or PushCube). The axes are:
 > - visual: camera pose ×3, texture/colour ×3, lighting ×2
-> - task: default vs changed friction/mass, and one goal variant
+> - task: default vs changed actuation (EE-delta bounds ×0.5), and one goal variant
 > - robot: Panda, plus a second arm or a locked joint
 >
 > Then write `scripts/check_envs.py`, which saves one RGB frame per variant to `results/` so I can inspect them, and prints the rendering FPS. Keep it minimal.
@@ -122,7 +122,7 @@ Step 9 (CARLA) can move to the NeurIPS/CoRL version.
 > - `fit_fm_anchors`: DINO features for frames from both domains (optionally foreground crops); keep mutual nearest neighbours that pass a cycle-consistency filter; robust Procrustes on the corresponding latents, then FGW.
 > - `fit_fewshot`: train T by BC through the frozen controller on K target demos.
 >
-> Evaluate separately on goal/reward variants (same dynamics) and physics variants (friction/mass), for K ∈ {0, 1, 5, 20}. Compare with retraining the controller using the same K, and with Dynamics Cycle-Consistency (Zhang et al. 2021, code `sjtuzq/Cycle_Dynamics`).
+> Evaluate separately on goal/reward variants (same dynamics) and actuation variants (EE-delta bounds ×0.5), for K ∈ {0, 1, 5, 20}. Compare with retraining the controller using the same K, and with Dynamics Cycle-Consistency (Zhang et al. 2021, code `sjtuzq/Cycle_Dynamics`).
 
 - **Exit:** a K-shot curve per task shift, with the zero-shot aligners at K = 0.
 - **Decision:** decide which task shifts are zero-shot and which are few-shot, and which correspondence source works where. This goes into the claim.

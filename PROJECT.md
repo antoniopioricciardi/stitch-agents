@@ -24,7 +24,7 @@ Reuse encoders and controllers that were trained separately: recombine them zero
 - **Unpaired cross-domain correspondence for control already exists:** Dynamics Cycle-Consistency (Zhang, Xiao, Efros, Pinto, Wang, ICLR 2021 oral). It learns correspondences across modality (vision vs state), physics (mass, friction) and morphology from unpaired, randomly collected data, then transfers the policy without fine-tuning.
   - *How we differ:* they train translation networks with adversarial and cycle losses on top of a pretrained forward model, and report shortcut/collapse issues when training end to end. We fit a closed-form linear map between modules that already exist.
   - *Consequence for the claim:* we cannot claim "first unpaired transfer in control". Our claim is post-hoc, closed-form, label-only alignment of independently trained modules, with a mechanism (action collapse).
-  - Code: `sjtuzq/Cycle_Dynamics`. Baseline for task/physics shift.
+  - Code: `sjtuzq/Cycle_Dynamics`. Baseline for task/actuation shift.
 - **Compatible representation learning** (image retrieval): CoReS gets representations that stay compatible across model updates by fixing the classifier weights to the vertices of a regular polytope, so no mapping between representations is ever learned. A 2026 follow-up shows that d-Simplex fixed classifiers give compatibility in expectation, and combines cross-entropy with a contrastive loss.
   - *How we differ:* they coordinate the trainings (every model shares the same fixed prototypes). Ours are trained independently, share only the label set, and the map is found afterwards. They work on retrieval; we work on closed-loop control.
   - *Tool we can borrow:* a fixed simplex (ETF) head would enforce the equal-angle geometry (NC2) that our encoders lack. Test it as a recipe, and as a "coordinated training" upper bound.
@@ -46,7 +46,7 @@ Independently trained visuomotor agents can be recombined without paired frames.
 Scope of the variations between the two agents:
 
 - **Visual variation:** textures, colours, lighting, camera pose, sensors.
-- **Task variation:** physics, goals, rewards, embodiment/joints.
+- **Task variation:** actuation/dynamics, goals, rewards, embodiment/joints.
 
 Where action labels do not share a meaning across domains, correspondences come from latent dynamics consistency, frozen foundation-model features, or K demos (few-shot).
 
@@ -55,9 +55,11 @@ Where action labels do not share a meaning across domains, correspondences come 
 | Regime | What the two domains share | Correspondence source |
 |---|---|---|
 | Visual shift, same task | Action semantics | Random same-action frame pairs (≈ action-class prototypes) |
-| Goal / reward shift | Dynamics (same physics), not action meaning | Latent dynamics consistency (TACO-style forward model); else foundation-mined anchors; else K demos |
-| Physics shift | Neither exactly | Foundation-mined anchors (mutual NN in DINO space + cycle filter), approximate dynamics consistency; else K demos |
+| Goal / reward shift (main task-shift result) | Dynamics (same physics), not action meaning | Latent dynamics consistency (TACO-style forward model); else foundation-mined anchors; else K demos |
+| Actuation / dynamics shift (EE-delta bounds ×0.5) | Neither exactly | Foundation-mined anchors (mutual NN in DINO space + cycle filter), approximate dynamics consistency; else K demos |
 | Embodiment shift | — | The controller gets proprioception (Policy-Stitching style); only perception is stitched |
+
+Note: a friction/mass variant was dropped. It did not change the expert's actions, because the motion planner is open-loop and ignores physics, so from the controller's point of view there was no task shift.
 
 ## Method sketch
 
@@ -68,7 +70,7 @@ Where action labels do not share a meaning across domains, correspondences come 
 1. **Correspondences.**
    - Visual shift: random pairs of frames that share the same action (≤100 per action), equivalent to action-class prototypes.
    - Goal/reward shift: latent dynamics consistency.
-   - Physics shift: foundation-mined pseudo-anchors.
+   - Actuation / dynamics shift: foundation-mined pseudo-anchors.
 2. **Map.** Orthogonal Procrustes by default, affine as an ablation. Refine with fused Gromov–Wasserstein, combining latent geometry, action agreement and optionally DINO similarity. An MLP map is used only in the few-shot setting.
 3. **Few-shot.** Fit T (or a low-rank correction to it) with BC through the frozen C_v on K target demos, K ∈ {0, 1, 5, 20}.
 4. **Stitchability score** (computed without rollouts). It combines:
@@ -90,7 +92,7 @@ Where action labels do not share a meaning across domains, correspondences come 
   - frozen DINOv2/v3 (+ small adapter) + controller
   - ILA
   - unpaired geometric alignment: GW, HGA, Latent Functional Maps, vec2vec-style
-  - Dynamics Cycle-Consistency (Zhang et al. 2021), for task/physics shift
+  - Dynamics Cycle-Consistency (Zhang et al. 2021), for task/actuation shift
 - **Should have:** Perception Stitching, R3L, DrQ-v2/SVEA, A Stitch in Time (CARLA part).
 - **Nice to have:** HPT / Devin et al., PoCo, fixed-simplex coordinated training (upper bound for training-time protocols).
 
@@ -98,7 +100,7 @@ Where action labels do not share a meaning across domains, correspondences come 
 
 - **Main: ManiSkill3.**
   - Visual axes: camera pose, textures/colours, lighting.
-  - Task axes: friction/mass, goal variants.
+  - Task axes: actuation (EE-delta bounds ×0.5), goal variants.
   - Embodiment: Panda vs xArm, and a locked joint.
   - Experts: motion-planning demos.
   - GPU-parallel, so it runs on one node.
@@ -170,3 +172,4 @@ Novelty check (29 Sep 2026, ~10 targeted searches): no paper found that aligns i
 - 2026-09-29 (TACO): not a replacement for SCIL (no action collapse expected). Candidate roles: hybrid loss for continuous control, labelling function, and latent dynamics-consistency aligner for goal/reward shift.
 - 2026-09-29 (Step 0c, Mario): SCIL + TACO (K=3) keeps SCIL's label-only alignability (matches SCIL in-game) and recovers native play lost to collapse (1-2: 654 → 1207). The within-action probe on 1-1 supports SCIL < BC ≈ SCIL+TACO (future-action accuracy: SCIL at the majority baseline, 0.624 vs 0.621; SCIL+TACO 0.654; BC 0.664), but the absolute signal is weak. SCIL+TACO K=3 is the leading candidate for Step 1b. Mario is frozen.
 - 2026-09-29 (F1): no-map agreement across levels is at chance (the controller gets stuck on "right"); always report it next to its chance level.
+- 2026-09-29: physics variant replaced by actuation; planner is open-loop, so friction/mass left expert actions unchanged.
