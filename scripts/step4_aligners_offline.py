@@ -13,6 +13,8 @@
 #   repro  cheap aligners on all 6 version permutations + levels, compared with 20260929_anchors_offline*
 #   pilot  seed 0, bc / scil, one version pair and one level direction, one draw of GW / FGW per epsilon
 #   full   v1 version pairs + levels, all aligners
+#   followup  same cases as full plus halves for scil_taco3; only GW (recording its objective per draw), except
+#             the scil_taco3 halves case, which runs all aligners
 # Run: uv run python scripts/step4_aligners_offline.py {repro|pilot|full}
 import itertools
 import json
@@ -28,18 +30,19 @@ from stitch.align import fit_action_pairs, fit_action_pairs_fgw, fit_gw, fit_ide
 MODE = sys.argv[1]
 ROOT = Path(__file__).resolve().parent.parent / "results"
 LAT = ROOT / "20260929_step4_latents"
-OUT = ROOT / f"20260929_step4_aligners_offline_{MODE}"
+OUT = ROOT / (("20260930" if MODE == "followup" else "20260929") + f"_step4_aligners_offline_{MODE}")
 SEEDS = [0, 1, 2] if MODE != "pilot" else [0]
 METHODS = ["bc", "scil", "scil_taco3"] if MODE != "pilot" else ["bc", "scil"]
 TRAIN_EPS = [1, 2, 3, 4, 5, 8, 9, 11, 12, 13]  # mario/data.py, 1-1
 SRC_EPS, TGT_EPS = TRAIN_EPS[:5], TRAIN_EPS[5:]
 ALL_VERSION_PAIRS = list(itertools.permutations([0, 1, 2], 2))
-VERSION_PAIRS = {"repro": ALL_VERSION_PAIRS, "pilot": [(0, 1)], "full": [(0, 1), (1, 0), (1, 2), (2, 1)]}[MODE]
+V1_PAIRS = [(0, 1), (1, 0), (1, 2), (2, 1)]
+VERSION_PAIRS = {"repro": ALL_VERSION_PAIRS, "pilot": [(0, 1)], "full": V1_PAIRS, "followup": V1_PAIRS}[MODE]
 LEVEL_PAIRS = [("1-1", "1-2"), ("1-2", "1-1")] if MODE != "pilot" else [("1-1", "1-2")]  # (played, controller)
 EPS = [0.0005, 0.001, 0.005]  # entropic regularisation on [0, 1]-scaled costs; chosen by plan sharpness (pilot)
 N_DRAWS, N_DRAWS_GW = 5, 3 if MODE != "pilot" else 1
 GW = MODE != "repro"
-HALF_METHODS = ["bc", "scil"] if MODE == "full" else []
+HALF_METHODS = {"full": ["bc", "scil"], "followup": METHODS}.get(MODE, [])
 REF = {"bc": (.718, .630, .682), "scil": (.762, .754, .844), "scil_taco3": (.768, .750, .827)}  # saps, pairs v / l
 
 _cache = {}
@@ -88,7 +91,8 @@ def plan_stats(diag, ys, yt):
     same = ls[:, None] == lt[None, :]
     n = len(P)
     rows = P / P.sum(1, keepdims=True)
-    return {"label_acc": float((P * same).sum() / P.sum()), "label_chance": float(same.mean()),
+    return {**({"gw_obj": diag["obj"]} if "obj" in diag else {}),
+            "label_acc": float((P * same).sum() / P.sum()), "label_chance": float(same.mean()),
             "partners": float(np.exp(-(rows * np.log(rows + 1e-300)).sum(1)).mean()),
             "marg_err": float(np.abs(P.sum(1) - 1 / n).sum() + np.abs(P.sum(0) - 1 / n).sum()),
             "nan": bool(np.isnan(P).any())}
@@ -113,6 +117,7 @@ def main():
                        "agree": float(np.mean(agree)), "agree_draws": agree, "secs": float(np.mean(secs))}
                 for k in (stats[0] if stats else {}):
                     row[k] = float(np.mean([s[k] for s in stats]))
+                    row[k + "_draws"] = [s[k] for s in stats]
                 rows.append(row)
                 print(f"{method:10s} s{seed} {pair:18s} {name:22s} agree {row['agree']:.3f}  {row['secs']:6.2f}s"
                       + (f"  label_acc {row['label_acc']:.3f} (chance {row['label_chance']:.3f})  partners {row['partners']:.0f}"
@@ -128,20 +133,24 @@ def main():
                     return R, b, d
                 return f
 
-            rec("identity", [no_diag(lambda: fit_identity(Zs, Zt))])
-            if paired is not None:
-                rec("saps", [no_diag(lambda: fit_procrustes_paired(*paired))])
-            for pc in (100, 5):
-                fns = [no_diag(lambda d=d: fit_action_pairs(Zs, Zt, ys, yt, np.random.default_rng(1000 * seed + d),
-                                                           per_class=pc)) for d in range(N_DRAWS)]
-                rec(f"pairs{pc}", fns)
-                if GW:
-                    rec(f"pairs{pc}_{N_DRAWS_GW}draws", fns[:N_DRAWS_GW])
+            only_gw = MODE == "followup" and not (setting == "halves" and method == "scil_taco3")
+            if not only_gw:
+                rec("identity", [no_diag(lambda: fit_identity(Zs, Zt))])
+                if paired is not None:
+                    rec("saps", [no_diag(lambda: fit_procrustes_paired(*paired))])
+                for pc in (100, 5):
+                    fns = [no_diag(lambda d=d: fit_action_pairs(Zs, Zt, ys, yt, np.random.default_rng(1000 * seed + d),
+                                                               per_class=pc)) for d in range(N_DRAWS)]
+                    rec(f"pairs{pc}", fns)
+                    if GW:
+                        rec(f"pairs{pc}_{N_DRAWS_GW}draws", fns[:N_DRAWS_GW])
             if not GW:
                 continue
             for eps in EPS:
                 rec(f"gw_eps{eps}", [with_diag(fit_gw, rng=np.random.default_rng(1000 * seed + 100 + d), eps=eps)
                                      for d in range(N_DRAWS_GW)])
+            if only_gw:
+                continue
             for pc, eps in itertools.product((100, 5), EPS):
                 # same rng seeds as action_pairs draws, so the initial map R0 is the same draw
                 rec(f"fgw{pc}_eps{eps}", [with_diag(fit_action_pairs_fgw, ys=ys, yt=yt,

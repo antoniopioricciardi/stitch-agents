@@ -55,6 +55,10 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
   - **H3 partly supported.** Within one level, fitting on disjoint halves drops SCIL GW from .670 (label accuracy .74) to .405 (.41), while action_pairs barely moves (.731 vs .743 on v1 pairs; .73 vs .73 on v0→v1 alone). But scil_taco3 GW works *across* levels (.818, every seed) and fails in some v0→v1 seeds, so "different levels = different state distributions" does not explain everything. **Claim to test, not a fact:** "pure geometric alignment requires matched state distributions; label alignment does not." Evidence for: the halves test. Evidence against: scil_taco3 across levels.
 - **Next (not run):** check whether the GW objective (label-free) predicts which GW plans are good; if not, GW stays out of the method as more than a baseline. Test the halves split for scil_taco3 and in ManiSkill (Step 4 proper) before using this claim in the paper.
 
+**Follow-ups (2026-09-30, hypotheses written before running):**
+- **F1, halves for scil_taco3** (same setup as bc/scil, all aligners). If GW still works on mismatched halves, that favours a "shared dynamics structure" explanation over "matched state distributions". My expectation: it fails, like SCIL (.41). SCIL+TACO's cross-level success would then be about 1-1 and 1-2 sharing a whole-run structure that disjoint halves of one level do not.
+- **F2, is the GW objective a label-free failure signal?** Over all GW fits (per draw, same seeds as the full run, so the same plans), Spearman ρ between the final GW objective (the square-loss GW term Σ (C1_ik − C2_jl)² P_ij P_kl, without entropy) and (a) plan label accuracy, (b) agreement. Pooled and within each (encoder, pair type, ε) group. Hypothesis: within a group, lower objective ↔ higher label accuracy (ρ ≲ −0.5), because a wrong cluster swap should distort the geometry more than the right matching; pooled ρ is confounded by encoder type.
+
 ---
 
 ## 2026-09-29 — Step 0c: does a TACO temporal loss keep or break label-only alignability?

@@ -58,14 +58,22 @@ def barycentric_procrustes(Zs, Zt, P):
     return fit_procrustes_paired(Zs, P @ Zt / P.sum(1, keepdims=True))
 
 
+def gw_objective(C1, C2, P):
+    # square-loss GW term sum_ijkl (C1_ik - C2_jl)^2 P_ij P_kl, without the entropy, using the plan's actual
+    # marginals p = P 1, q = P^T 1: p^T C1^2 p + q^T C2^2 q - 2 <C1 P C2, P>
+    p, q = P.sum(1), P.sum(0)
+    return float(p @ C1**2 @ p + q @ C2**2 @ q - 2 * ((C1 @ P @ C2) * P).sum())
+
+
 def fit_gw(Zs, Zt, rng, eps, n=1000, diag=None, **info):
     # Pure geometry, label-free: uniform random subsample (not stratified by action), entropic GW between the
     # two intra-space distance matrices with uniform marginals, then barycentric Procrustes.
-    # diag (optional dict) receives the plan and subsample indices, for evaluation only.
+    # diag (optional dict) receives the plan, subsample indices and final GW objective (label-free).
     i_s, i_t = rng.permutation(len(Zs))[:n], rng.permutation(len(Zt))[:n]
-    P = ot.gromov.entropic_gromov_wasserstein(structure(Zs[i_s]), structure(Zt[i_t]), epsilon=eps)
+    C1, C2 = structure(Zs[i_s]), structure(Zt[i_t])
+    P = ot.gromov.entropic_gromov_wasserstein(C1, C2, epsilon=eps)
     if diag is not None:
-        diag.update(P=P, i_s=i_s, i_t=i_t)
+        diag.update(P=P, i_s=i_s, i_t=i_t, obj=gw_objective(C1, C2, P))
     return barycentric_procrustes(Zs[i_s], Zt[i_t], P)
 
 
