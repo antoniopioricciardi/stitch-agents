@@ -16,7 +16,7 @@ from data import DATA, N_CLASSES, load_episodes
 from models import LATENT, Controller, Encoder, to_input
 
 ROOT = Path(__file__).resolve().parent.parent / "results"
-DEVICE = torch.device("cuda")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 FROZEN = {"resnet18": 512, "dinov2": 384}  # backbone feature dim
 SIZE = {"nature": 84, "resnet18": 224, "dinov2": 224}
 IMAGENET_MEAN = torch.tensor([0.485, 0.456, 0.406], device=DEVICE).view(1, 3, 1, 1)
@@ -93,7 +93,7 @@ def oracle_dir(arch, level, version):
 
 def load_model(arch, method, seed, level, version):
     enc, ctrl = new_model(arch)
-    ck = torch.load(oracle_dir(arch, level, version) / f"{method}_s{seed}.pt")
+    ck = torch.load(oracle_dir(arch, level, version) / f"{method}_s{seed}.pt", map_location=DEVICE)
     enc.load_state_dict(ck["encoder"])
     ctrl.load_state_dict(ck["controller"])
     return enc.eval(), ctrl.eval()
