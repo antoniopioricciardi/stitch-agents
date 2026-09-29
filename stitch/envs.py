@@ -29,19 +29,21 @@ CAMERAS = [
 LOOKS = [
     None,
     dict(cube=[1.0, 0.85, 0.0, 1], table=[0.25, 0.25, 0.28, 1], floor=[0.85, 0.8, 0.7, 1]),
-    dict(cube=[0.1, 0.3, 1.0, 1], table="checker", floor=[0.3, 0.2, 0.35, 1]),
+    dict(cube=[0.0, 0.9, 1.0, 1], table="checker", floor=[0.3, 0.2, 0.35, 1]),
 ]
 
 # visual axis 3: lighting. 0 = ManiSkill default, 1 = dim, warm, low light from the left with shadows.
 N_LIGHTS = 2
 
-# task axis. Cube friction/density: default is ManiSkill's (0.3 static/dynamic, 1000 kg/m^3 -> 0.064 kg).
-# Note: Panda fingers have friction 2.0 and PhysX averages the two materials, so cube friction mostly
-# matters for cube-table contact.
+# task axis. Cube friction/density: ManiSkill's default (0.3 static/dynamic, 1000 kg/m^3 -> 0.064 kg).
+# arm_scale multiplies the EE-delta controller's action bounds (pos and rot, default +-0.1): with 0.5 the same
+# normalized action moves the arm half as far, so the expert needs different action values for the same motion.
+# A cube-physics variant (friction 0.1, 10x mass) was dropped: the open-loop planner's actions did not change
+# (EXPERIMENTS.md, Step 1).
 TASKS = {
-    "default": dict(friction=0.3, density=1000.0),
-    "physics": dict(friction=0.1, density=10000.0),  # slippery and 10x heavier (0.64 kg)
-    "goal": dict(friction=0.3, density=1000.0),      # goal region moved to the robot's left, see below
+    "default": dict(friction=0.3, density=1000.0, arm_scale=1.0),
+    "actuation": dict(friction=0.3, density=1000.0, arm_scale=0.5),
+    "goal": dict(friction=0.3, density=1000.0, arm_scale=1.0),  # goal region moved to the robot's left, see below
 }
 # goal variant: goal y in [0.15, 0.25] instead of [-0.1, 0.1] (disjoint from the default), x and z as default.
 GOAL_Y = (0.15, 0.25)
@@ -49,11 +51,12 @@ GOAL_Y = (0.15, 0.25)
 ROBOTS = {"panda": "panda", "xarm6": "xarm6_robotiq"}
 
 
-def checker_texture(n=8, px=32):
-    # (n*px, n*px, 4) uint8 checkerboard, light/dark grey
-    board = (np.indices((n, n)).sum(0) % 2).repeat(px, 0).repeat(px, 1)
+def checker_texture(n=(24, 48), px=8):
+    # (n0*px, n1*px, 4) uint8 checkerboard, light/dark grey. The box UVs span a whole face, so on the
+    # 2.42 x 1.21 m table top 48 x 24 squares are ~5 cm each. Mipmaps limit aliasing at 128x128.
+    board = (np.indices(n).sum(0) % 2).repeat(px, 0).repeat(px, 1)
     g = np.where(board, 200, 60).astype(np.uint8)
-    return sapien.render.RenderTexture2D(np.stack([g, g, g, np.full_like(g, 255)], -1), "R8G8B8A8Unorm")
+    return sapien.render.RenderTexture2D(np.stack([g, g, g, np.full_like(g, 255)], -1), "R8G8B8A8Unorm", mipmap_levels=6)
 
 
 def material(spec):
@@ -80,6 +83,11 @@ class StitchPickCubeEnv(PickCubeEnv):
         # set before super().__init__, which builds the scene
         self.cam, self.look, self.light, self.task = cam, look, light, task
         super().__init__(*args, **kwargs)
+        if "ee_delta" in self.control_mode:
+            # normalized action a in [-1, 1] -> delta = a * bound; the replay conversion reads the same bounds
+            arm = self.agent.controller.controllers["arm"]
+            arm.action_space_low *= TASKS[task]["arm_scale"]
+            arm.action_space_high *= TASKS[task]["arm_scale"]
 
     @property
     def _default_sensor_configs(self):
@@ -132,8 +140,8 @@ class StitchPickCubeEnv(PickCubeEnv):
                 self.goal_site.set_pose(Pose.create_from_pq(p))
 
 
-# 100 steps: motion-planning demos take ~85-90 control steps, more than PickCube's default 50
-register_env("StitchPickCube-v1", max_episode_steps=100)(StitchPickCubeEnv)
+# 120 steps: converted motion-planning demos take 49-94 control steps, more than PickCube's default 50
+register_env("StitchPickCube-v1", max_episode_steps=120)(StitchPickCubeEnv)
 
 
 def make_env(visual=(0, 0, 0), task="default", robot="panda", obs_mode="rgb", control_mode="pd_joint_pos"):
@@ -142,3 +150,10 @@ def make_env(visual=(0, 0, 0), task="default", robot="panda", obs_mode="rgb", co
         "StitchPickCube-v1", cam=cam, look=look, light=light, task=task, robot_uids=ROBOTS[robot],
         obs_mode=obs_mode, control_mode=control_mode, sim_backend="cpu", render_mode="rgb_array",
     )
+
+
+def proprio(env):
+    # (P,) robot-only proprioception: qpos, qvel, tcp pose (7). Panda: P = 9 + 9 + 7 = 25.
+    # No goal position: the encoder has to read the goal from pixels.
+    a = env.unwrapped.agent
+    return torch.cat([a.robot.get_qpos()[0], a.robot.get_qvel()[0], a.tcp.pose.raw_pose[0]]).cpu().numpy()

@@ -19,6 +19,51 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 
 ---
 
+## 2026-09-29 — Step 1: ManiSkill3 PickCube variants + motion-planning demos
+
+- **Env** (`stitch/envs.py`, ManiSkill 3.0.1): PickCube, Panda / xArm6. Visual: camera ×3, look (colour/texture) ×3,
+  light ×2. Task: default / actuation (EE-delta action bounds ×0.5; replaced physics = cube friction 0.3 → 0.1,
+  10× mass, see Result 2) / goal (goal y ∈ [0.15, 0.25], disjoint from default). Goal sphere visible to the camera. **Missing: locked-joint robot** (mplib's screw planner can't mask joints).
+- **Frame check** (`results/20260929_step1_check_envs/`): all variants render; same seed → identical initial state
+  across visual variants; a state restored in another visual variant renders the same poses (paired frames for SAPS).
+  Goal region inside the frame for all 3 cameras. 1 CPU env, 128×128 RGB: ~650 steps/s step+render, ~900 frames/s render only.
+- **Demos:** mplib motion planner (joint targets) → converted to EE delta pose (7-d, both robots) by ManiSkill's
+  replay conversion → frames rendered from the converted rollout's states in cam0 and cam1.
+- **Expectations (before running):**
+  - Panda, default task, N = 10: planner success ~100% (20/20 in a probe), conversion success ≥ 90%,
+    ~85–95 EE steps per demo, ~2–3 s per demo (0.8 s planning + conversion + rendering).
+  - Physics vs default (same seeds): joint plans identical (the planner is open-loop in geometry), EE actions
+    nearly identical in every phase. If so, `physics` is not a task shift and is replaced by `actuation`.
+- **Result 1, demos** (Panda, cam0 + cam1 rendered from the same states, N = 10, seeds 0–9; `results/20260929_step1_demos_<task>_panda/`):
+
+  | task | planner success | conversion success | EE steps, mean (range) | time per demo |
+  |---|---|---|---|---|
+  | default | 10/10 | 10/10 | 72.9 (49–91) | 0.53 s |
+  | physics (dropped) | 10/10 | 10/10 | 72.8 (49–91) | 0.50 s |
+  | actuation | 10/10 | 10/10 | 73.2 (49–94) | 0.51 s |
+
+  Stored EE actions replayed open-loop from the stored first state: 10/10 default demos succeed (max state diff ≤ 0.02).
+  Every step also stores the planner phase and `steps_to_grasp` (0 when the gripper has closed, negative after).
+- **Result 2, does the task variant change the expert?** Same seeds, EE-delta actions per phase vs default
+  (arm |a| ratio = mean |action| variant / default over the 6 arm dims; `results/20260929_step1_compare_<task>_panda/`):
+
+  | phase (mean length) | physics: arm \|a\| ratio, max same-seed \|Δa\| | actuation: arm \|a\| ratio, max same-seed \|Δa\| |
+  |---|---|---|
+  | approach (23.6) | 1.00, 0.000 | 1.39, 0.84 |
+  | descend (14.1) | 1.00, 0.000 | 1.91, 0.21 |
+  | grasp (6.0) | —, 0.014 | —, 0.03 |
+  | carry = lift + move to goal, one screw motion (29.2) | 1.27, 0.075 | 1.91, 0.40 |
+
+  Grasp start step: identical to default for physics in 10/10 seeds, for actuation in 9/10 (one demo +3 steps from clipping).
+- **Takeaway:**
+  - Motion-planning demos are cheap (~0.5 s each, 1 CPU env) and 100% successful on Panda/default; ≥100 per combination is minutes.
+  - **Physics (friction 0.1, 10× mass) is not a task shift for this expert**: identical actions until the grasp,
+    ≤0.075 difference while carrying. Replaced by **actuation** (EE-delta bounds ×0.5), which roughly doubles the
+    arm actions for the same motion. Physics could only come back with an expert that reacts to it.
+  - Weak axis: camera 2 is close to camera 0 (kept on purpose as the mild shift).
+
+---
+
 ## 2026-09-29 — Step 0c: does a TACO temporal loss keep or break label-only alignability?
 
 - **Hypotheses:**

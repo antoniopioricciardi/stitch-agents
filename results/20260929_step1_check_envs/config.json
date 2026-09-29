@@ -1,0 +1,28 @@
+{
+ "seed": 0,
+ "variants": [
+  "cam0_look0_light0_default_panda",
+  "cam0_look0_light1_default_panda",
+  "cam0_look1_light0_default_panda",
+  "cam0_look1_light1_default_panda",
+  "cam0_look2_light0_default_panda",
+  "cam0_look2_light1_default_panda",
+  "cam1_look0_light0_default_panda",
+  "cam1_look0_light1_default_panda",
+  "cam1_look1_light0_default_panda",
+  "cam1_look1_light1_default_panda",
+  "cam1_look2_light0_default_panda",
+  "cam1_look2_light1_default_panda",
+  "cam2_look0_light0_default_panda",
+  "cam2_look0_light1_default_panda",
+  "cam2_look1_light0_default_panda",
+  "cam2_look1_light1_default_panda",
+  "cam2_look2_light0_default_panda",
+  "cam2_look2_light1_default_panda",
+  "cam0_look0_light0_actuation_panda",
+  "cam0_look0_light0_goal_panda",
+  "cam0_look0_light0_default_xarm6",
+  "cam1_look1_light0_default_xarm6"
+ ],
+ "fps_steps": 200
+}

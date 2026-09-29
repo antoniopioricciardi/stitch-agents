@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from stitch.envs import CAMERAS, LOOKS, N_LIGHTS, TASKS, make_env
+from stitch.envs import CAMERAS, GOAL_Y, LOOKS, N_LIGHTS, TASKS, make_env
 
 SEED = 0
 FPS_STEPS = 200
@@ -89,6 +89,27 @@ for ax, f, n in zip(axes, [frame(obs_a), frame(obs_b)], ["A cam0_look0_light0", 
 fig.tight_layout()
 fig.savefig(OUT / "paired_rerender.png", dpi=150)
 
+# goal variant: is the goal sphere inside the frame for every camera over the whole goal region?
+# Project the 8 corners of the region (x, y, z ranges of the goal variant) and require the sphere
+# (centre +- its radius in pixels) to lie inside the 128x128 image. Occlusion by the robot is not checked.
+goal_view = {}
+for c in range(len(CAMERAS)):
+    env = make_env((c, 0, 0), "goal")
+    obs, _ = env.reset(seed=SEED)
+    u = env.unwrapped
+    K = obs["sensor_param"]["base_camera"]["intrinsic_cv"][0].cpu().numpy()  # (3, 3)
+    E = obs["sensor_param"]["base_camera"]["extrinsic_cv"][0].cpu().numpy()  # (3, 4) world -> camera
+    xs = u.cube_spawn_center[0] - u.cube_spawn_half_size, u.cube_spawn_center[0] + u.cube_spawn_half_size
+    zs = u.cube_half_size, u.cube_half_size + u.max_goal_height
+    corners = np.array([[x, y, z, 1.0] for x in xs for y in GOAL_Y for z in zs])  # (8, 4)
+    pc = corners @ E.T                                    # (8, 3) camera frame, z = depth
+    uv = pc[:, :2] / pc[:, 2:] * K[[0, 1], [0, 1]] + K[[0, 1], [2, 2]]
+    r_px = u.goal_thresh / pc[:, 2] * K[0, 0]             # sphere radius in pixels
+    inside = (uv - r_px[:, None] >= 0).all(1) & (uv + r_px[:, None] < 128).all(1)
+    goal_view[f"cam{c}"] = dict(all_inside=bool(inside.all()), uv_min=uv.min(0).round(1).tolist(), uv_max=uv.max(0).round(1).tolist())
+    print(f"goal region in cam{c}: all corners inside = {inside.all()}, u,v range {uv.min(0).round(1)} .. {uv.max(0).round(1)}")
+    env.close()
+
 json.dump(dict(seed=SEED, variants=names, fps_steps=FPS_STEPS), open(OUT / "config.json", "w"), indent=1)
-json.dump(dict(fps=fps, init_state_max_diff=float(max_diff), paired_pose_diff=pose_diff), open(OUT / "metrics.json", "w"), indent=1)
+json.dump(dict(fps=fps, init_state_max_diff=float(max_diff), paired_pose_diff=pose_diff, goal_view=goal_view), open(OUT / "metrics.json", "w"), indent=1)
 print("frames in", OUT)
