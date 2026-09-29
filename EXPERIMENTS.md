@@ -25,8 +25,33 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
   - **H1:** a TACO-only encoder (temporal InfoNCE between [latent of frame t + embedded actions t..t+K−1] and the latent of frame t+K; K ∈ {1, 3}; controller trained with BC) does not collapse, and aligns from labels about as badly as BC.
   - **H2:** SCIL + TACO (SupCon directly on the latent, TACO on its own small projection heads) keeps SCIL's collapse and label-only alignability, with equal or better native play.
 - **Setup:** Nature CNN, 1-1 v0/v1/v2 and 1-2 v0, 3 seeds, 50 epochs, same recipe as BC/SCIL (whose agents are reused). With skip 4, "t+K" is K decisions later (4K NES frames). TACO: action embedding (8 → 32) per step, concatenated over K steps; query head MLP([z_t, actions]) → 128, key head MLP(z_{t+K}) → 128, cosine InfoNCE (τ = 0.1), in-batch negatives, weight 1. The TACO term uses its own batch of 1024 transitions per step (from within-episode pairs), while cross-entropy / SupCon keep batch 256 and the same number of steps as the existing agents. Pilot first (SCIL+TACO, K = 3, v0, seed 0) to check the losses don't conflict.
-- **Result:**
+- **Pilot:** no conflict. All three losses decrease smoothly; SupCon ends at 4.65 (SCIL alone ≈ 4.5); NC1 0.74 vs 0.59 for SCIL (same seed).
+- **Result** (Nature CNN, mean over 4 domains × 3 seeds; alignment = random same-action pairs; in-game % of native; `results/20260929_step0c_table/`):
+
+  | | NC1 | eff. rank | var. in centroid span | native max x, 1-1 / 1-2 (flags) | offline agreement, versions / levels | in-game, v1 pairs | in-game, cross-level |
+  |---|---|---|---|---|---|---|---|
+  | BC | 4.97 | 43.8 | 23% | 1515 / 1075 (11%) | .630 / .682 | 703 (49%) | 488 (38%) |
+  | SCIL | 0.47 | 6.7 | 71% | 1562 / 654 (8%) | .754 / .844 | 1366 (91%) | 999 (99%) |
+  | TACO K=1 | 8.28 | 59.1 | 16% | 1532 / 1133 (10%) | .618 / .638 | 540 (37%) | 464 (35%) |
+  | TACO K=3 | 7.61 | 59.9 | 16% | 1629 / 974 (9%) | .625 / .659 | 491 (30%) | 308 (25%) |
+  | SCIL+TACO K=1 | 0.62 | 8.3 | 63% | 1651 / 773 (12%) | .748 / .822 | 1212 (77%) | 811 (73%) |
+  | **SCIL+TACO K=3** | **0.65** | 8.7 | 61% | **1670 / 1207 (18%)** | **.750 / .827** | **1499 (97%)** | 966 (68%) |
+
+  Cross-level % averages both directions; SCIL's 99% is inflated by its weak native 1-2 agent (654), so compare raw distance there (SCIL 999 vs SCIL+TACO K=3 966).
+- **t-SNE** (1-1 training frames, `results/20260929_step0c_tsne/`): BC shows no action structure. SCIL shows tight, separated clusters per action. TACO alone shows long curved filaments that follow trajectories in time, with actions mixed along them (organised by time, not action). SCIL+TACO keeps SCIL's action clusters, with curved temporal strands inside the large clusters (R, R+B).
 - **Takeaway:**
+  - **H1 confirmed:** TACO alone does not collapse (NC1 ≈ 8, even less than BC) and aligns from labels as badly as or worse than BC (30–37% in-game on the v1 pairs).
+  - **H2 confirmed for K = 3:** SCIL+TACO keeps SCIL's collapse and label-only alignability. Alignment *matches* SCIL (97% vs 91% in-game on the v1 pairs is within noise; same raw distance across levels), it does not beat it. K = 1 aligns a bit worse in-game (77% / 73%).
+  - **The main gain is native play.** SCIL alone hurts 1-2 (654 vs BC 1075); SCIL+TACO recovers it (1207, 18% flags overall vs SCIL's 8%). So the collapse-versus-control tradeoff already appears in Mario, and the temporal term resolves it.
+  - **Supports the PLAN Step 0c decision "SCIL+TACO keeps alignability"** → it goes into the Step 1b candidate list as the leading hybrid (K = 3).
+- **Open control for the paper (not run):** the TACO term used its own batch of 1024 transitions per step *on top of* the 256-frame CE/SupCon batch, so TACO variants see more frames per step. A control with matched frames per step (or TACO on the same 256 frames) is needed before claiming the native-play gain comes from the temporal loss itself.
+- **Next:** Step 1 / 1b (ManiSkill). The within-action information probe is where TACO should matter most.
+
+**Follow-ups (hypotheses written before running):**
+- **F1, seed pairing in notebook section 7.2:** SCIL+TACO K=3 has high no-map agreement (0.44 / 0.50 vs SCIL 0.19 / 0.48). Hypothesis: not a seed artefact (the notebook uses seed 0 for 1-1 and seed 1 for 1-2, so encoder and controller never share an initialisation); the no-map value is chance-level agreement driven by the action marginals (the other controller mostly outputs R, the native agent predicts R about half the time).
+- **F2, within-action information probe:** for BC, SCIL and SCIL+TACO K=3, within each large action cluster (R, R+A, R+B, NOOP), a linear probe from the latent to (a) Mario's x-velocity, (b) the action 3 decisions later, (c) decisions until the next jump onset. Held-out frames; mean within-cluster R² (accuracy for b). Hypothesis: SCIL < BC ≈ SCIL+TACO.
+- **F1 result:**
+- **F2 result:**
 
 ---
 
