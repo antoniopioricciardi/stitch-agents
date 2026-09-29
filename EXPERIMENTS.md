@@ -19,6 +19,18 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 
 ---
 
+## 2026-09-29 — Step 4 (offline, Mario latents): GW and action-pair + fused-GW aligners
+
+- **Hypotheses:**
+  - **H1:** GW alone (label-free) < action_pairs. Pure geometry cannot recover the map. Expected failure mode: collapsed SCIL clusters of similar size get swapped by a label-blind matcher, giving plausible geometry but the wrong actions. This shows up as low plan label accuracy (fraction of transported mass landing on same-action frames).
+  - **H2:** action_pairs_fgw ≈ action_pairs with all pairs (≤100 per action), and better than action_pairs with few pairs (5 per action).
+- **Setup:** offline only, on exported latents (`mario/export_latents.py` → `results/20260929_step4_latents/`). Nature CNN bc / scil / scil_taco3, seeds 0–2, encoder seed s + controller seed s+1. Settings: v1 version pairs (v0→v1, v1→v0, v1→v2, v2→v1; unpaired fits on disjoint episodes) and cross-level (1-1 ↔ 1-2). Agreement = stitched controller vs the native agent's action on held-out frames.
+  - Aligners: identity; SAPS (versions only); gw (2–3 ε values, every ε reported, none selected on agreement); action_pairs at ≤100 and at 5 per action (5 draws, plus the same first 3 draws); action_pairs_fgw at ≤100 and at 5 per action (3 draws, α = 0.5).
+  - GW/FGW run on 1000 frames per side, and the map is applied to all frames. GW subsamples uniformly (label-free). FGW with 5 per action: only the anchor frames keep labels; they are forced into the subsample, and pairs with unlabelled frames get a neutral mismatch of 0.5.
+  - Reproduction check first: identity / SAPS / action_pairs on all 6 version permutations must match `20260929_anchors_offline*`.
+
+---
+
 ## 2026-09-29 — Step 0c: does a TACO temporal loss keep or break label-only alignability?
 
 - **Hypotheses:**
