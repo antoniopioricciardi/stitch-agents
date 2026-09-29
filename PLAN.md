@@ -75,8 +75,11 @@ Step 9 (CARLA) can move to the NeurIPS/CoRL version.
 > 6. Rank-N-Contrast on continuous actions
 > 7. Fixed simplex (ETF) head on the cluster labels
 > 8. Hybrid: best of 2–5 + TACO temporal term (only if Step 0c supports it)
+> 9. Temporal anchors: anchor pairs matched on action + steps-to-grasp (or task phase). Test only if the probe-transfer test below shows a drop.
 >
-> For each: native success rate, NC1 / effective rank, label-only alignability (offline action agreement and closed-loop success of the cross-domain stitch, vs SAPS paired), and a within-action information probe (regress the continuous action from the latent within each cluster; report R²).
+> For each: native success rate, NC1 / effective rank, label-only alignability (offline action agreement and closed-loop success of the cross-domain stitch, vs SAPS paired), and a within-action information probe (regress the continuous action from the latent within each cluster; report R²). Also:
+> - **Probe-transfer test:** fit the within-action probe on the target encoder's latents and apply it to mapped source latents, T(E_u(o)). A drop relative to the target encoder itself means within-action information exists but isn't aligned by the map.
+> - **Probe recipe** (from Mario F2): centre the latents only (no per-unit scaling; near-dead ReLU units blow up), and choose the regularisation by cross-validation.
 
 - **Exit:** one table: candidate × {native success, stitched success, % of paired ceiling, within-cluster R²}.
 - **Decision:** pick the labelling/objective for the rest of the project. If nothing keeps both native performance and alignability, reframe: label-only alignment for coarse control, few-shot map refinement for fine control.

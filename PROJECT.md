@@ -116,7 +116,7 @@ Where action labels do not share a meaning across domains, correspondences come 
 
 ## Risks and falsifiers
 
-- **Collapse vs fine control.** Collapse is what makes label-only alignment work, but it discards within-action information that continuous control needs. If no labelling/objective keeps both alignability and native performance in ManiSkill, the method is limited to coarse/discrete control.
+- **Collapse vs fine control.** Collapse is what makes label-only alignment work, but it discards within-action information that continuous control needs. If no labelling/objective keeps both alignability and native performance in ManiSkill, the method is limited to coarse/discrete control. Even if within-action information is kept, label anchors do not align it; stitched performance can lag native performance for this reason.
 - **Frozen DINO + adapter matches our method on most axes.** Then we reposition the paper around task/embodiment shift and reuse of legacy encoders. Published evidence (OpenVLA; DINOv3 diffusion policy on PushT, 0.39 frozen vs 0.84 fine-tuned) and our Mario frozen-backbone runs suggest frozen backbones aren't free performance.
 - **Unpaired alignment stays well below the paired ceiling** (under ~70%) under visual shift.
 - **The stitchability score doesn't correlate** with closed-loop success.
@@ -154,8 +154,9 @@ Novelty check (29 Sep 2026, ~10 targeted searches): no paper found that aligns i
 4. Are foundation-mined anchors reliable under task shift, or do we need few-shot?
 5. Is an orthogonal map enough, or do we need affine/MLP?
 6. **How should continuous actions be labelled so that encoders stay alignable without losing within-action information?** (Step 1b.)
-7. Does a TACO-style temporal term preserve or destroy label-only alignability when combined with SupCon? (Step 0c.)
+7. Does a TACO-style temporal term preserve or destroy label-only alignability when combined with SupCon? (Step 0c.) *(Answered 2026-09-29 in Mario: the temporal term preserves alignability; see Decisions.)*
 8. Is latent dynamics consistency a reliable correspondence signal under goal/reward shift? (Step 5.)
+9. Label anchors only fix the map on the span of the action centroids. Is the within-action structure added by TACO aligned across encoders, or scrambled by the map? Candidate fixes: finer labels (action chunks, more clusters), temporal anchors (pair by action + steps-to-event).
 
 ## Decisions
 
@@ -167,3 +168,5 @@ Novelty check (29 Sep 2026, ~10 targeted searches): no paper found that aligns i
 - 2026-09-29: working claim reworded to "frame-free, label-aligned": we use no paired frames, but we do use action labels in both domains.
 - 2026-09-29 (novelty check): unpaired correspondence for control exists (Zhang et al. 2021), so the claim is now "post-hoc, closed-form, label-only alignment of independently trained modules, explained by action collapse". Added Zhang et al. 2021 as a baseline, and ACO/ADAT/TACO/imbalanced-NC to related work.
 - 2026-09-29 (TACO): not a replacement for SCIL (no action collapse expected). Candidate roles: hybrid loss for continuous control, labelling function, and latent dynamics-consistency aligner for goal/reward shift.
+- 2026-09-29 (Step 0c, Mario): SCIL + TACO (K=3) keeps SCIL's label-only alignability (matches SCIL in-game) and recovers native play lost to collapse (1-2: 654 → 1207). The within-action probe on 1-1 supports SCIL < BC ≈ SCIL+TACO (future-action accuracy: SCIL at the majority baseline, 0.624 vs 0.621; SCIL+TACO 0.654; BC 0.664), but the absolute signal is weak. SCIL+TACO K=3 is the leading candidate for Step 1b. Mario is frozen.
+- 2026-09-29 (F1): no-map agreement across levels is at chance (the controller gets stuck on "right"); always report it next to its chance level.
