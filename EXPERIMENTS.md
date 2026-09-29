@@ -50,8 +50,19 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 **Follow-ups (hypotheses written before running):**
 - **F1, seed pairing in notebook section 7.2:** SCIL+TACO K=3 has high no-map agreement (0.44 / 0.50 vs SCIL 0.19 / 0.48). Hypothesis: not a seed artefact (the notebook uses seed 0 for 1-1 and seed 1 for 1-2, so encoder and controller never share an initialisation); the no-map value is chance-level agreement driven by the action marginals (the other controller mostly outputs R, the native agent predicts R about half the time).
 - **F2, within-action information probe:** for BC, SCIL and SCIL+TACO K=3, within each large action cluster (R, R+A, R+B, NOOP), a linear probe from the latent to (a) Mario's x-velocity, (b) the action 3 decisions later, (c) decisions until the next jump onset. Held-out frames; mean within-cluster R² (accuracy for b). Hypothesis: SCIL < BC ≈ SCIL+TACO.
-- **F1 result:**
-- **F2 result:**
+- **F1 result:** confirmed, not a seed artefact. The notebook pairs 1-1 seed 0 with 1-2 seed 1, and a check over all (s, s+1) pairings gives the same picture. Without a map, the other level's controller collapses to one action (R for 69–100% of frames in most cases), so no-map agreement equals chance from the two agents' action frequencies (SCIL+TACO play 1-1: 0.44 vs 0.44 expected; all 12 cases at or below chance). SCIL's lower number (0.19) only reflects which action its unmapped controller gets stuck on.
+- **F2 result** (held-out frames, within-cluster linear probe with cross-validated regularisation, mean over the 4 clusters and 3 seeds; `results/20260929_step0c_probe/`):
+
+  | | velocity R² | action 3 decisions later: acc. (majority baseline) | decisions to next jump: R² |
+  |---|---|---|---|
+  | 1-1 BC | −0.18 | .664 (.621) | .097 |
+  | 1-1 SCIL | −0.96 | .624 (.621) | .045 |
+  | **1-1 SCIL+TACO K=3** | **−0.10** | **.654** (.621) | **.138** |
+  | 1-2 BC / SCIL / SCIL+TACO | −2.5 / −18.3 / −6.8 | .561 / .466 / .497 (.558) | −.01 / −1.93 / −.69 |
+
+  **Takeaway:** on 1-1 the ordering holds on all three targets, **SCIL < BC ≈ SCIL+TACO**: SCIL loses within-action information (future action at the majority baseline), and the temporal term recovers it. But the absolute signal is weak: velocity R² is negative for every method (linear probes from 9–10 human episodes do not generalise to held-out runs), and on 1-2 (small clusters, weak agents) the probe fails for all methods. Supportive, not conclusive; the real test of within-action information is the continuous-control probe in Step 1b.
+
+**Mario is frozen after this entry; the GPU goes to ManiSkill.**
 
 ---
 
