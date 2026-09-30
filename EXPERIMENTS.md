@@ -19,6 +19,43 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 
 ---
 
+## 2026-09-30 — Step 2e: is the visible goal sphere the cause? (hidden-sphere run + occlusion count)
+
+- **Protocol from now on:** final checkpoint (30k), mean of the last 3 checkpoints (20k/25k/30k) in brackets,
+  250 eval episodes per checkpoint (`--num_eval_episodes 250`), no best checkpoint.
+- **Setup:** (1) `StitchPickCubeHiddenGoal-v1` (our env, `goal_marker="hidden"`: pixel-identical to PickCube-v1),
+  our demos re-exported without the sphere, unmodified DP recipe, seed 1. (2) Occlusion count, no training: for our
+  first 100 demos, render each state with and without the sphere (segmentation) and count frames where sphere pixels
+  cover cube or gripper (hand + fingers) pixels, overall and within ±5 steps of the gripper closing.
+- **Hypotheses:** (1) ≈ 0.77, as on their env (the data is the same). (2) The sphere covers cube/gripper pixels in a
+  noticeable fraction of frames near the grasp (≥ 10%), much more than overall.
+- **Result 1, hidden sphere** (`results/20260930_step2e_dp_ourenv_hiddengoal_s1/`, 250 episodes, ~35 min):
+  **0.776 (last 3: 0.779)** success_once, 0.632 (0.616) success_at_end. Same as their env (0.77).
+- **Result 2, occlusion** (`results/20260930_step2e_goal_occlusion_{sphere,lollipop}/`, 100 demos, ~7.7k frames per
+  camera; "near grasp" = ±5 steps around the gripper closing):
+
+  | camera | frames where the marker covers cube/gripper: sphere | lollipop | cube pixels covered: sphere | lollipop |
+  |---|---|---|---|---|
+  | cam0 | 37% (near grasp 27%) | 32% (29%) | **10.2%** (5.0%) | **2.6%** (1.9%) |
+  | cam1 | 18% (8%) | 15% (14%) | 4.5% (1.8%) | 2.5% (1.9%) |
+  | cam2 | 36% (22%) | 35% (38%) | 6.7% (2.9%) | 2.2% (2.1%) |
+
+  (lollipop = 8 mm pole for this count; the pole was then thickened to 12 mm.)
+- **Takeaway:**
+  - **The visible goal sphere is the cause of the gap:** hidden, our env matches their env (0.78 vs 0.77).
+  - The sphere covers cube/gripper pixels often (37% of cam0 frames), most during the carry, not near the grasp as
+    hypothesised. The lollipop covers ~4× fewer cube pixels, though its thin pole still touches cube/gripper pixels in
+    a similar fraction of frames.
+  - Replacement marker, approved: **lollipop** (`goal_marker="lollipop"`, env `StitchPickCubeLollipop-v1`): magenta
+    1.25 cm sphere on a 12 mm vertical pole to the table, non-colliding (`results/20260930_step2e_goal_marker_lollipop/grid.png`).
+- **Known limitations (relevant once `goal_pos` leaves the state):**
+  - at some goal positions the hand hides the marker completely from cam0 (e.g. [-0.1, 0.1, 0.17]);
+  - low goals (z ≈ 0.03) are only a few pixels next to the cube, and magenta sits close to the red cube in look0.
+- **Next run, hypothesis:** lollipop visible in training and eval, `goal_pos` still in the state, seed 1, same
+  protocol: close to the hidden-sphere result (≥ 0.70).
+
+---
+
 ## 2026-09-30 — Step 2d: do our demos differ from ManiSkill's? (training-free)
 
 - **Setup:** `scripts/compare_demo_sets.py`, first 100 shared seeds, both sets in `pd_ee_delta_pos`. Their demos:

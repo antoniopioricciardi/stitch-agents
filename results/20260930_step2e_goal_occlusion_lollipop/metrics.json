@@ -1,0 +1,23 @@
+{
+ "cam0": {
+  "frames": 7743,
+  "any_covered": 0.3175771664729433,
+  "any_covered_near_grasp": 0.28909090909090907,
+  "cube_frac_covered": 0.026147390619622738,
+  "cube_frac_covered_near_grasp": 0.018858909338152232
+ },
+ "cam1": {
+  "frames": 7743,
+  "any_covered": 0.1516208188040811,
+  "any_covered_near_grasp": 0.13636363636363635,
+  "cube_frac_covered": 0.025317847430274754,
+  "cube_frac_covered_near_grasp": 0.018563918404827497
+ },
+ "cam2": {
+  "frames": 7743,
+  "any_covered": 0.35180162727624953,
+  "any_covered_near_grasp": 0.3781818181818182,
+  "cube_frac_covered": 0.022153236173599475,
+  "cube_frac_covered_near_grasp": 0.02075013028448643
+ }
+}

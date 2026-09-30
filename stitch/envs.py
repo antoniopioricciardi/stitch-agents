@@ -50,6 +50,10 @@ GOAL_Y = (0.15, 0.25)
 
 ROBOTS = {"panda": "panda", "xarm6": "xarm6_robotiq"}
 
+# goal marker "lollipop": sphere of half the goal threshold (0.025 m) on a vertical pole. Magenta: distinct from the
+# three cube colours (red, yellow, cyan) and from every table/floor colour.
+LOLLIPOP = dict(radius=0.0125, pole_radius=0.006, pole_length=0.4, color=[1.0, 0.0, 1.0, 1])  # 12 mm pole: 8 mm aliased to dashes in cam1
+
 
 def checker_texture(n=(24, 48), px=8):
     # (n0*px, n1*px, 4) uint8 checkerboard, light/dark grey. The box UVs span a whole face, so on the
@@ -79,9 +83,11 @@ def replace_visual(actor, half_size, local_p, spec):
 
 
 class StitchPickCubeEnv(PickCubeEnv):
-    def __init__(self, *args, cam=0, look=0, light=0, task="default", **kwargs):
-        # set before super().__init__, which builds the scene
-        self.cam, self.look, self.light, self.task = cam, look, light, task
+    def __init__(self, *args, cam=0, look=0, light=0, task="default", goal_marker="sphere", **kwargs):
+        # set before super().__init__, which builds the scene.
+        # goal_marker: "sphere" = PickCube's green goal sphere, visible to the camera; "hidden" = as PickCube
+        # (sensor cameras don't render it; diagnostic for the Step 2c gap); "lollipop" = see LOLLIPOP
+        self.cam, self.look, self.light, self.task, self.goal_marker = cam, look, light, task, goal_marker
         super().__init__(*args, **kwargs)
         if "ee_delta" in self.control_mode:
             # normalized action a in [-1, 1] -> delta = a * bound; the replay conversion reads the same bounds
@@ -118,11 +124,27 @@ class StitchPickCubeEnv(PickCubeEnv):
         builder.initial_pose = sapien.Pose(p=[0, 0, self.cube_half_size])
         self.cube = builder.build(name="cube")
 
-        self.goal_site = actors.build_sphere(
-            self.scene, radius=self.goal_thresh, color=[0, 1, 0, 1], name="goal_site",
-            body_type="kinematic", add_collision=False, initial_pose=sapien.Pose(),
-        )
-        # not added to self._hidden_objects: the encoder has to see the goal
+        if self.goal_marker == "lollipop":
+            # small sphere at the goal on a thin pole down to the table: marks the goal's height without covering
+            # the cube (the full-size sphere covered cube/gripper pixels in ~37% of cam0 frames, Step 2e).
+            # One kinematic actor; the pole is a fixed LOLLIPOP["pole_length"] long, the part below the table top
+            # is hidden inside the table. No collision.
+            builder = self.scene.create_actor_builder()
+            mat = sapien.render.RenderMaterial(base_color=LOLLIPOP["color"])
+            builder.add_sphere_visual(radius=LOLLIPOP["radius"], material=mat)
+            half = LOLLIPOP["pole_length"] / 2
+            # sapien cylinders lie along x: rotate 90 deg about y to make the pole vertical
+            builder.add_cylinder_visual(radius=LOLLIPOP["pole_radius"], half_length=half, material=mat,
+                                        pose=sapien.Pose(p=[0, 0, -half], q=[np.cos(np.pi / 4), 0, np.sin(np.pi / 4), 0]))
+            builder.initial_pose = sapien.Pose()
+            self.goal_site = builder.build_kinematic(name="goal_site")
+        else:
+            self.goal_site = actors.build_sphere(
+                self.scene, radius=self.goal_thresh, color=[0, 1, 0, 1], name="goal_site",
+                body_type="kinematic", add_collision=False, initial_pose=sapien.Pose(),
+            )
+        if self.goal_marker == "hidden":
+            self._hidden_objects.append(self.goal_site)
 
         if look:
             # table actor frame is rotated 90 deg about z; box matches the table's collision box
@@ -142,12 +164,15 @@ class StitchPickCubeEnv(PickCubeEnv):
 
 # 160 steps: ~2x the mean converted demo length (~78 steps; ManiSkill's advice for imitation learning)
 register_env("StitchPickCube-v1", max_episode_steps=160)(StitchPickCubeEnv)
+# same env with the goal sphere hidden from the camera: an env id, because the DP baseline builds envs from the id alone
+register_env("StitchPickCubeHiddenGoal-v1", max_episode_steps=160, goal_marker="hidden")(StitchPickCubeEnv)
+register_env("StitchPickCubeLollipop-v1", max_episode_steps=160, goal_marker="lollipop")(StitchPickCubeEnv)
 
 
-def make_env(visual=(0, 0, 0), task="default", robot="panda", obs_mode="rgb", control_mode="pd_joint_pos"):
+def make_env(visual=(0, 0, 0), task="default", robot="panda", obs_mode="rgb", control_mode="pd_joint_pos", goal_marker="sphere"):
     cam, look, light = visual
     return gym.make(
-        "StitchPickCube-v1", cam=cam, look=look, light=light, task=task, robot_uids=ROBOTS[robot],
+        "StitchPickCube-v1", cam=cam, look=look, light=light, task=task, robot_uids=ROBOTS[robot], goal_marker=goal_marker,
         obs_mode=obs_mode, control_mode=control_mode, sim_backend="cpu", render_mode="rgb_array",
     )
 

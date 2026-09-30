@@ -1,6 +1,6 @@
 """Glue for ManiSkill's Diffusion Policy baseline: export our pd_ee_delta_pos demos in ManiSkill's trajectory format.
 
-Usage: uv run python scripts/export_dp_demos.py
+Usage: uv run python scripts/export_dp_demos.py [goal_marker]   (sphere = default, hidden, ...; see stitch.envs)
 
 For each stored demo (results/20260930_step1_demos_default_panda_pos/demos.npz, seeds 0..499): reset our env
 (StitchPickCube-v1: cam0, default look/light/task, Panda, obs_mode rgb) with the demo's seed — this reproduces the
@@ -22,12 +22,13 @@ from mani_skill.utils.wrappers import RecordEpisode
 
 DEMOS = Path("results/20260930_step1_demos_default_panda_pos/demos.npz")
 CONTROL = "pd_ee_delta_pos"
-OUT = Path("results") / f"{date.today():%Y%m%d}_dp_ours_demos_default_panda_cam0"
+MARKER = sys.argv[1] if len(sys.argv) > 1 else "sphere"
+OUT = Path("results") / (f"{date.today():%Y%m%d}_dp_ours_demos_default_panda_cam0" + ("" if MARKER == "sphere" else f"_{MARKER}"))
 OUT.mkdir(parents=True, exist_ok=True)
 
 D = np.load(DEMOS)
 check_env = make_env(obs_mode="state", control_mode=CONTROL)
-rec_env = RecordEpisode(make_env((0, 0, 0), obs_mode="rgb", control_mode=CONTROL), output_dir=str(OUT),
+rec_env = RecordEpisode(make_env((0, 0, 0), obs_mode="rgb", control_mode=CONTROL, goal_marker=MARKER), output_dir=str(OUT),
                         trajectory_name=f"trajectory.rgb.{CONTROL}.physx_cpu", save_video=False, save_on_reset=False,
                         source_type="motionplanning", source_desc="stitch mplib demos converted to pd_ee_delta_pos")
 kept, skipped = [], []
@@ -47,5 +48,5 @@ for e in np.unique(D["episode"]):
     kept.append(seed)
 rec_env.close()
 print(f"kept {len(kept)} demos, skipped {len(skipped)} whose open-loop replay failed: {skipped}")
-json.dump(dict(demos=str(DEMOS), control_mode=CONTROL, env="StitchPickCube-v1 cam0 default panda"), open(OUT / "config.json", "w"), indent=1)
+json.dump(dict(demos=str(DEMOS), control_mode=CONTROL, goal_marker=MARKER, env="StitchPickCube-v1 cam0 default panda"), open(OUT / "config.json", "w"), indent=1)
 json.dump(dict(kept=len(kept), skipped=skipped, kept_seeds=kept), open(OUT / "metrics.json", "w"), indent=1)
