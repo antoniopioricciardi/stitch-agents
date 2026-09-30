@@ -1,7 +1,7 @@
 #!/bin/bash
 # ManiSkill's Diffusion Policy RGB baseline (third_party/maniskill_diffusion_policy, unmodified) with the settings of
 # run_dp_reference.sh, for any env id / demo file / seed. From Step 2e on: 250 eval episodes per checkpoint
-# (Step 2c ran with the default 100).
+# (Step 2c ran with the default 100). From Step 2f on: 50k iterations (TOTAL_ITERS overrides; earlier runs used 30k).
 # Usage (from the repo root): bash scripts/run_dp.sh <env-id> <demo-h5> <seed> <out-name>
 #   env-id: PickCube-v1 or stitch.envs:StitchPickCube-v1 (module:EnvId so eval workers import stitch.envs)
 set -e
@@ -14,6 +14,6 @@ PYTHONPATH=$ROOT:$ROOT/third_party/maniskill_diffusion_policy WANDB_MODE=offline
 uv run --project $ROOT python $ROOT/third_party/maniskill_diffusion_policy/train_rgbd.py --env-id $ENV_ID \
   --demo-path $DEMO \
   --control-mode "pd_ee_delta_pos" --sim-backend "physx_cpu" --num-demos 100 --max_episode_steps 100 \
-  --total_iters 30000 --obs-mode "rgb" \
+  --total_iters ${TOTAL_ITERS:-50000} --obs-mode "rgb" \
   --exp-name $NAME \
   --num_eval_episodes 250 --demo_type=motionplanning --track --seed $SEED

@@ -19,6 +19,25 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 
 ---
 
+## 2026-09-30 — Step 2f: lollipop at 50k iterations, with and without the goal in the state
+
+- **Setup:** unmodified DP recipe, lollipop visible, our 100 demos (all DP runs so far used `--num-demos 100` of 498),
+  seed 1, **50k iterations** (default from now on), 250 eval episodes every 5k; final + mean of the last 3.
+  (1) `StitchPickCubeLollipop-v1`: state = qpos, qvel, is_grasped, tcp_pose, goal_pos (29-d).
+  (2) `StitchPickCubeLollipopNoGoalState-v1` (`goal_in_state=False`): state = qpos, qvel, tcp_pose (25-d); the goal
+  must be read from the lollipop. Implemented in the env's observation, not by overriding
+  `build_state_obs_extractor`: the baseline's eval state comes from `FlattenRGBDObservationWrapper` (all of agent +
+  extra) and ignores the extractor, while its demo loader already drops keys the env does not produce
+  (`reorder_keys`), so train and eval both get 25-d with the baseline code untouched. Smoke-tested (20 iterations).
+- **Hypotheses** (written after launch, before any evaluation past iteration 0):
+  - (1) catches up with more training: ≈ 0.75–0.78 at 50k (the 30k run was still rising, 0.72).
+  - (2) reading the goal from pixels costs 0.1–0.25 vs (1): the goal is 3-D and the lollipop is a few pixels,
+    partly hidden by the hand at some positions; losing `is_grasped` should matter little (the gripper state is in qpos).
+- **Result:**
+- **Takeaway:**
+
+---
+
 ## 2026-09-30 — Step 2e: is the visible goal sphere the cause? (hidden-sphere run + occlusion count)
 
 - **Protocol from now on:** final checkpoint (30k), mean of the last 3 checkpoints (20k/25k/30k) in brackets,
