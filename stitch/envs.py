@@ -83,14 +83,15 @@ def replace_visual(actor, half_size, local_p, spec):
 
 
 class StitchPickCubeEnv(PickCubeEnv):
-    def __init__(self, *args, cam=0, look=0, light=0, task="default", goal_marker="sphere", goal_in_state=True, **kwargs):
+    def __init__(self, *args, cam=0, look=0, light=0, task="default", goal_marker="sphere", goal_in_state=True, grasp_in_state=True, **kwargs):
         # set before super().__init__, which builds the scene.
         # goal_marker: "sphere" = PickCube's green goal sphere, visible to the camera; "hidden" = as PickCube
         # (sensor cameras don't render it; diagnostic for the Step 2c gap); "lollipop" = see LOLLIPOP
-        # goal_in_state=False drops goal_pos and is_grasped from the observation's "extra" (PickCube puts them there):
-        # the goal must then be read from pixels. ManiSkill's DP baseline takes its state from agent + extra.
+        # goal_in_state=False / grasp_in_state=False drop goal_pos / is_grasped from the observation's "extra" (PickCube
+        # puts them there; without goal_pos the goal must be read from pixels). ManiSkill's DP baseline takes its state
+        # from agent + extra.
         self.cam, self.look, self.light, self.task, self.goal_marker = cam, look, light, task, goal_marker
-        self.goal_in_state = goal_in_state
+        self.goal_in_state, self.grasp_in_state = goal_in_state, grasp_in_state
         super().__init__(*args, **kwargs)
         if "ee_delta" in self.control_mode:
             # normalized action a in [-1, 1] -> delta = a * bound; the replay conversion reads the same bounds
@@ -158,7 +159,9 @@ class StitchPickCubeEnv(PickCubeEnv):
     def _get_obs_extra(self, info):
         extra = super()._get_obs_extra(info)
         if not self.goal_in_state:
-            del extra["goal_pos"], extra["is_grasped"]
+            del extra["goal_pos"]
+        if not self.grasp_in_state:
+            del extra["is_grasped"]
         return extra
 
     def _initialize_episode(self, env_idx, options):
@@ -176,7 +179,9 @@ register_env("StitchPickCube-v1", max_episode_steps=160)(StitchPickCubeEnv)
 # same env with the goal sphere hidden from the camera: an env id, because the DP baseline builds envs from the id alone
 register_env("StitchPickCubeHiddenGoal-v1", max_episode_steps=160, goal_marker="hidden")(StitchPickCubeEnv)
 register_env("StitchPickCubeLollipop-v1", max_episode_steps=160, goal_marker="lollipop")(StitchPickCubeEnv)
-register_env("StitchPickCubeLollipopNoGoalState-v1", max_episode_steps=160, goal_marker="lollipop", goal_in_state=False)(StitchPickCubeEnv)
+register_env("StitchPickCubeLollipopNoGoalState-v1", max_episode_steps=160, goal_marker="lollipop", goal_in_state=False, grasp_in_state=False)(StitchPickCubeEnv)
+# core oracle setup (Step 2g): goal position in the state, no is_grasped
+register_env("StitchPickCubeLollipopNoGrasp-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False)(StitchPickCubeEnv)
 
 
 def make_env(visual=(0, 0, 0), task="default", robot="panda", obs_mode="rgb", control_mode="pd_joint_pos", goal_marker="sphere"):

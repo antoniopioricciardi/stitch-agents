@@ -19,6 +19,24 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 
 ---
 
+## 2026-10-01 — Step 2g: core oracle setup (goal in state, no is_grasped) + blind check; goal-from-pixels with 498 demos
+
+- **Setup:** unmodified DP recipe, lollipop visible, seed 1, 50k iterations, 250 eval episodes every 5k; final + mean
+  of the last 3. Final weights saved with `--save_freq 49999` (by default the baseline keeps only "best" checkpoints).
+  (1) Core setup, `StitchPickCubeLollipopNoGrasp-v1`: state = qpos, qvel, tcp_pose, goal_pos (28-d), 100 demos.
+      Blind check on its final weights (`scripts/eval_dp_blind.py`, 250 episodes each): full / visual feature zeroed /
+      visual feature replaced by that of a random training frame (shuffled). The state part is untouched.
+  (2) Goal-from-pixels diagnostic, `StitchPickCubeLollipopNoGoalState-v1` (25-d state), **all 498 demos**.
+- **Hypotheses:**
+  - (1) ≈ 0.78 like Step 2f run 1 (`is_grasped` is redundant with the gripper qpos). Blind: zeroed and shuffled
+    near 0 (≤ 0.05): the cube pose is not in the state, so without vision the policy cannot find the cube.
+  - (2) data-limited: with 5× the goal examples, clearly above 0.02 (0.3–0.6). If still near zero: stop; next idea is
+    a spatial-softmax ResNet18 encoder (robomimic style), not tuning.
+- **Result:**
+- **Takeaway:**
+
+---
+
 ## 2026-09-30 — Step 2f: lollipop at 50k iterations, with and without the goal in the state
 
 - **Setup:** unmodified DP recipe, lollipop visible, our 100 demos (all DP runs so far used `--num-demos 100` of 498),
