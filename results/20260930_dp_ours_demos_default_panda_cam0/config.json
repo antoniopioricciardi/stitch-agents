@@ -1,0 +1,5 @@
+{
+ "demos": "results/20260930_step1_demos_default_panda_pos/demos.npz",
+ "control_mode": "pd_ee_delta_pos",
+ "env": "StitchPickCube-v1 cam0 default panda"
+}

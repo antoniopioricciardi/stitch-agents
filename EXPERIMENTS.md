@@ -19,6 +19,51 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 
 ---
 
+## 2026-09-30 — Step 2b: switch oracles to ManiSkill's Diffusion Policy baseline
+
+- **Why:** plain BC on motion-planning demos fails even from the true state (Step 2 below): the planner's timed rest
+  pauses make the next action ambiguous from the current state, and single-step MSE BC averages over it.
+  Action chunking with a multimodal (diffusion) head is the standard answer, and ManiSkill publishes a baseline for
+  exactly this task. Our contribution is stitching, so oracles come from a published recipe, modified minimally.
+  The rest-step and yaw-representation fixes are parked.
+- **What exists:** no pretrained PickCube RGB policy from ManiSkill or LeRobot (the demo download ships state-based
+  PPO checkpoints only). Reference number: ManiSkill's own wandb run of this baseline (stonet2000/ManiSkill,
+  `diffusion_policy-PickCube-v1-rgb-100_motionplanning_demos-1`, seed 1): success_once 0.81, success_at_end 0.67
+  at 30k iterations (0.75–0.82 from 15k on); the docs report success_once.
+- **Setup:** `third_party/maniskill_diffusion_policy/` = ManiSkill v3.0.1 `examples/baselines/diffusion_policy`,
+  unmodified. Their command (`baselines.sh`, RGB): 100 motion-planning demos replayed to `pd_ee_delta_pos` + RGB,
+  obs horizon 2, action chunk 16 (8 executed), 30k iterations, batch 256, 100-step episodes, 100 eval episodes.
+  Env changes to run it: `uv add diffusers tensorboard wandb` (wandb offline) and gymnasium pinned to 0.29.1 (the
+  code reads `final_info`, removed in gymnasium 1.x). Glue: `scripts/run_dp_reference.sh`,
+  `scripts/export_dp_demos.py` (our demos → ManiSkill trajectory format via `RecordEpisode`; 498/498 replay),
+  `scripts/run_dp_ours.sh` (our env through `--env-id stitch.envs:StitchPickCube-v1`).
+- **Hypotheses:**
+  - Reference (their env, their demos, seed 1): success_once ≈ 0.81 (within ~±0.05).
+  - Ours (our env: default task, Panda, cam0; our first 100 demos; same seed and settings): similar, 0.7–0.85.
+    Differences: our goal sphere is visible to the camera (theirs is hidden), our demos come from our own planner
+    run. Their recipe feeds `agent` + `extra` as state, which includes `goal_pos` and `is_grasped`; kept as-is here.
+- **Result** (seed 1, 100 eval episodes per point, ~30 min per run on the RTX 5070 Ti;
+  `results/20260930_dp_reference_pickcube_rgb/`, `results/20260930_dp_ours_default_panda_cam0/`):
+
+  | iteration | ManiSkill's run (wandb) | reference reproduced | ours (StitchPickCube, cam0) |
+  |---|---|---|---|
+  | 5k | 0.05 / 0.02 | 0.05 / 0.02 | 0.04 / 0.01 |
+  | 10k | 0.50 / 0.36 | 0.49 / 0.35 | 0.33 / 0.25 |
+  | 15k | 0.82 / 0.67 | 0.77 / 0.64 | 0.46 / 0.35 |
+  | 20k | 0.80 / 0.68 | 0.74 / 0.64 | 0.59 / 0.45 |
+  | 25k | 0.75 / 0.64 | 0.68 / 0.51 | 0.54 / 0.46 |
+  | 30k (final) | **0.81 / 0.67** | **0.77 / 0.64** | **0.51 / 0.39** |
+
+  success_once / success_at_end. Demo lengths match (first 100 demos: mean 77.2 theirs, 77.4 ours; max 99 both).
+- **Takeaway:**
+  - **The baseline reproduces:** 0.77 vs 0.81 final, and the curve tracks theirs at every checkpoint (within ~0.07,
+    i.e. about the noise of 100 episodes and one seed).
+  - **On our env it works but is ~0.25 lower** (0.51 final, best 0.59 at 20k), with the same recipe, seed and
+    demo lengths. One seed only; cause not yet identified. Differences to check: the goal sphere visible in the
+    image (hidden in theirs), our scene rebuilt on every eval reset (`reconfiguration_freq=1`), our demo set.
+
+---
+
 ## 2026-09-29/30 — Step 2 (minimal slice): BC oracles, default task, Panda, cam0 and cam1
 
 - **Setup:** `stitch/models.py`: CNN encoder (4 stride-2 convs + linear, 128×128 RGB → d = 256) and MLP controller
