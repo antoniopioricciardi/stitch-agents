@@ -19,6 +19,48 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 
 ---
 
+## 2026-09-30 — Step 2c: where does the DP gap come from (0.77 their env → 0.51 our env)?
+
+- **Setup:** (1) frame/state check without training: frames from the baseline's eval env on our env id
+  (`reconfiguration_freq=1`) vs our training frames for the same seeds, and vs PickCube-v1 for the same seeds
+  (camera pose, intrinsics, resolution, textures, lighting); state vector fields and dims. (2) 2×2 swap with the
+  unmodified DP recipe, seed 1, 30k iterations: their demos on our env, our demos on their env. (3) Seed 2 on our
+  env with our demos. Goal sphere stays visible in our env; `goal_pos` / `is_grasped` stay in the state.
+- **Hypotheses:**
+  - Frames: identical to PickCube-v1 except the green goal sphere; identical between eval and training for the same
+    seed; state vector identical (29-d: qpos 9, qvel 9, is_grasped 1, tcp_pose 7, goal_pos 3).
+  - The gap is mostly DP seed variance plus the visible goal sphere, not the demos: our demos come from the same
+    planner with the same length distribution. Expect seed 2 on our env within ±0.15 of 0.51, "their demos on our
+    env" ≈ our env's number, "our demos on their env" ≈ their env's number.
+  - Caveat: in both swap cells the goal sphere is in the training frames but not the eval frames (or the reverse),
+    so a swap cell that drops points to the visible sphere, not to the demos.
+- **Result 1, frames and state** (`results/20260930_step2c_check_dp_frames/`): as hypothesised. Eval frames =
+  training frames (0 px differ, both envs); our env vs PickCube-v1 for the same seed differ only in the goal sphere
+  (0–47 px); intrinsics/extrinsics equal; state identical (29-d, same fields and values). Both demo sets use seeds
+  0, 1, 2, … so they share initial states.
+- **Result 2, env × demos × seed** (unmodified DP recipe, 30k iterations, 100 eval episodes; success_once /
+  success_at_end at 30k, best success_once over the 5k checkpoints in brackets):
+
+  | env (eval) | demos (train) | goal sphere train → eval | seed | final | best |
+  |---|---|---|---|---|---|
+  | theirs | theirs | hidden → hidden | 1 | **0.77 / 0.64** | 0.77 |
+  | theirs | ours | visible → hidden | 1 | 0.57 / 0.44 | 0.70 |
+  | ours | theirs | hidden → visible | 1 | 0.65 / 0.59 | 0.65 |
+  | ours | ours | visible → visible | 1 | 0.51 / 0.39 | 0.59 |
+  | ours | ours | visible → visible | 2 | 0.56 / 0.46 | 0.61 |
+
+  Checkpoint-to-checkpoint swings within one run are up to ~0.15 (e.g. 0.70 → 0.57), larger than the ~0.05
+  binomial noise of 100 episodes. Runs are one at a time (~12 GB RAM, ~11 GB GPU each; ~30 min).
+- **Takeaway:**
+  - Seed variance on our env is small (0.51 vs 0.56), so the gap to 0.77 is real.
+  - **The demos matter more than the env:** their demos beat ours in both envs (their env 0.77 vs 0.57; our env
+    0.65 vs 0.51–0.56), even though their demos are at a train/eval mismatch in our env. The env (visible sphere)
+    costs at most ~0.1. The swap cells carry the sphere mismatch, so the clean comparison is the diagonal.
+  - Both demo sets share seeds, lengths and conversion code, so the difference must be in the trajectories
+    themselves (planner run / ManiSkill version). Next check, no training: compare actions per phase for the same seed.
+
+---
+
 ## 2026-09-30 — Step 2b: switch oracles to ManiSkill's Diffusion Policy baseline
 
 - **Why:** plain BC on motion-planning demos fails even from the true state (Step 2 below): the planner's timed rest
