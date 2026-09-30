@@ -1,0 +1,27 @@
+{
+ "theirs": {
+  "length": 77.2,
+  "close_step": 41.67,
+  "rest_frac": 0.16660427927992205,
+  "rest_frac_before_close": 0.10589891284236527,
+  "rest_frac_after_close": 0.24591694240251014,
+  "mean_abs_pos_action": 0.058123003989458084
+ },
+ "ours": {
+  "length": 77.2,
+  "close_step": 41.67,
+  "rest_frac": 0.16660427927992205,
+  "rest_frac_before_close": 0.10589891284236527,
+  "rest_frac_after_close": 0.24591694240251014,
+  "mean_abs_pos_action": 0.05812787026166916
+ },
+ "same_seed": {
+  "seeds": 100,
+  "same_length": 100,
+  "max_action_diff": 0.008867233991622925,
+  "median_action_diff": 1.0142102837562561e-05,
+  "max_state_diff": 1.0,
+  "median_state_diff": 0.00011850986629724503,
+  "mean_non_sphere_px_diff_per_frame": 0.6158575206747805
+ }
+}

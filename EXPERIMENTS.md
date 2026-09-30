@@ -19,6 +19,30 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 
 ---
 
+## 2026-09-30 — Step 2d: do our demos differ from ManiSkill's? (training-free)
+
+- **Setup:** `scripts/compare_demo_sets.py`, first 100 shared seeds, both sets in `pd_ee_delta_pos`. Their demos:
+  ManiSkill's official motion-planning solution (commit 652ad93, planned in `pd_joint_pos`, converted with
+  `replay_trajectory --use-first-env-state -c pd_ee_delta_pos -o rgb -b physx_cpu`). Ours: the same solution copied
+  in `collect_demos.py`, converted with the same function (`from_pd_joint_pos_to_ee`).
+- **Hypothesis:** our demos have more or longer rest steps after conversion.
+- **Result** (`results/20260930_step2d_compare_demo_sets/`):
+
+  | | length | gripper close step | rest steps (before / after close) | mean \|position action\| |
+  |---|---|---|---|---|
+  | theirs | 77.2 | 41.7 | 16.7% (10.6% / 24.6%) | 0.058 |
+  | ours | 77.2 | 41.7 | 16.7% (10.6% / 24.6%) | 0.058 |
+
+  Same seed: 100/100 same length, max action difference 0.009 (median 1e-5), state difference median 1e-4
+  (one `is_grasped` flag flips a step earlier/later), frames differ only by the goal sphere (0.6 other pixels per frame).
+- **Takeaway:**
+  - **Hypothesis rejected: the demo sets are the same demos.** The Step 2c gap is not the demos; the only systematic
+    difference in the training data is the goal sphere in our frames (visible in ~83% of them).
+  - Steps 2–3 of the plan (re-render their demos in our env, fix our generation) are moot: re-rendering their demos
+    in our env reproduces our demos. Open question: why a visible goal sphere costs ~0.2 when `goal_pos` is also in the state.
+
+---
+
 ## 2026-09-30 — Step 2c: where does the DP gap come from (0.77 their env → 0.51 our env)?
 
 - **Setup:** (1) frame/state check without training: frames from the baseline's eval env on our env id
@@ -53,11 +77,9 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
   binomial noise of 100 episodes. Runs are one at a time (~12 GB RAM, ~11 GB GPU each; ~30 min).
 - **Takeaway:**
   - Seed variance on our env is small (0.51 vs 0.56), so the gap to 0.77 is real.
-  - **The demos matter more than the env:** their demos beat ours in both envs (their env 0.77 vs 0.57; our env
-    0.65 vs 0.51–0.56), even though their demos are at a train/eval mismatch in our env. The env (visible sphere)
-    costs at most ~0.1. The swap cells carry the sphere mismatch, so the clean comparison is the diagonal.
-  - Both demo sets share seeds, lengths and conversion code, so the difference must be in the trajectories
-    themselves (planner run / ManiSkill version). Next check, no training: compare actions per phase for the same seed.
+  - ~~The demos matter more than the env~~ — **corrected by Step 2d:** the two demo sets have identical actions and
+    states, so "demos" here really means "goal sphere in the training frames". Read the table by that column:
+    trained without the sphere 0.77 (eval hidden) / 0.65 (eval visible); trained with it 0.57 / 0.51–0.56.
 
 ---
 
