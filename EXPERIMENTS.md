@@ -33,8 +33,32 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
   - (1) catches up with more training: ≈ 0.75–0.78 at 50k (the 30k run was still rising, 0.72).
   - (2) reading the goal from pixels costs 0.1–0.25 vs (1): the goal is 3-D and the lollipop is a few pixels,
     partly hidden by the hand at some positions; losing `is_grasped` should matter little (the gripper state is in qpos).
-- **Result:**
+- **Result** (`results/20260930_step2f_dp_lollipop_{goalstate,nogoalstate}_50k_s1/`, ~57 min each; success_once /
+  success_at_end every 5k, 250 episodes):
+
+  | iteration | (1) goal in state | (2) goal from pixels only |
+  |---|---|---|
+  | 5k | 0.04 / 0.02 | 0.00 / 0.00 |
+  | 10k | 0.22 / 0.16 | 0.01 / 0.00 |
+  | 15k | 0.58 / 0.42 | 0.00 / 0.00 |
+  | 20k | 0.73 / 0.56 | 0.02 / 0.01 |
+  | 25k | 0.79 / 0.64 | 0.02 / 0.01 |
+  | 30k | 0.80 / 0.65 | 0.01 / 0.00 |
+  | 35k | 0.80 / 0.63 | 0.01 / 0.00 |
+  | 40k | 0.78 / 0.60 | 0.02 / 0.00 |
+  | 45k | 0.82 / 0.64 | 0.02 / 0.02 |
+  | **50k (final; last-3 mean)** | **0.772 (0.789) / 0.616 (0.620)** | **0.016 (0.019) / 0.004 (0.008)** |
+
+  Run (2), final-eval video (one episode): the policy reaches and grasps the cube (`is_grasped` = 1 from ~step 40),
+  then holds it near the table and never carries it towards the lollipop.
 - **Takeaway:**
+  - (1) With 50k iterations the lollipop run matches the hidden-sphere result (0.79 vs 0.78 last-3 mean): the lollipop
+    costs nothing once the goal is in the state. (At 30k this run already had 0.80 vs 0.72 for the 30k run: the LR
+    schedule spans the whole run, plus one-seed noise.)
+  - (2) **Removing `goal_pos` + `is_grasped` collapses DP to ~0.02**, far beyond the hypothesised 0.1–0.25: the
+    policy grasps but does not carry, i.e. it does not read the goal from the lollipop (with 100 demos, 50k iterations).
+  - Stopped here as agreed (> 0.2 drop). Next diagnostics (not run): remove `goal_pos` and `is_grasped` separately;
+    train on all 498 demos.
 
 ---
 
