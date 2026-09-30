@@ -53,6 +53,19 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
   - low goals (z ≈ 0.03) are only a few pixels next to the cube, and magenta sits close to the red cube in look0.
 - **Next run, hypothesis:** lollipop visible in training and eval, `goal_pos` still in the state, seed 1, same
   protocol: close to the hidden-sphere result (≥ 0.70).
+- **Result 3, lollipop** (`results/20260930_step2e_dp_ourenv_lollipop_s1/`, 250 episodes, ~34 min):
+  **0.716 (last 3: 0.675)** success_once, 0.568 (0.523) success_at_end. Curve: 0.30 at 10k, 0.58 at 15k, 0.64 at 20k,
+  0.67 at 25k, 0.72 at 30k — still rising at 30k, while the hidden-sphere run had plateaued (~0.78 from 20k).
+
+  | goal marker (our env, our demos, seed 1) | success_once: final (last 3) | success_at_end: final (last 3) |
+  |---|---|---|
+  | hidden (= PickCube-v1) | 0.776 (0.779) | 0.632 (0.616) |
+  | lollipop | 0.716 (0.675) | 0.568 (0.523) |
+  | sphere (Step 2c, 100 episodes, seeds 1 / 2) | 0.51 / 0.56 | 0.39 / 0.46 |
+
+- **Takeaway (lollipop):** most of the gap closes (sphere ~0.53 → lollipop 0.72 final), within ~0.06 of hidden at
+  the final checkpoint but ~0.10 below on the last-3 mean: slower learning, one seed. The hypothesis (≥ 0.70) holds
+  for the final checkpoint only.
 
 ---
 
