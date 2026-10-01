@@ -364,6 +364,39 @@ whether the core env switches (which would mean retraining all oracles), so no s
   proprio makes the pairs closer to true correspondences (same phase and arm pose), lowering the residual of both maps
   by ≥ .05. (c) mutual-NN filtering removes bad pairs and lowers the residual further, at the cost of fewer pairs.
   (d) the half-budget ceiling is within .03 of the full one (3.7k paired frames are plenty for a 256-d affine map).
+- **Result** (`results/20261002_step1b_label_maps2/`; held-out; var tot = total variance of mapped z / target z,
+  var med = median per-dimension ratio; chunk distance all / top-30%, CPU noise; pairs: chunk 3720, chunk_mnn 1380,
+  chunk_prop 3720, chunk_prop_mnn 886):
+
+  | map | cam0 enc → look 1 ctrl: z residual | var tot / med | chunk dist | look 1 enc → cam0 ctrl: z residual | var tot / med | chunk dist |
+  |---|---|---|---|---|---|---|
+  | affine paired 0–99 (ceiling) | .284 | .86 / .77 | .041 / .067 | .238 | .78 / .70 | .048 / .070 |
+  | affine paired 0–49 (fair ceiling) | .315 | .90 / .82 | .041 / .068 | .271 | .82 / .75 | .049 / .068 |
+  | SAPS | .485 | 1.04 / 1.04 | .050 / .082 | .465 | .96 / 1.04 | .054 / .093 |
+  | k16 orth | .823 | 1.04 / .99 | .062 / .094 | .769 | .96 / 1.03 | .065 / .123 |
+  | chunk orth (= nn_orth) | .612 | 1.04 / 1.03 | .048 / .078 | .598 | .96 / 1.04 | .061 / .107 |
+  | chunk orth + scale | .700 | 1.23 / 1.15 | .047 / .080 | .603 | 1.07 / 1.02 | .058 / .094 |
+  | **chunk affine (= nn_affine)** | **.473** | **.69 / .54** | .062 / .101 | **.420** | **.65 / .53** | .057 / .105 |
+  | chunk affine + rescale | .712 | 1.38 / 1.27 | .059 / .097 | .509 | 1.01 / 1.00 | .058 / .097 |
+  | chunk mnn orth | .646 | 1.04 / 1.03 | .049 / .072 | .626 | .96 / 1.00 | .055 / .098 |
+  | chunk mnn affine | .581 | .87 / .77 | .061 / .093 | .532 | .83 / .76 | .053 / .101 |
+  | chunk_prop orth | .627 | 1.04 / 1.01 | .057 / .087 | .605 | .96 / 1.02 | .055 / .090 |
+  | chunk_prop affine | .538 | .76 / .62 | .060 / .095 | .449 | .75 / .61 | .061 / .103 |
+  | chunk_prop mnn orth / affine | .653 / .675 | — | .056 / .089, .070 / .115 | .629 / .591 | — | .059 / .101, .070 / .113 |
+
+- **Takeaway (offline):**
+  - (a) **Shrinkage confirmed for affine:** nn_affine keeps only 65–69% of the target variance (median dimension
+    53–54%); orthogonal maps ≈ 1. Least squares on noisy pairs shrinks towards the mean (the paired ceiling shrinks
+    too, less: 78–86%). Rescaling restores the variance (overshooting one way, 1.38) at a higher residual and a
+    barely lower chunk distance.
+  - (b) **Proprio does not help:** chunk_prop is worse than chunk alone for affine (.538 vs .473, .449 vs .420),
+    about equal for orth. Rejected.
+  - (c) **Mutual-NN filtering does not help:** fewer pairs (37% / 24% kept), higher residual; its only effect is less
+    shrinkage (.83–.87). Rejected.
+  - (d) **Fair ceiling within .03 of the full one** (.315 vs .284, .271 vs .238): confirmed, so no closed loop for it.
+    Against the fair ceiling, nn_affine closes 69% / 70% of the gap from k16 orth.
+  - Closed loop (queued after the cam2 pilot): nn_affine_rescale and nn_mnn_affine, the two variants that test whether
+    affine's shrinkage hurts in closed loop (round 1: nn_affine .49 / .41, nn_orth .45 / .49).
 - **After both trainings, one eval batch (no training running):** (1) row 2 oracle checks (blind, fake goal, probe),
   collapse measures, stitching cam0 ↔ look 1 (identity / SAPS / action_pairs, offline + closed loop); (2) the map-class
   check below.

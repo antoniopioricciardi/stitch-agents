@@ -1,7 +1,8 @@
 """Step 1b: stitch DP agents across two visual domains (cam0 <-> a second domain) and measure collapse.
 
 Usage: uv run python scripts/step1b_stitch.py <row-name> <domain> <cam0_run_dir> <domain_run_dir> <labels.pt> [--offline-only]
-       [--maps=identity,saps,action_pairs]   (also: affine, mlp, nn_orth, nn_affine; the map-class check uses
+       [--maps=identity,saps,action_pairs]   (also: affine, mlp, nn_orth, nn_affine, nn_affine_rescale, nn_mnn_affine;
+       the map-class check uses
        --maps=saps,affine,mlp)
   domain: cam1, cam2 or look1 (the second domain; see ENV / H5)
   run dirs: results/<run>/ with runs/<name>/checkpoints/<final>.pt (largest numeric tag = final weights)
@@ -17,6 +18,9 @@ agent_v with its visual_encoder replaced by [E_u, z -> z @ R.T + b], T applied p
     MSE, Adam, early-stopped on the pairs of 10 held-out fit demos).
     nn_orth / nn_affine (label-based, scripts/step1b_label_maps.py): source frames of demos 0-49, each paired with the
     target frame of demos 50-99 whose z-scored 8-step chunk is nearest; orthogonal / affine least squares.
+    nn_affine_rescale: nn_affine, then each output dimension given the target's per-dimension mean and std (stats of
+    all source frames of demos 0-49 mapped vs all target frames of demos 50-99); nn_mnn_affine: affine on the
+    mutual-nearest-neighbour pairs only (scripts/step1b_label_maps2.py).
   Held-out z-space residual per map: ||T(z_s) - z_t||^2 / ||z_t - mean||^2 on the paired held-out frames.
   Offline (held-out demos 400-497, N_OFF frames of domain u): ||stitched chunk - native chunk|| (L2 over the
     8 executed steps x 4 dims), native = agent_u, both denoised from the same DDPM noise. References:
@@ -148,6 +152,14 @@ def affine(R, b):
     return lin
 
 
+def rescale(R, b, Zs_all, Zt_all):
+    # (R, b) -> (R', b'): mapped z standardised per dimension, then given the target's per-dimension mean and std
+    # (copied from scripts/step1b_label_maps2.py)
+    M = Zs_all @ R.T + b
+    s = Zt_all.std(0) / (M.std(0) + 1e-8)
+    return R * s[:, None], (b - M.mean(0)) * s + Zt_all.mean(0)
+
+
 class MLPMap(nn.Module):
     # z -> affine(z) + MLP(z): the affine part starts at the least-squares fit, the MLP's last layer at zero
     def __init__(self, R, b, hidden=512):
@@ -225,7 +237,9 @@ if __name__ == "__main__":
     # continuous action pairs (nn_*): source frames from demos 0-49, nearest z-scored chunk among target demos 50-99
     X = torch.from_numpy(standardise(fit[0][3], lab["mean"].numpy(), lab["std"].numpy())).float()
     src, tgt = np.where(fit_demo < 50)[0], np.where(fit_demo >= 50)[0]
-    nn_tgt = tgt[torch.cdist(X[src], X[tgt]).argmin(1).numpy()]
+    dX = torch.cdist(X[src], X[tgt])
+    nn_tgt = tgt[dX.argmin(1).numpy()]
+    mnn = (dX.argmin(0)[dX.argmin(1)] == torch.arange(len(src))).numpy()  # source i is the nearest of its own match
     del fit  # frees the fit frames (~0.4 GB per domain)
     m = dict(checkpoints={D[c]: ckpts[c] for c in (0, 1)}, label_sizes=np.bincount(y_fit, minlength=16).tolist(),
              geometry={D[c]: geometry(Z[(c, c)], y_fit) for c in (0, 1)}, stitch={})
@@ -238,7 +252,9 @@ if __name__ == "__main__":
                 "action_pairs": lambda: [affine(*fit_action_pairs(Zs, Zt, y_fit, y_fit, np.random.default_rng(s))) for s in range(N_DRAWS)],
                 "mlp": lambda: [fit_mlp_paired(Zs, Zt, fit_demo)],
                 "nn_orth": lambda: [affine(*fit_procrustes_paired(Zs[src], Zt[nn_tgt]))],
-                "nn_affine": lambda: [affine(*fit_affine_paired(Zs[src], Zt[nn_tgt]))]}
+                "nn_affine": lambda: [affine(*fit_affine_paired(Zs[src], Zt[nn_tgt]))],
+                "nn_affine_rescale": lambda: [affine(*rescale(*fit_affine_paired(Zs[src], Zt[nn_tgt]), Zs[src], Zt[tgt]))],
+                "nn_mnn_affine": lambda: [affine(*fit_affine_paired(Zs[src[mnn]], Zt[nn_tgt[mnn]]))]}
         maps, map_info = {}, {}
         for name in MAPS:
             maps[name] = fits[name]()

@@ -1,0 +1,32 @@
+{
+ "runs": {
+  "cam0": "/home/ricc/projects/labelstitch-step1/results/20261001_step2g_dp_core_nograsp_50k_s1",
+  "look1": "/home/ricc/projects/labelstitch-1b/results/20261001_step1b_dp_ref_look1_s2"
+ },
+ "labels": "/home/ricc/projects/labelstitch-1b/results/20261001_step1b_labels/labels.pt",
+ "source_demos": [
+  0,
+  50
+ ],
+ "target_demos": [
+  50,
+  100
+ ],
+ "proprio_state_idx": [
+  7,
+  8,
+  18,
+  19,
+  20,
+  21,
+  22,
+  23,
+  24
+ ],
+ "heldout": [
+  400,
+  498
+ ],
+ "n_off": 2000,
+ "device": "cpu"
+}
