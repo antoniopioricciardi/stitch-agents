@@ -1,6 +1,6 @@
-# Anchor-free model stitching for autonomous agents — project brief
+# Label-aligned model stitching for autonomous agents — project brief
 
-_Last updated: 30 Sep 2026. Owner: Antonio._
+_Last updated: 1 Oct 2026. Owner: Antonio._
 
 ## Thesis (one line)
 
@@ -31,7 +31,7 @@ Reuse encoders and controllers that were trained separately: recombine them zero
 - **Action Collapse** (arXiv 2509.02737): in policy-gradient networks, last-layer features of states sharing the same optimal action collapse to that action's mean, and the means form a simplex ETF. They use it to improve training, not for stitching. **Must cite; we do not claim to have discovered action collapse.** It supports our mechanism.
 - **Neural collapse under class imbalance** (Dang et al., arXiv 2401.02058): with imbalanced classes, class means move away from the simplex ETF. This is the textbook explanation for the missing NC2 in our Mario encoders.
 - **TACO** (Zheng et al., NeurIPS 2023, arXiv 2306.13229): temporal contrastive loss that learns state and action representations together (current state + action sequence ↔ future state); theoretically sufficient for Q*; its action encoder groups actions by effect.
-  - Its positives are temporal, not "same action", so on its own it should **not** produce action collapse, and hence should not give label-only alignability (to be checked in Mario, Step 0c).
+  - Its positives are temporal, not "same action", so on its own it does **not** produce action collapse and does not give label-only alignability (confirmed in Mario, Step 0c). Combined with SupCon (SCIL + TACO, K=3) it keeps alignability and recovers native performance (see Decisions).
   - Possible roles for us:
     1. the information-preserving half of a hybrid loss (SupCon on coarse action labels + TACO), to keep within-action detail for continuous control;
     2. its action space as the labelling function (cluster actions by effect; train on actions pooled across domains, so labels are shared for free);
@@ -98,12 +98,12 @@ Note: a friction/mass variant was dropped. It did not change the expert's action
 
 ## Environments (recommended)
 
-- **Main: ManiSkill3.**
-  - Visual axes: camera pose, textures/colours, lighting.
-  - Task axes: actuation (EE-delta bounds ×0.5), goal variants.
-  - Embodiment: Panda vs xArm, and a locked joint.
-  - Experts: motion-planning demos.
-  - GPU-parallel, so it runs on one node.
+- **Main: ManiSkill3, PickCube** (confirmed in Step 1).
+  - Visual axes: camera pose ×3, look (textures/colours) ×3, lighting ×2.
+  - Task axes: actuation (EE-delta bounds ×0.5), goal variant. Goal marker: a "lollipop" (small sphere on a thin pole).
+  - Embodiment: Panda vs xArm6 + Robotiq (a locked joint is not supported in this ManiSkill version).
+  - Experts: motion-planning demos (identical to ManiSkill's official ones), position-only control (`pd_ee_delta_pos`).
+  - Policies: ManiSkill's Diffusion Policy baseline, unmodified; z = its 256-d visual feature. Core setup keeps `goal_pos` in the state; the cube is only visible in the image (blind check ≈ 0.05).
 - **Secondary: CARLA** (Bench2Drive subset, PDM-Lite expert).
   - Visual axes: weather, camera placement.
   - Task axes: target speed, vehicle dynamics, route.
@@ -141,6 +141,10 @@ Novelty check (29 Sep 2026, ~10 targeted searches): no paper found that aligns i
 - **Target: ICML 2027** (around late January 2027; unofficial date, verify).
 - Fallback: NeurIPS / CoRL 2027 (around late May 2027).
 - CARLA and embodiment results can go into the NeurIPS/CoRL version if needed.
+
+## Application (if Step 6b holds)
+
+- **Privileged-to-deployable transfer, as a sim-to-sim proxy for sim-to-real:** reuse a controller trained with privileged information (entering through its encoder), by stitching an encoder that must read that information from pixels in a harder domain. Measured as a data-efficiency curve (success vs number of target demos) against training from scratch and fine-tuning. No real robot yet, so never call it sim-to-real.
 
 ## Out of scope for now
 
