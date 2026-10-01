@@ -1,6 +1,7 @@
 """Step 1b: stitch DP agents across two visual domains (cam0 <-> a second domain) and measure collapse.
 
 Usage: uv run python scripts/step1b_stitch.py <row-name> <domain> <cam0_run_dir> <domain_run_dir> <labels.pt> [--offline-only]
+       [--maps=identity,saps,action_pairs]   (also: affine, mlp; the map-class check uses --maps=saps,affine,mlp)
   domain: cam1, cam2 or look1 (the second domain; see ENV / H5)
   run dirs: results/<run>/ with runs/<name>/checkpoints/<final>.pt (largest numeric tag = final weights)
 Run from the repo root with PYTHONPATH=<repo>:<repo>/third_party/maniskill_diffusion_policy.
@@ -10,6 +11,10 @@ agent_v with its visual_encoder replaced by [E_u, z -> z @ R.T + b], T applied p
   Aligners, fitted on z of the current frames of demos 0-99 (the training demos) of both domains:
     identity; SAPS (paired: same demo and step in both domains, i.e. the same state); action_pairs (labels = the
     action-chunk clusters, <=100 pairs per cluster, N_DRAWS draws; closed loop uses draw 0).
+    Map-class check, also on the paired frames: affine (least squares, no orthogonality) and mlp (z -> affine(z) +
+    MLP(z), 256 -> 512 -> 256 ReLU; the affine part starts at the least-squares fit, so the class contains affine;
+    MSE, Adam, early-stopped on the pairs of 10 held-out fit demos).
+  Held-out z-space residual per map: ||T(z_s) - z_t||^2 / ||z_t - mean||^2 on the paired held-out frames.
   Offline (held-out demos 400-497, N_OFF frames of domain u): ||stitched chunk - native chunk|| (L2 over the
     8 executed steps x 4 dims), native = agent_u, both denoised from the same DDPM noise. References:
     chance_z = native vs native with z taken from a random other frame (state kept: the chance level for z; on
@@ -40,7 +45,7 @@ from diffusion_policy.evaluate import evaluate
 from diffusion_policy.make_env import make_eval_envs
 from diffusion_policy.utils import build_state_obs_extractor, convert_obs, load_content_from_h5_file
 from mani_skill.utils.wrappers.flatten import FlattenRGBDObservationWrapper
-from stitch.align import fit_action_pairs, fit_identity, fit_procrustes_paired
+from stitch.align import fit_action_pairs, fit_affine_paired, fit_identity, fit_procrustes_paired
 from stitch.labels import assign, frame_chunks, standardise
 
 ENV = {"cam0": "stitch.envs:StitchPickCubeLollipopNoGrasp-v1", "cam1": "stitch.envs:StitchPickCubeLollipopNoGraspCam1-v1",
@@ -64,12 +69,12 @@ ENV_KWARGS = dict(control_mode="pd_ee_delta_pos", reward_mode="sparse", obs_mode
 
 def load_frames(cam, demos, obs_space):
     # -> rgb (F, 3, H, W) uint8 every frame once, idx (N, 2) rows of rgb, state (N, 2, S), chunks (N, 8, A),
-    # tcp (N, 7) for the pairing check; one row per current frame t = 0..L-2 of each demo, obs frames [t-1, t]
+    # tcp (N, 7) for the pairing check, demo (N,) demo index; one row per current frame t = 0..L-2 of each demo, obs frames [t-1, t]
     # (t-1 clamped to 0, as the baseline pads), the same frames and chunks as in training (stitch/labels.py)
     process = partial(convert_obs, concat_fn=partial(np.concatenate, axis=-1),
                       transpose_fn=partial(np.transpose, axes=(0, 3, 1, 2)),
                       state_obs_extractor=build_state_obs_extractor(ENV[D[cam]]), depth=False)
-    rgb, idxs, state, chunks, tcp, n = [], [], [], [], [], 0
+    rgb, idxs, state, chunks, tcp, demo, n = [], [], [], [], [], [], 0
     with h5py.File(H5[D[cam]], "r") as f:
         for i in demos:
             traj = load_content_from_h5_file(f[f"traj_{i}"])
@@ -83,8 +88,9 @@ def load_frames(cam, demos, obs_space):
             state.append(obs["state"][idx])
             chunks.append(frame_chunks(traj["actions"]))
             tcp.append(traj["obs"]["extra"]["tcp_pose"][t])
+            demo.append(np.full(len(t), i))
     return (torch.from_numpy(np.concatenate(rgb)), np.concatenate(idxs), torch.from_numpy(np.concatenate(state)).float(),
-            np.concatenate(chunks), np.concatenate(tcp))
+            np.concatenate(chunks), np.concatenate(tcp), np.concatenate(demo))
 
 
 # Agent only needs the spaces (no eval-env workers): state (2, 28), rgb (2, 128, 128, 3), action in [-1, 1]^4
@@ -139,12 +145,51 @@ def affine(R, b):
     return lin
 
 
+class MLPMap(nn.Module):
+    # z -> affine(z) + MLP(z): the affine part starts at the least-squares fit, the MLP's last layer at zero
+    def __init__(self, R, b, hidden=512):
+        super().__init__()
+        self.lin = affine(R, b)
+        self.mlp = nn.Sequential(nn.Linear(R.shape[1], hidden), nn.ReLU(), nn.Linear(hidden, R.shape[0])).to(DEV)
+        nn.init.zeros_(self.mlp[2].weight), nn.init.zeros_(self.mlp[2].bias)
+
+    def forward(self, z):
+        return self.lin(z) + self.mlp(z)
+
+
+def fit_mlp_paired(Zs, Zt, demo, seed=0, n_val=10, patience=20, max_epochs=500):
+    # paired latents Zs, Zt (N, d), demo (N,) -> MLPMap with the best validation MSE (val = pairs of n_val random demos)
+    g = np.random.default_rng(seed)
+    torch.manual_seed(seed)
+    val = np.isin(demo, g.choice(np.unique(demo), n_val, replace=False))
+    T = MLPMap(*fit_affine_paired(Zs[~val], Zt[~val]))
+    xs, xt = (torch.tensor(a, dtype=torch.float32, device=DEV) for a in (Zs, Zt))
+    tr, va = torch.from_numpy(~val).to(DEV), torch.from_numpy(val).to(DEV)
+    opt = torch.optim.Adam(T.parameters(), lr=1e-3)
+    best, best_state, bad = float("inf"), None, 0
+    for epoch in range(max_epochs):
+        for i in torch.randperm(int(tr.sum()), device=DEV).split(256):
+            loss = ((T(xs[tr][i]) - xt[tr][i]) ** 2).sum(1).mean()
+            opt.zero_grad(), loss.backward(), opt.step()
+        with torch.no_grad():
+            v = ((T(xs[va]) - xt[va]) ** 2).sum(1).mean().item()
+        if v < best:
+            best, best_state, bad = v, copy.deepcopy(T.state_dict()), 0
+        else:
+            bad += 1
+            if bad >= patience:
+                break
+    T.load_state_dict(best_state)
+    return T.eval(), dict(val_mse=best, epochs=epoch + 1)
+
+
 # the guard is needed: the eval envs are forkserver workers, which re-import this script
 if __name__ == "__main__":
     ROW, DOMAIN, LABELS = sys.argv[1], sys.argv[2], sys.argv[5]
     D = {0: "cam0", 1: DOMAIN}  # domain index -> name
     RUNS = {0: sys.argv[3], 1: sys.argv[4]}
     OFFLINE_ONLY = "--offline-only" in sys.argv
+    MAPS = next((a.split("=")[1] for a in sys.argv if a.startswith("--maps=")), "identity,saps,action_pairs").split(",")
     OUT = Path("results") / f"{date.today():%Y%m%d}_step1b_stitch_{ROW}_{DOMAIN}"
     OUT.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(SEED)
@@ -173,6 +218,7 @@ if __name__ == "__main__":
 
     # z of the current frames: Z[(encoder cam, image cam)], (N, 256)
     Z = {(c, c): encode(agents[c].visual_encoder, fit[c][0][fit[c][1][:, -1]]).cpu().numpy() for c in (0, 1)}
+    fit_demo = fit[0][5]
     del fit  # frees the fit frames (~0.4 GB per domain)
     m = dict(checkpoints={D[c]: ckpts[c] for c in (0, 1)}, label_sizes=np.bincount(y_fit, minlength=16).tolist(),
              geometry={D[c]: geometry(Z[(c, c)], y_fit) for c in (0, 1)}, stitch={})
@@ -180,10 +226,18 @@ if __name__ == "__main__":
 
     for u, v in ((0, 1), (1, 0)):
         Zs, Zt = Z[(u, u)], Z[(v, v)]
-        maps = {"identity": [fit_identity(Zs, Zt)], "saps": [fit_procrustes_paired(Zs, Zt)],
-                "action_pairs": [fit_action_pairs(Zs, Zt, y_fit, y_fit, np.random.default_rng(s)) for s in range(N_DRAWS)]}
+        fits = {"identity": lambda: [affine(*fit_identity(Zs, Zt))], "saps": lambda: [affine(*fit_procrustes_paired(Zs, Zt))],
+                "affine": lambda: [affine(*fit_affine_paired(Zs, Zt))],
+                "action_pairs": lambda: [affine(*fit_action_pairs(Zs, Zt, y_fit, y_fit, np.random.default_rng(s))) for s in range(N_DRAWS)],
+                "mlp": lambda: [fit_mlp_paired(Zs, Zt, fit_demo)]}
+        maps, map_info = {}, {}
+        for name in MAPS:
+            maps[name] = fits[name]()
+            if name == "mlp":
+                maps[name], map_info[name] = [maps[name][0][0]], maps[name][0][1]
         rgb, state = off[u][0][off[u][1][sel]], off[u][2][sel]  # (N, 2, 3, H, W), (N, 2, S)
         zu = encode(agents[u].visual_encoder, rgb.flatten(0, 1)).reshape(len(sel), 2, -1)  # (N, 2, 256)
+        zv_cur = encode(agents[v].visual_encoder, off[v][0][off[v][1][sel][:, -1]])  # (N, 256): paired target z
         native = denoise(agents[u], zu, state, seed=1)
         expert = torch.from_numpy(off[u][3][sel]).to(DEV)
         per_frame = lambda a, b: (a - b).flatten(1).norm(dim=1)  # (N,)
@@ -195,19 +249,21 @@ if __name__ == "__main__":
         res = dict(native_vs_expert=dist(native, expert), chance_frame=dist(native, native[perm]),
                    chance_z=[sens.mean().item(), sens[top].mean().item()],
                    noise_floor=dist(native, denoise(agents[u], zu, state, seed=2)), aligners={})
-        for name, RBs in maps.items():
-            ds = [dist(denoise(agents[v], zu @ torch.tensor(R.T, dtype=torch.float32, device=DEV)
-                               + torch.tensor(b, dtype=torch.float32, device=DEV), state, seed=1), native) for R, b in RBs]
-            res["aligners"][name] = dict(offline_dist=np.mean(ds, 0).tolist(), offline_dist_draws=ds)
+        for name, Ts in maps.items():
+            with torch.no_grad():
+                ds = [dist(denoise(agents[v], T(zu), state, seed=1), native) for T in Ts]
+                resid = [(((T(zu[:, -1]) - zv_cur) ** 2).sum() / ((zv_cur - zv_cur.mean(0)) ** 2).sum()).item() for T in Ts]
+            res["aligners"][name] = dict(offline_dist=np.mean(ds, 0).tolist(), offline_dist_draws=ds,
+                                         z_residual=float(np.mean(resid)), **map_info.get(name, {}))
         print(f"{D[u]} enc -> {D[v]} ctrl", json.dumps(res, indent=1), flush=True)
 
         if not OFFLINE_ONLY:
             if u not in envs:
                 envs[u] = make_eval_envs(ENV[D[u]], 10, "physx_cpu", ENV_KWARGS, dict(obs_horizon=2), video_dir=None,
                                          wrappers=[FlattenRGBDObservationWrapper])
-            for name, RBs in maps.items():
+            for name, Ts in maps.items():
                 stitched = copy.deepcopy(agents[v])
-                stitched.visual_encoder = nn.Sequential(copy.deepcopy(agents[u].visual_encoder), affine(*RBs[0]))
+                stitched.visual_encoder = nn.Sequential(copy.deepcopy(agents[u].visual_encoder), Ts[0])
                 ev = evaluate(N_EPISODES, stitched, envs[u], DEV, "physx_cpu", progress_bar=False)
                 res["aligners"][name].update(success_once=float(ev["success_once"].mean()),
                                              success_at_end=float(ev["success_at_end"].mean()), episodes=len(ev["success_once"]))
@@ -222,5 +278,5 @@ if __name__ == "__main__":
     json.dump(dict(row=ROW, domain=DOMAIN, runs={D[c]: RUNS[c] for c in (0, 1)}, labels=LABELS,
                    env={D[c]: ENV[D[c]] for c in (0, 1)}, h5={D[c]: H5[D[c]] for c in (0, 1)},
                    fit_demos=[FIT_DEMOS.start, FIT_DEMOS.stop], heldout_demos=[HELDOUT_DEMOS.start, HELDOUT_DEMOS.stop],
-                   n_off=N_OFF, top_sensitive=TOP_SENSITIVE, n_draws=N_DRAWS, n_episodes=N_EPISODES, seed=SEED, closed_loop=not OFFLINE_ONLY),
+                   maps=MAPS, n_off=N_OFF, top_sensitive=TOP_SENSITIVE, n_draws=N_DRAWS, n_episodes=N_EPISODES, seed=SEED, closed_loop=not OFFLINE_ONLY),
               open(OUT / "config.json", "w"), indent=1)

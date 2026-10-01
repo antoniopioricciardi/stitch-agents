@@ -20,6 +20,14 @@ def fit_procrustes_paired(Zs, Zt, **info):
     return Q.T, mu_t - mu_s @ Q
 
 
+def fit_affine_paired(Zs, Zt, **info):
+    # Paired affine least squares, no orthogonality (map-class ablation of SAPS): min ||Zs R^T + b - Zt||_F.
+    # Solved on centred data: R^T = lstsq(Zs - mu_s, Zt - mu_t), b = mu_t - mu_s R^T.
+    mu_s, mu_t = Zs.mean(0), Zt.mean(0)
+    Rt = np.linalg.lstsq(Zs - mu_s, Zt - mu_t, rcond=None)[0]
+    return Rt.T, mu_t - mu_s @ Rt
+
+
 def action_pairs(ys, yt, rng, pool=None, per_class=100):
     # Anchor pairs without paired frames (old-repo recipe, the method's default): optionally a random pool
     # of `pool` frames per side, then for each action present on both sides, random frames sharing it are

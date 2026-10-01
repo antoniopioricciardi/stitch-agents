@@ -205,10 +205,34 @@ within ±.04 of the run above. Getting there took three OOM kills of the checks 
 - **Takeaway (one seed, pilot):**
   - **Stop rule passed:** a linear map stitches plain DP latents with paired frames (SAPS ≈ .45 both ways, 55–67% of
     native), and no map is at blind level (.05–.07).
-  - **Row 1 hypothesis mixed:** label-only action_pairs is 88% of SAPS one way and 63% the other. Offline it looked
-    close to SAPS both ways, so offline agreement overrates action_pairs for look 1 enc → cam0 ctrl.
+  - **Row 1 hypothesis:** label-only action_pairs is 88% of SAPS one way and 63% the other. The asymmetry is treated
+    as pilot noise until more seeds; not interpreted.
   - Plain DP z is already strongly collapsed onto a few directions (effective rank 3–4), which may be why labels
     already align it partly. Row 2 (SupCon) tests whether collapse onto the chunk labels closes the gap to SAPS.
+
+**Row 2 (SupCon λ = 1): cam0 seed 1, then look 1 seed 2** (`results/20261001_step1b_dp_supcon_{cam0_s1,look1_s2}/`;
+`run_dp_supcon.sh`, same recipe and demos as row 1). Hypotheses as pre-registered at the top of this entry
+(action_pairs close to SAPS; native roughly unchanged; NC1 / effective rank much lower than row 1).
+- **Fallback rule, made precise before the results:** compare the last-3 mean success_once with row 1 on the same
+  domain (cam0 .788, look 1 .695); if either drops by more than .1, rerun row 2 with λ = 0.1.
+- **After both trainings, one eval batch (no training running):** (1) row 2 oracle checks (blind, fake goal, probe),
+  collapse measures, stitching cam0 ↔ look 1 (identity / SAPS / action_pairs, offline + closed loop); (2) the map-class
+  check below.
+
+**Map-class ceiling check (row 1 agents, paired frames, closed loop both directions).** SAPS recovers .45 both ways
+(55–67% of native). Is the ceiling the map class or the denoiser's sensitivity to errors in z?
+- Maps, all fitted on the same paired latents (current frames of demos 0–99): SAPS (orthogonal + translation, as now);
+  affine least squares (z W + b, no orthogonality; `fit_affine_paired`); MLP (256 → 512 → 256, ReLU, MSE, Adam;
+  early-stopped on the pairs of 10 held-out fit demos). Also reported: held-out z-space residual
+  ‖T(z_s) − z_t‖² / ‖z_t − mean‖² on demos 400–497, and the offline chunk distances.
+- **Hypothesis:** the ceiling comes mostly from the information mismatch plus the denoiser's sensitivity, not from the
+  map class: affine within ±.05 of SAPS in closed loop, MLP at most ~.1 above, even where their z-space residual is
+  clearly lower. If affine or MLP reach ≥ .6 (≈ 75–90% of native), the orthogonal map class is the bottleneck, and
+  the paired ceiling (and "% of paired ceiling") must be defined with the better map.
+
+**Next to-do (after row 2 and the map-class check; not now): cam2 pilot with the goal sampled away from the cube's
+area**, so "go to goal_pos" is useless for grasping (goal y range not overlapping the cube's, as in the goal variant):
+new demos, one oracle, the three checks (blind, fake goal, probe).
 
 ---
 
