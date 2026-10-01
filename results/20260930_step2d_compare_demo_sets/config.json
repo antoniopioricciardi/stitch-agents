@@ -1,0 +1,8 @@
+{
+ "sets": {
+  "theirs": "/home/ricc/.maniskill/demos/PickCube-v1/motionplanning/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+  "ours": "results/20260930_dp_ours_demos_default_panda_cam0/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
+ },
+ "n": 100,
+ "rest_threshold": 0.01
+}

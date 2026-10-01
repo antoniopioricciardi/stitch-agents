@@ -61,6 +61,11 @@ Step 9 (CARLA) can move to the NeurIPS/CoRL version.
 
 - **Exit:** frames look right, and there are ≥100 successful demos per combination.
 - **Decision:** confirm ManiSkill3 as the main environment. If the visual axes are too weak, look at Colosseum V2.
+- **Status: done (2026-09-30).** ManiSkill3 confirmed. PickCube (`stitch/envs.py`): camera ×3, look ×3, light ×2;
+  tasks default / actuation (EE-delta bounds ×0.5; replaced friction/mass, which did not change the open-loop
+  expert) / goal; Panda and xArm6 (locked joint missing). 500 planner attempts per (task, robot): ≥ 99% planner
+  success, ~100% conversion, in both `pd_ee_delta_pose` and `pd_ee_delta_pos`; states stored for re-rendering.
+  Goal marker: magenta lollipop (the visible sphere covered the cube and cost ~0.2 success).
 
 ## Step 1b — Action labelling for continuous control (the key design question)
 
@@ -92,6 +97,12 @@ Step 9 (CARLA) can move to the NeurIPS/CoRL version.
 
 - **Exit:** every oracle reaches at least ~80% success, or the best achievable for that task.
 - **Decision:** fix the architecture and latent dimension for the rest of the project.
+- **Status: done (2026-10-01) for the core recipe** on default task / Panda / cam0, seed 1. Own BC failed (0/100,
+  also from the true state: planner rest steps), so oracles use ManiSkill's Diffusion Policy baseline unmodified
+  (`third_party/maniskill_diffusion_policy`): 100 demos, `pd_ee_delta_pos`, 50k iterations, state = qpos, qvel,
+  tcp_pose, goal_pos (no is_grasped). **0.82 final / 0.79 last-3 mean** (250 episodes; reference reproduced at 0.77
+  vs 0.81); blind (visual feature zeroed / shuffled) ≈ 0.05. Visual feature: PlainConv, 256-d per frame. Still to do:
+  3 seeds and the other combinations. Goal-from-pixels parked (498 demos: 0.12–0.19).
 
 ## Step 3 — The "why stitch?" baseline
 

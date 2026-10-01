@@ -1,0 +1,18 @@
+{
+ "task": "physics",
+ "robot": "panda",
+ "n": 10,
+ "seed0": 0,
+ "visuals": [
+  "cam0_look0_light0",
+  "cam1_look0_light0"
+ ],
+ "phases": [
+  "reach",
+  "descend",
+  "close",
+  "carry"
+ ],
+ "control_mode": "pd_ee_delta_pose",
+ "proprio": "qpos, qvel, tcp_pose"
+}

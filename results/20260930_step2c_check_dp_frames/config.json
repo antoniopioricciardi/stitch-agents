@@ -1,0 +1,17 @@
+{
+ "env_kwargs": {
+  "control_mode": "pd_ee_delta_pos",
+  "reward_mode": "sparse",
+  "obs_mode": "rgb",
+  "render_mode": "rgb_array",
+  "human_render_camera_configs": {
+   "shader_pack": "default"
+  },
+  "max_episode_steps": 100
+ },
+ "reconfiguration_freq": 1,
+ "demos": {
+  "ours": "results/20260930_dp_ours_demos_default_panda_cam0/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+  "theirs": "/home/ricc/.maniskill/demos/PickCube-v1/motionplanning/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
+ }
+}

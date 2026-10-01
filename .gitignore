@@ -1,4 +1,3 @@
-results/
 data/
 .venv/
 mario/.venv/
@@ -11,10 +10,17 @@ __pycache__/
 .ipynb_checkpoints/
 
 # data, checkpoints and run outputs (large, regenerable)
-results/
+# results/: only each run's config.json and metrics.json are tracked
+results/**
+!results/**/
+!results/**/config.json
+!results/**/metrics.json
 mario/data/
 *.pt
 *.npz
+*.h5
+*.png
+*.mp4
 *.7z
 
 # papers (PDFs, downloadable from arXiv)

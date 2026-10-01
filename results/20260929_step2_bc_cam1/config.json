@@ -1,0 +1,19 @@
+{
+ "cam": 1,
+ "seeds": [
+  0,
+  1,
+  2
+ ],
+ "d": 256,
+ "steps": 20000,
+ "batch": 256,
+ "lr": 0.0003,
+ "aug": "random_shift pad 4",
+ "demos": "results/20260929_step1_demos_default_panda/cam1_look0_light0.npz",
+ "n_eval": 100,
+ "eval_seed0": 10000,
+ "task": "default",
+ "robot": "panda",
+ "control_mode": "pd_ee_delta_pose"
+}

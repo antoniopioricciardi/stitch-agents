@@ -1,0 +1,13 @@
+{
+ "marker": "lollipop",
+ "n_demos": 100,
+ "near_grasp_steps": 5,
+ "gripper_links": [
+  "panda_hand",
+  "panda_leftfinger",
+  "panda_rightfinger",
+  "panda_leftfinger_pad",
+  "panda_rightfinger_pad"
+ ],
+ "demos": "results/20260930_step1_demos_default_panda_pos/demos.npz"
+}

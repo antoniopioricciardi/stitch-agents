@@ -19,6 +19,380 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 
 ---
 
+## Step 2 handoff (2026-10-01): how to train, load and read the oracles
+
+- **Oracle recipe:** ManiSkill's Diffusion Policy baseline, unmodified (`third_party/maniskill_diffusion_policy`, v3.0.1),
+  env `StitchPickCubeLollipopNoGrasp-v1` (state = qpos, qvel, tcp_pose, goal_pos; 28-d), 100 demos, 50k iterations.
+- **Train:** `bash scripts/run_dp.sh stitch.envs:<env-id> <demo.h5> <seed> <name>` (env vars `TOTAL_ITERS`, `NUM_DEMOS`;
+  250 eval episodes every 5k; saves the final weights as `checkpoints/49999.pt`). One run at a time: ~12 GB RAM,
+  ~11 GB GPU, ~1 h; launch under `systemd-run --user -p MemoryMax=16G -p MemorySwapMax=0` (see `results/*_chain.sh`).
+- **Env ids** (`stitch/envs.py`, all PickCube): `StitchPickCube-v1` (old sphere), `…HiddenGoal-v1`, `…Lollipop-v1`,
+  `…LollipopNoGrasp-v1` (core), `…LollipopNoGoalState-v1`. Flags: `cam`, `look`, `light`, `task`
+  (default/actuation/goal), `robot_uids`, `goal_marker` (sphere/hidden/lollipop), `goal_in_state`, `grasp_in_state`.
+  The `module:EnvId` form makes the baseline's eval workers import `stitch.envs`; put the repo root and
+  `third_party/maniskill_diffusion_policy` on `PYTHONPATH`.
+- **Demos** (`results/` is not in git; everything is in `/home/ricc/projects/labelstitch-step1/results/`): states +
+  actions per (task, robot) in `20260930_step1_demos_<task>_<robot>_pos/demos.npz`; DP format via
+  `scripts/export_dp_demos.py [goal_marker]` (replays stored actions in our env with `RecordEpisode`; cam0, default
+  task, Panda for now), e.g. `20260930_dp_ours_demos_default_panda_cam0_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5`.
+- **Checkpoints:** core oracle `20261001_step2g_dp_core_nograsp_50k_s1/runs/step2g_dp_core_nograsp_50k_s1/checkpoints/49999.pt`.
+- **Load the final EMA agent** (as in `scripts/eval_dp_blind.py`): `import train_rgbd`; build envs with
+  `make_eval_envs(env_id, 10, "physx_cpu", env_kwargs, dict(obs_horizon=2), wrappers=[FlattenRGBDObservationWrapper])`;
+  `agent = train_rgbd.Agent(envs, train_rgbd.Args())`; `agent.load_state_dict(torch.load(ckpt)["ema_agent"])`.
+  Guard the script with `if __name__ == "__main__"` (forkserver workers re-import it).
+- **The z we stitch:** `agent.visual_encoder` (PlainConv): RGB/255 `(B, 3, 128, 128)` → `(B, 256)` per frame. In
+  `Agent.encode_obs` it is concatenated with the state, per frame (obs horizon 2), into the U-Net's global condition.
+  Patching `visual_encoder.forward` is how the blind check replaces z.
+- **Gotchas:** gymnasium pinned to 0.29.1 (the baseline reads `final_info`); load `.npz` arrays once (they
+  decompress on every access); ManiSkill's evaluation metric is success_once; report final + last-3 mean, 250 episodes.
+
+---
+
+## 2026-10-01 — Step 2g: core oracle setup (goal in state, no is_grasped) + blind check; goal-from-pixels with 498 demos
+
+- **Setup:** unmodified DP recipe, lollipop visible, seed 1, 50k iterations, 250 eval episodes every 5k; final + mean
+  of the last 3. Final weights saved with `--save_freq 49999` (by default the baseline keeps only "best" checkpoints).
+  (1) Core setup, `StitchPickCubeLollipopNoGrasp-v1`: state = qpos, qvel, tcp_pose, goal_pos (28-d), 100 demos.
+      Blind check on its final weights (`scripts/eval_dp_blind.py`, 250 episodes each): full / visual feature zeroed /
+      visual feature replaced by that of a random training frame (shuffled). The state part is untouched.
+  (2) Goal-from-pixels diagnostic, `StitchPickCubeLollipopNoGoalState-v1` (25-d state), **all 498 demos**.
+- **Hypotheses:**
+  - (1) ≈ 0.78 like Step 2f run 1 (`is_grasped` is redundant with the gripper qpos). Blind: zeroed and shuffled
+    near 0 (≤ 0.05): the cube pose is not in the state, so without vision the policy cannot find the cube.
+  - (2) data-limited: with 5× the goal examples, clearly above 0.02 (0.3–0.6). If still near zero: stop; next idea is
+    a spatial-softmax ResNet18 encoder (robomimic style), not tuning.
+- **Result** (`results/20261001_step2g_dp_core_nograsp_50k_s1/`, `results/20261001_step2g_dp_nogoalstate_498demos_50k_s1/`,
+  `results/20261001_step2g_blind_step2g_dp_core_nograsp_50k_s1/`; ~58 min per run; success_once / success_at_end):
+
+  | iteration | (1) core: goal in state, no is_grasped, 100 demos | (2) goal from pixels, 498 demos |
+  |---|---|---|
+  | 5k | 0.05 / 0.02 | 0.01 / 0.00 |
+  | 10k | 0.55 / 0.33 | 0.05 / 0.02 |
+  | 15k | 0.76 / 0.53 | 0.07 / 0.04 |
+  | 20k | 0.78 / 0.54 | 0.11 / 0.06 |
+  | 25k | 0.76 / 0.58 | 0.15 / 0.10 |
+  | 30k | 0.81 / 0.60 | 0.19 / 0.12 |
+  | 35k | 0.80 / 0.56 | 0.15 / 0.11 |
+  | 40k | 0.80 / 0.60 | 0.15 / 0.10 |
+  | 45k | 0.74 / 0.57 | 0.14 / 0.10 |
+  | **50k (final; last-3 mean)** | **0.824 (0.788) / 0.596 (0.589)** | **0.124 (0.136) / 0.068 (0.091)** |
+
+  Blind check on (1)'s final weights (250 episodes each): **full 0.84 / 0.62, visual feature zeroed 0.044 / 0.036,
+  shuffled 0.060 / 0.044.**
+- **Takeaway:**
+  - **Core oracle recipe confirmed:** goal in state without `is_grasped` = 0.79 last-3 mean, same as with it (0.79).
+    The blind check drops it to ~0.05: the policy needs vision (the cube pose is only in the pixels).
+  - **Goal from pixels is partly data-limited but far from solved:** 498 demos lift it from 0.02 to 0.12–0.19
+    (peak at 30k, then declining), below the 0.3–0.6 hypothesis. Next idea per plan: a spatial-softmax ResNet18
+    encoder (robomimic style); not run.
+
+---
+
+## 2026-09-30 — Step 2f: lollipop at 50k iterations, with and without the goal in the state
+
+- **Setup:** unmodified DP recipe, lollipop visible, our 100 demos (all DP runs so far used `--num-demos 100` of 498),
+  seed 1, **50k iterations** (default from now on), 250 eval episodes every 5k; final + mean of the last 3.
+  (1) `StitchPickCubeLollipop-v1`: state = qpos, qvel, is_grasped, tcp_pose, goal_pos (29-d).
+  (2) `StitchPickCubeLollipopNoGoalState-v1` (`goal_in_state=False`): state = qpos, qvel, tcp_pose (25-d); the goal
+  must be read from the lollipop. Implemented in the env's observation, not by overriding
+  `build_state_obs_extractor`: the baseline's eval state comes from `FlattenRGBDObservationWrapper` (all of agent +
+  extra) and ignores the extractor, while its demo loader already drops keys the env does not produce
+  (`reorder_keys`), so train and eval both get 25-d with the baseline code untouched. Smoke-tested (20 iterations).
+- **Hypotheses** (written after launch, before any evaluation past iteration 0):
+  - (1) catches up with more training: ≈ 0.75–0.78 at 50k (the 30k run was still rising, 0.72).
+  - (2) reading the goal from pixels costs 0.1–0.25 vs (1): the goal is 3-D and the lollipop is a few pixels,
+    partly hidden by the hand at some positions; losing `is_grasped` should matter little (the gripper state is in qpos).
+- **Result** (`results/20260930_step2f_dp_lollipop_{goalstate,nogoalstate}_50k_s1/`, ~57 min each; success_once /
+  success_at_end every 5k, 250 episodes):
+
+  | iteration | (1) goal in state | (2) goal from pixels only |
+  |---|---|---|
+  | 5k | 0.04 / 0.02 | 0.00 / 0.00 |
+  | 10k | 0.22 / 0.16 | 0.01 / 0.00 |
+  | 15k | 0.58 / 0.42 | 0.00 / 0.00 |
+  | 20k | 0.73 / 0.56 | 0.02 / 0.01 |
+  | 25k | 0.79 / 0.64 | 0.02 / 0.01 |
+  | 30k | 0.80 / 0.65 | 0.01 / 0.00 |
+  | 35k | 0.80 / 0.63 | 0.01 / 0.00 |
+  | 40k | 0.78 / 0.60 | 0.02 / 0.00 |
+  | 45k | 0.82 / 0.64 | 0.02 / 0.02 |
+  | **50k (final; last-3 mean)** | **0.772 (0.789) / 0.616 (0.620)** | **0.016 (0.019) / 0.004 (0.008)** |
+
+  Run (2), final-eval video (one episode): the policy reaches and grasps the cube (`is_grasped` = 1 from ~step 40),
+  then holds it near the table and never carries it towards the lollipop.
+- **Takeaway:**
+  - (1) With 50k iterations the lollipop run matches the hidden-sphere result (0.79 vs 0.78 last-3 mean): the lollipop
+    costs nothing once the goal is in the state. (At 30k this run already had 0.80 vs 0.72 for the 30k run: the LR
+    schedule spans the whole run, plus one-seed noise.)
+  - (2) **Removing `goal_pos` + `is_grasped` collapses DP to ~0.02**, far beyond the hypothesised 0.1–0.25: the
+    policy grasps but does not carry, i.e. it does not read the goal from the lollipop (with 100 demos, 50k iterations).
+  - Stopped here as agreed (> 0.2 drop). Next diagnostics (not run): remove `goal_pos` and `is_grasped` separately;
+    train on all 498 demos.
+
+---
+
+## 2026-09-30 — Step 2e: is the visible goal sphere the cause? (hidden-sphere run + occlusion count)
+
+- **Protocol from now on:** final checkpoint (30k), mean of the last 3 checkpoints (20k/25k/30k) in brackets,
+  250 eval episodes per checkpoint (`--num_eval_episodes 250`), no best checkpoint.
+- **Setup:** (1) `StitchPickCubeHiddenGoal-v1` (our env, `goal_marker="hidden"`: pixel-identical to PickCube-v1),
+  our demos re-exported without the sphere, unmodified DP recipe, seed 1. (2) Occlusion count, no training: for our
+  first 100 demos, render each state with and without the sphere (segmentation) and count frames where sphere pixels
+  cover cube or gripper (hand + fingers) pixels, overall and within ±5 steps of the gripper closing.
+- **Hypotheses:** (1) ≈ 0.77, as on their env (the data is the same). (2) The sphere covers cube/gripper pixels in a
+  noticeable fraction of frames near the grasp (≥ 10%), much more than overall.
+- **Result 1, hidden sphere** (`results/20260930_step2e_dp_ourenv_hiddengoal_s1/`, 250 episodes, ~35 min):
+  **0.776 (last 3: 0.779)** success_once, 0.632 (0.616) success_at_end. Same as their env (0.77).
+- **Result 2, occlusion** (`results/20260930_step2e_goal_occlusion_{sphere,lollipop}/`, 100 demos, ~7.7k frames per
+  camera; "near grasp" = ±5 steps around the gripper closing):
+
+  | camera | frames where the marker covers cube/gripper: sphere | lollipop | cube pixels covered: sphere | lollipop |
+  |---|---|---|---|---|
+  | cam0 | 37% (near grasp 27%) | 32% (29%) | **10.2%** (5.0%) | **2.6%** (1.9%) |
+  | cam1 | 18% (8%) | 15% (14%) | 4.5% (1.8%) | 2.5% (1.9%) |
+  | cam2 | 36% (22%) | 35% (38%) | 6.7% (2.9%) | 2.2% (2.1%) |
+
+  (lollipop = 8 mm pole for this count; the pole was then thickened to 12 mm.)
+- **Takeaway:**
+  - **The visible goal sphere is the cause of the gap:** hidden, our env matches their env (0.78 vs 0.77).
+  - The sphere covers cube/gripper pixels often (37% of cam0 frames), most during the carry, not near the grasp as
+    hypothesised. The lollipop covers ~4× fewer cube pixels, though its thin pole still touches cube/gripper pixels in
+    a similar fraction of frames.
+  - Replacement marker, approved: **lollipop** (`goal_marker="lollipop"`, env `StitchPickCubeLollipop-v1`): magenta
+    1.25 cm sphere on a 12 mm vertical pole to the table, non-colliding (`results/20260930_step2e_goal_marker_lollipop/grid.png`).
+- **Known limitations (relevant once `goal_pos` leaves the state):**
+  - at some goal positions the hand hides the marker completely from cam0 (e.g. [-0.1, 0.1, 0.17]);
+  - low goals (z ≈ 0.03) are only a few pixels next to the cube, and magenta sits close to the red cube in look0.
+- **Next run, hypothesis:** lollipop visible in training and eval, `goal_pos` still in the state, seed 1, same
+  protocol: close to the hidden-sphere result (≥ 0.70).
+- **Result 3, lollipop** (`results/20260930_step2e_dp_ourenv_lollipop_s1/`, 250 episodes, ~34 min):
+  **0.716 (last 3: 0.675)** success_once, 0.568 (0.523) success_at_end. Curve: 0.30 at 10k, 0.58 at 15k, 0.64 at 20k,
+  0.67 at 25k, 0.72 at 30k — still rising at 30k, while the hidden-sphere run had plateaued (~0.78 from 20k).
+
+  | goal marker (our env, our demos, seed 1) | success_once: final (last 3) | success_at_end: final (last 3) |
+  |---|---|---|
+  | hidden (= PickCube-v1) | 0.776 (0.779) | 0.632 (0.616) |
+  | lollipop | 0.716 (0.675) | 0.568 (0.523) |
+  | sphere (Step 2c, 100 episodes, seeds 1 / 2) | 0.51 / 0.56 | 0.39 / 0.46 |
+
+- **Takeaway (lollipop):** most of the gap closes (sphere ~0.53 → lollipop 0.72 final), within ~0.06 of hidden at
+  the final checkpoint but ~0.10 below on the last-3 mean: slower learning, one seed. The hypothesis (≥ 0.70) holds
+  for the final checkpoint only.
+
+---
+
+## 2026-09-30 — Step 2d: do our demos differ from ManiSkill's? (training-free)
+
+- **Setup:** `scripts/compare_demo_sets.py`, first 100 shared seeds, both sets in `pd_ee_delta_pos`. Their demos:
+  ManiSkill's official motion-planning solution (commit 652ad93, planned in `pd_joint_pos`, converted with
+  `replay_trajectory --use-first-env-state -c pd_ee_delta_pos -o rgb -b physx_cpu`). Ours: the same solution copied
+  in `collect_demos.py`, converted with the same function (`from_pd_joint_pos_to_ee`).
+- **Hypothesis:** our demos have more or longer rest steps after conversion.
+- **Result** (`results/20260930_step2d_compare_demo_sets/`):
+
+  | | length | gripper close step | rest steps (before / after close) | mean \|position action\| |
+  |---|---|---|---|---|
+  | theirs | 77.2 | 41.7 | 16.7% (10.6% / 24.6%) | 0.058 |
+  | ours | 77.2 | 41.7 | 16.7% (10.6% / 24.6%) | 0.058 |
+
+  Same seed: 100/100 same length, max action difference 0.009 (median 1e-5), state difference median 1e-4
+  (one `is_grasped` flag flips a step earlier/later), frames differ only by the goal sphere (0.6 other pixels per frame).
+- **Takeaway:**
+  - **Hypothesis rejected: the demo sets are the same demos.** The Step 2c gap is not the demos; the only systematic
+    difference in the training data is the goal sphere in our frames (visible in ~83% of them).
+  - Steps 2–3 of the plan (re-render their demos in our env, fix our generation) are moot: re-rendering their demos
+    in our env reproduces our demos. Open question: why a visible goal sphere costs ~0.2 when `goal_pos` is also in the state.
+
+---
+
+## 2026-09-30 — Step 2c: where does the DP gap come from (0.77 their env → 0.51 our env)?
+
+- **Setup:** (1) frame/state check without training: frames from the baseline's eval env on our env id
+  (`reconfiguration_freq=1`) vs our training frames for the same seeds, and vs PickCube-v1 for the same seeds
+  (camera pose, intrinsics, resolution, textures, lighting); state vector fields and dims. (2) 2×2 swap with the
+  unmodified DP recipe, seed 1, 30k iterations: their demos on our env, our demos on their env. (3) Seed 2 on our
+  env with our demos. Goal sphere stays visible in our env; `goal_pos` / `is_grasped` stay in the state.
+- **Hypotheses:**
+  - Frames: identical to PickCube-v1 except the green goal sphere; identical between eval and training for the same
+    seed; state vector identical (29-d: qpos 9, qvel 9, is_grasped 1, tcp_pose 7, goal_pos 3).
+  - The gap is mostly DP seed variance plus the visible goal sphere, not the demos: our demos come from the same
+    planner with the same length distribution. Expect seed 2 on our env within ±0.15 of 0.51, "their demos on our
+    env" ≈ our env's number, "our demos on their env" ≈ their env's number.
+  - Caveat: in both swap cells the goal sphere is in the training frames but not the eval frames (or the reverse),
+    so a swap cell that drops points to the visible sphere, not to the demos.
+- **Result 1, frames and state** (`results/20260930_step2c_check_dp_frames/`): as hypothesised. Eval frames =
+  training frames (0 px differ, both envs); our env vs PickCube-v1 for the same seed differ only in the goal sphere
+  (0–47 px); intrinsics/extrinsics equal; state identical (29-d, same fields and values). Both demo sets use seeds
+  0, 1, 2, … so they share initial states.
+- **Result 2, env × demos × seed** (unmodified DP recipe, 30k iterations, 100 eval episodes; success_once /
+  success_at_end at 30k, best success_once over the 5k checkpoints in brackets):
+
+  | env (eval) | demos (train) | goal sphere train → eval | seed | final | best |
+  |---|---|---|---|---|---|
+  | theirs | theirs | hidden → hidden | 1 | **0.77 / 0.64** | 0.77 |
+  | theirs | ours | visible → hidden | 1 | 0.57 / 0.44 | 0.70 |
+  | ours | theirs | hidden → visible | 1 | 0.65 / 0.59 | 0.65 |
+  | ours | ours | visible → visible | 1 | 0.51 / 0.39 | 0.59 |
+  | ours | ours | visible → visible | 2 | 0.56 / 0.46 | 0.61 |
+
+  Checkpoint-to-checkpoint swings within one run are up to ~0.15 (e.g. 0.70 → 0.57), larger than the ~0.05
+  binomial noise of 100 episodes. Runs are one at a time (~12 GB RAM, ~11 GB GPU each; ~30 min).
+- **Takeaway:**
+  - Seed variance on our env is small (0.51 vs 0.56), so the gap to 0.77 is real.
+  - ~~The demos matter more than the env~~ — **corrected by Step 2d:** the two demo sets have identical actions and
+    states, so "demos" here really means "goal sphere in the training frames". Read the table by that column:
+    trained without the sphere 0.77 (eval hidden) / 0.65 (eval visible); trained with it 0.57 / 0.51–0.56.
+
+---
+
+## 2026-09-30 — Step 2b: switch oracles to ManiSkill's Diffusion Policy baseline
+
+- **Why:** plain BC on motion-planning demos fails even from the true state (Step 2 below): the planner's timed rest
+  pauses make the next action ambiguous from the current state, and single-step MSE BC averages over it.
+  Action chunking with a multimodal (diffusion) head is the standard answer, and ManiSkill publishes a baseline for
+  exactly this task. Our contribution is stitching, so oracles come from a published recipe, modified minimally.
+  The rest-step and yaw-representation fixes are parked.
+- **What exists:** no pretrained PickCube RGB policy from ManiSkill or LeRobot (the demo download ships state-based
+  PPO checkpoints only). Reference number: ManiSkill's own wandb run of this baseline (stonet2000/ManiSkill,
+  `diffusion_policy-PickCube-v1-rgb-100_motionplanning_demos-1`, seed 1): success_once 0.81, success_at_end 0.67
+  at 30k iterations (0.75–0.82 from 15k on); the docs report success_once.
+- **Setup:** `third_party/maniskill_diffusion_policy/` = ManiSkill v3.0.1 `examples/baselines/diffusion_policy`,
+  unmodified. Their command (`baselines.sh`, RGB): 100 motion-planning demos replayed to `pd_ee_delta_pos` + RGB,
+  obs horizon 2, action chunk 16 (8 executed), 30k iterations, batch 256, 100-step episodes, 100 eval episodes.
+  Env changes to run it: `uv add diffusers tensorboard wandb` (wandb offline) and gymnasium pinned to 0.29.1 (the
+  code reads `final_info`, removed in gymnasium 1.x). Glue: `scripts/run_dp_reference.sh`,
+  `scripts/export_dp_demos.py` (our demos → ManiSkill trajectory format via `RecordEpisode`; 498/498 replay),
+  `scripts/run_dp_ours.sh` (our env through `--env-id stitch.envs:StitchPickCube-v1`).
+- **Hypotheses:**
+  - Reference (their env, their demos, seed 1): success_once ≈ 0.81 (within ~±0.05).
+  - Ours (our env: default task, Panda, cam0; our first 100 demos; same seed and settings): similar, 0.7–0.85.
+    Differences: our goal sphere is visible to the camera (theirs is hidden), our demos come from our own planner
+    run. Their recipe feeds `agent` + `extra` as state, which includes `goal_pos` and `is_grasped`; kept as-is here.
+- **Result** (seed 1, 100 eval episodes per point, ~30 min per run on the RTX 5070 Ti;
+  `results/20260930_dp_reference_pickcube_rgb/`, `results/20260930_dp_ours_default_panda_cam0/`):
+
+  | iteration | ManiSkill's run (wandb) | reference reproduced | ours (StitchPickCube, cam0) |
+  |---|---|---|---|
+  | 5k | 0.05 / 0.02 | 0.05 / 0.02 | 0.04 / 0.01 |
+  | 10k | 0.50 / 0.36 | 0.49 / 0.35 | 0.33 / 0.25 |
+  | 15k | 0.82 / 0.67 | 0.77 / 0.64 | 0.46 / 0.35 |
+  | 20k | 0.80 / 0.68 | 0.74 / 0.64 | 0.59 / 0.45 |
+  | 25k | 0.75 / 0.64 | 0.68 / 0.51 | 0.54 / 0.46 |
+  | 30k (final) | **0.81 / 0.67** | **0.77 / 0.64** | **0.51 / 0.39** |
+
+  success_once / success_at_end. Demo lengths match (first 100 demos: mean 77.2 theirs, 77.4 ours; max 99 both).
+- **Takeaway:**
+  - **The baseline reproduces:** 0.77 vs 0.81 final, and the curve tracks theirs at every checkpoint (within ~0.07,
+    i.e. about the noise of 100 episodes and one seed).
+  - **On our env it works but is ~0.25 lower** (0.51 final, best 0.59 at 20k), with the same recipe, seed and
+    demo lengths. One seed only; cause not yet identified. Differences to check: the goal sphere visible in the
+    image (hidden in theirs), our scene rebuilt on every eval reset (`reconfiguration_freq=1`), our demo set.
+
+---
+
+## 2026-09-29/30 — Step 2 (minimal slice): BC oracles, default task, Panda, cam0 and cam1
+
+- **Setup:** `stitch/models.py`: CNN encoder (4 stride-2 convs + linear, 128×128 RGB → d = 256) and MLP controller
+  on [z, proprio (25-d: qpos, qvel, TCP pose; no goal)] → 7-d EE delta action. BC (MSE), 500 demos per camera,
+  20k steps, batch 256, Adam 3e-4, random-shift augmentation; seeds 0, 1, 2. Evaluation: 100 episodes, seeds
+  10000+ (disjoint from the demos), max 120 steps, success = PickCube success at any step. Blind checks on the same
+  agents: z = 0 (zeros) and z = latent of a random training frame, redrawn every step (shuffled).
+- **Hypotheses:**
+  - Oracle (full z): 60–85% on both cameras; cam1 (side view, more robot occlusion) a bit lower than cam0.
+  - Blind (zeros and shuffled): ≤ 5%. Proprio has no cube or goal position, and both are randomised (±10 cm cube,
+    ±10 cm × 0–30 cm goal), so the controller cannot solve the task without the image.
+  - ~5 min training per agent on the RTX 5070 Ti.
+- **Result 1, first attempt — negative** (single-step RGB BC, 6-d rotation control; `results/20260929_step2_bc_cam{0,1}/`):
+  0/100 for every seed and camera, with full z, zeros and shuffled alike (one 1/100 in shuffled). Training ~7.8 min
+  per agent (two runs sharing the GPU). The policies move but never grasp (closest approach 3–16 cm).
+- **Result 2, sanity check** (is it a pipeline bug?). Pipeline: replaying stored actions in the evaluation env
+  succeeds 5/5; proprio matches to 1e-4; frames match except 1–2 edge pixels. Then BC from the **true state**
+  (z = cube pose + goal position, same controller; `results/20260930_step2_state_bc_*/`, seed 0, 160-step limit):
+
+  | z | control | recipe | eval seeds: success any step / at end | training seeds 0–9: any step |
+  |---|---|---|---|---|
+  | pixels (Result 1) | pose (7-d) | single step | 0.00 / — | 1/10 cam0, 2/10 cam1 |
+  | state, cube quaternion | pose (7-d) | single step | 0.00 / 0.00 | 1/10 |
+  | state, cube quaternion | pose (7-d) | chunk | 0.05 / 0.03 | 2/10 |
+  | state, cube yaw as sin/cos(4·yaw) | pose (7-d) | single step | 0.00 / 0.00 | 1/10 |
+  | state, cube yaw as sin/cos(4·yaw) | pose (7-d) | chunk | **0.45 / 0.26** | 5/10 |
+  | state, cube quaternion | pos (4-d) | single step | 0.00 / 0.00 | 1/10 |
+  | state, cube quaternion | pos (4-d) | chunk | 0.02 / 0.02 | 3/10 |
+
+  single step = one action per step; chunk = 2-step history, 16-step chunk, 8 executed. Both standardise proprio
+  and actions per dimension. The sin/cos(4·yaw) rows are a one-off diagnostic (not a committed script).
+- **Why it fails:** the planner stops at rest at the end of every segment. Before descending, the expert sits
+  ~5 cm above the cube for 2–3 steps with near-zero actions, then accelerates. From the state alone that looks
+  like "stay still": the state-BC policies (pos, chunk) stop 4–6 cm above the cube in 19/20 episodes and close
+  the gripper there, at steps 24–37, where the expert would start descending.
+- **Takeaway:**
+  - Not a pipeline bug: the same controller fails from the true state. The failure comes from the demos
+    (timed rest pauses between planner segments) combined with plain MSE BC.
+  - Chunking helps only once the rotation target is continuous (5% → 45%). Position-only control alone does not help (2%).
+  - Candidate fixes (to decide): drop the rest pauses from the demos (steps with near-zero arm action and an
+    unchanged gripper); a diffusion/flow head on the chunk; a time/phase input. The pixel recipe waits until state BC works.
+
+---
+
+## 2026-09-29 — Step 1: ManiSkill3 PickCube variants + motion-planning demos
+
+- **Env** (`stitch/envs.py`, ManiSkill 3.0.1): PickCube, Panda / xArm6. Visual: camera ×3, look (colour/texture) ×3,
+  light ×2. Task: default / actuation (EE-delta action bounds ×0.5; replaced physics = cube friction 0.3 → 0.1,
+  10× mass, see Result 2) / goal (goal y ∈ [0.15, 0.25], disjoint from default). Goal sphere visible to the camera. **Missing: locked-joint robot** (mplib's screw planner can't mask joints).
+- **Frame check** (`results/20260929_step1_check_envs/`): all variants render; same seed → identical initial state
+  across visual variants; a state restored in another visual variant renders the same poses (paired frames for SAPS).
+  Goal region inside the frame for all 3 cameras. 1 CPU env, 128×128 RGB: ~650 steps/s step+render, ~900 frames/s render only.
+- **Demos:** mplib motion planner (joint targets) → converted to EE delta pose (7-d, both robots) by ManiSkill's
+  replay conversion. Stored for every demo: actions, full env states, proprio, planner phase, `steps_to_grasp`, seed.
+  Pixels rendered from the converted states only for default/Panda (cam0, cam1, cam2); the rest on demand later.
+- **Expectations (before running):**
+  - Panda, default task, N = 10: planner success ~100% (20/20 in a probe), conversion success ≥ 90%,
+    ~85–95 EE steps per demo, ~2–3 s per demo (0.8 s planning + conversion + rendering).
+  - Physics vs default (same seeds): joint plans identical (the planner is open-loop in geometry), EE actions
+    nearly identical in every phase. If so, `physics` is not a task shift and is replaced by `actuation`.
+- **Result 1, demos** (Panda, cam0 + cam1 rendered from the same states, N = 10, seeds 0–9; `results/20260929_step1_demos_<task>_panda/`):
+
+  | task | planner success | conversion success | EE steps, mean (range) | time per demo |
+  |---|---|---|---|---|
+  | default | 10/10 | 10/10 | 72.9 (49–91) | 0.53 s |
+  | physics (dropped) | 10/10 | 10/10 | 72.8 (49–91) | 0.50 s |
+  | actuation | 10/10 | 10/10 | 73.2 (49–94) | 0.51 s |
+
+  Stored EE actions replayed open-loop from the stored first state: 10/10 default demos succeed (max state diff ≤ 0.02).
+  Every step also stores the planner phase and `steps_to_grasp` (0 when the gripper has closed, negative after).
+- **Result 2, does the task variant change the expert?** Same seeds, EE-delta actions per phase vs default
+  (arm |a| ratio = mean |action| variant / default over the 6 arm dims; `results/20260929_step1_compare_<task>_panda/`):
+
+  | phase (mean length) | physics: arm \|a\| ratio, max same-seed \|Δa\| | actuation: arm \|a\| ratio, max same-seed \|Δa\| |
+  |---|---|---|
+  | approach (23.6) | 1.00, 0.000 | 1.39, 0.84 |
+  | descend (14.1) | 1.00, 0.000 | 1.91, 0.21 |
+  | grasp (6.0) | —, 0.014 | —, 0.03 |
+  | carry = lift + move to goal, one screw motion (29.2) | 1.27, 0.075 | 1.91, 0.40 |
+
+  Grasp start step: identical to default for physics in 10/10 seeds, for actuation in 9/10 (one demo +3 steps from clipping).
+- **Result 3, full collection** (500 attempts per combination, seeds 0–499, 6 runs in parallel on 6 CPU cores;
+  `results/20260929_step1_demos_<task>_<robot>/`):
+
+  | task | robot | planner success | conversion success | demos saved | EE steps (mean) | time per demo |
+  |---|---|---|---|---|---|---|
+  | default | Panda | 99.6% | 100% | 498 | 78.3 | 0.65 s (3 cameras rendered) |
+  | actuation | Panda | 99.6% | 100% | 498 | 79.0 | 0.33 s |
+  | goal | Panda | 99.2% | 100% | 496 | 80.8 | 0.34 s |
+  | default | xArm6 | 99.2% | 100% | 496 | 80.0 | 1.37 s |
+  | actuation | xArm6 | 99.2% | 100% | 496 | 80.5 | 1.38 s |
+  | goal | xArm6 | 99.4% | 100% | 497 | 83.7 | 1.39 s |
+
+- **Takeaway (Step 1 closed, 2026-09-30):**
+  - Motion-planning demos are cheap and reliable: ≥99% planner success and 100% conversion on every combination,
+    0.3–1.4 s per demo. The xArm6 planner (RRT*, not seeded by ManiSkill) is not exactly reproducible from the seed.
+  - **Physics (friction 0.1, 10× mass) is not a task shift for this expert**: identical actions until the grasp,
+    ≤0.075 difference while carrying. Replaced by **actuation** (EE-delta bounds ×0.5), which roughly doubles the
+    arm actions for the same motion. Physics could only come back with an expert that reacts to it.
+  - Weak axis: camera 2 is close to camera 0 (kept on purpose as the mild shift).
+
+---
+
 ## 2026-09-29 — Step 0c: does a TACO temporal loss keep or break label-only alignability?
 
 - **Hypotheses:**

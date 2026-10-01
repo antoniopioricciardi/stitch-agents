@@ -1,0 +1,19 @@
+{
+ "task": "default",
+ "robot": "panda",
+ "n": 500,
+ "seed0": 0,
+ "visuals": [
+  "cam0_look0_light0",
+  "cam1_look0_light0",
+  "cam2_look0_light0"
+ ],
+ "phases": [
+  "approach",
+  "descend",
+  "grasp",
+  "carry"
+ ],
+ "control_mode": "pd_ee_delta_pos",
+ "proprio": "qpos, qvel, tcp_pose"
+}
