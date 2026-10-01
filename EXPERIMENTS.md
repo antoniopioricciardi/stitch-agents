@@ -127,6 +127,34 @@ the state (the goal is usually near the cube in x/y); (B) it confuses the marker
   still encodes the cube's x/y moderately (R² 0.67 / 0.38 vs cam0's 0.78 / 0.58): the information is partly there,
   but the controller learned the goal_pos shortcut instead of using it. Not a visibility problem alone.
 
+**cam0 fake-goal test (does the core setup have the shortcut everywhere?).** `scripts/fake_goal_check.py` (the cam1
+script, generalised to any domain; adds placed_fake = the cube came within 0.025 m of the fake goal). Same 50 + 50
+episodes. A working agent also ends near the fake goal (carrying the cube there is the task), so the decisive measures
+are the grasp rate and placed_fake.
+- **Hypothesis:** cam0 finds the cube from the image: grasp rate under the fake goal ≥ 0.8× the true-goal rate,
+  closest approach to the cube ≲ 2 cm in both conditions, and the cube carried to the fake goal (placed_fake ≈ the
+  true-goal success rate). goal_pos is then used only for placing, as intended.
+- **Decision rule (agreed):** if so, the shortcut is viewpoint-specific; keep the core setup, and every oracle gets
+  three checks from now on: blind (z zeroed / shuffled), fake goal, cube/goal probe. If cam0 also partly follows the
+  fake goal (grasp rate clearly lower): stop and report; the likely fix is sampling the goal outside the cube's area
+  (not implemented yet).
+- **Offline metric, vision-sensitive version (added to `step1b_stitch.py` before any reported number):** sensitivity
+  of a held-out frame = ‖native chunk − native chunk with z from a random other frame‖ (state kept); agreement also
+  reported on the 30% most sensitive frames, next to the overall number.
+- **Result** (`results/20261001_step1b_fake_goal_cam0_step2g_dp_core_nograsp_50k_s1/`; 50 episodes each):
+
+  | cam0 agent | success (real goal) | grasped | placed at state goal_pos | closest to cube (mean / median) |
+  |---|---|---|---|---|
+  | true goal | .80 | .90 | .80 | 1.0 / 0.6 cm |
+  | fake goal | .00 | .88 | **.78** | 1.2 / 0.6 cm |
+
+  In both conditions 89% of grasped episodes end with the cube at goal_pos; cube approach < 2 cm in 84% of episodes in both.
+- **Takeaway:** **hypothesis confirmed; the shortcut is viewpoint-specific.** cam0 finds the cube from the image
+  (grasp rate and approach unchanged) and uses goal_pos only for placing, as intended. Per the decision rule: keep the
+  core setup; every oracle now gets three checks: blind (`eval_dp_blind.py`), fake goal (`fake_goal_check.py`),
+  cube/goal probe (`probe_cube_goal.py`). Oracle acceptance needs more than a success rate: cam1 would have passed a
+  "goes near the goal" eyeball test.
+
 ---
 
 ## Step 2 handoff (2026-10-01): how to train, load and read the oracles

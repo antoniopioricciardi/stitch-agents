@@ -15,6 +15,7 @@ agent_v with its visual_encoder replaced by [E_u, z -> z @ R.T + b], T applied p
     chance_z = native vs native with z taken from a random other frame (state kept: the chance level for z; on
     demo frames the state alone predicts much of the chunk); chance_frame = native(i) vs native(j) for a random
     other frame j; noise floor = native vs native with different noise; expert = native vs the demo's own chunk.
+    Every offline number is [all frames, the 30% most vision-sensitive frames] (sensitivity = the per-frame chance_z).
   Closed loop: the baseline's evaluate() on domain u's env, N_EPISODES episodes, final checkpoints.
 Per agent (training frames, own domain, chunk labels): NC1 = tr(S_W)/tr(S_B), effective rank (participation ratio),
 share of z's variance in the top-4 / top-16 principal components (regression-collapse check).
@@ -51,6 +52,7 @@ H5 = {"cam0": f"/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_d
 FIT_DEMOS = range(0, 100)
 HELDOUT_DEMOS = range(400, 498)
 N_OFF = 2000
+TOP_SENSITIVE = 0.3  # share of most vision-sensitive held-out frames for the second offline number
 N_DRAWS = 5
 N_EPISODES = 250
 SEED = 0
@@ -175,14 +177,19 @@ if __name__ == "__main__":
         zu = encode(agents[u].visual_encoder, rgb.flatten(0, 1)).reshape(len(sel), 2, -1)  # (N, 2, 256)
         native = denoise(agents[u], zu, state, seed=1)
         expert = torch.from_numpy(off[u][2][sel]).to(DEV)
-        dist = lambda a, b: (a - b).flatten(1).norm(dim=1).mean().item()
+        per_frame = lambda a, b: (a - b).flatten(1).norm(dim=1)  # (N,)
+        # vision sensitivity of each frame: how much the native chunk moves when z comes from a random other frame
+        # (state kept). Top 30% = the frames where the encoder drives the action, i.e. where stitching matters.
+        sens = per_frame(native, denoise(agents[u], zu[perm], state, seed=1))
+        top = sens >= sens.quantile(1 - TOP_SENSITIVE)
+        dist = lambda a, b: [per_frame(a, b).mean().item(), per_frame(a, b)[top].mean().item()]  # [all, top 30%]
         res = dict(native_vs_expert=dist(native, expert), chance_frame=dist(native, native[perm]),
-                   chance_z=dist(native, denoise(agents[u], zu[perm], state, seed=1)),
+                   chance_z=[sens.mean().item(), sens[top].mean().item()],
                    noise_floor=dist(native, denoise(agents[u], zu, state, seed=2)), aligners={})
         for name, RBs in maps.items():
             ds = [dist(denoise(agents[v], zu @ torch.tensor(R.T, dtype=torch.float32, device=DEV)
                                + torch.tensor(b, dtype=torch.float32, device=DEV), state, seed=1), native) for R, b in RBs]
-            res["aligners"][name] = dict(offline_dist=float(np.mean(ds)), offline_dist_draws=ds)
+            res["aligners"][name] = dict(offline_dist=np.mean(ds, 0).tolist(), offline_dist_draws=ds)
         print(f"{D[u]} enc -> {D[v]} ctrl", json.dumps(res, indent=1), flush=True)
 
         if not OFFLINE_ONLY:
@@ -205,5 +212,5 @@ if __name__ == "__main__":
     json.dump(dict(row=ROW, domain=DOMAIN, runs={D[c]: RUNS[c] for c in (0, 1)}, labels=LABELS,
                    env={D[c]: ENV[D[c]] for c in (0, 1)}, h5={D[c]: H5[D[c]] for c in (0, 1)},
                    fit_demos=[FIT_DEMOS.start, FIT_DEMOS.stop], heldout_demos=[HELDOUT_DEMOS.start, HELDOUT_DEMOS.stop],
-                   n_off=N_OFF, n_draws=N_DRAWS, n_episodes=N_EPISODES, seed=SEED, closed_loop=not OFFLINE_ONLY),
+                   n_off=N_OFF, top_sensitive=TOP_SENSITIVE, n_draws=N_DRAWS, n_episodes=N_EPISODES, seed=SEED, closed_loop=not OFFLINE_ONLY),
               open(OUT / "config.json", "w"), indent=1)

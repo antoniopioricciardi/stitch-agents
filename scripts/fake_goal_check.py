@@ -1,13 +1,16 @@
-"""Step 1b cam1 diagnostic: does the cam1 agent follow goal_pos from the state instead of finding the cube?
+"""Oracle check (Step 1b): does the agent find the cube from the image, or follow goal_pos from the state?
 
-Usage: uv run python scripts/cam1_fake_goal.py <run_dir>   (PYTHONPATH=<repo>:<repo>/third_party/maniskill_diffusion_policy)
-Final EMA agent, one CPU env (cam1 core setup, 100 steps, as the baseline's eval), the agent's own action loop
+Usage: uv run python scripts/fake_goal_check.py <run_dir> <domain>   (domain: cam0, cam1, cam2, look1;
+       PYTHONPATH=<repo>:<repo>/third_party/maniskill_diffusion_policy)
+Final EMA agent, one CPU env (the domain's core setup, 100 steps, as the baseline's eval), the agent's own action loop
 (obs horizon 2, 8 of 16 predicted actions executed, as diffusion_policy/evaluate.py). Two conditions, N episodes each,
 eval seeds 10000+i (disjoint from the demos):
   true: unchanged;
   fake: goal_pos in the state (state[25:28]) replaced by the goal of reset(seed=20000+i), i.e. a goal from the env's
         own distribution; the real marker stays where it is in the image.
-Per episode: success once, grasped once, closest approach of the TCP to the cube, the real goal and the fake goal.
+Per episode: success once (w.r.t. the real goal), grasped once, closest approach of the TCP to the cube, the real goal
+and the fake goal, and placed_fake = the cube came within the goal threshold (0.025 m) of the fake goal. A working
+agent also ends near the fake goal (carrying the cube there is the task); the shortcut shows as a lost grasp rate.
 Also saves the 128x128 policy frames (every 10th step) of the first 3 failed true-goal episodes as one grid.
 """
 import glob
@@ -26,7 +29,8 @@ from PIL import Image
 import train_rgbd
 import stitch.envs  # noqa: F401 (registers the env ids)
 
-ENV_ID = "StitchPickCubeLollipopNoGraspCam1-v1"
+ENV = {"cam0": "StitchPickCubeLollipopNoGrasp-v1", "cam1": "StitchPickCubeLollipopNoGraspCam1-v1",
+       "cam2": "StitchPickCubeLollipopNoGraspCam2-v1", "look1": "StitchPickCubeLollipopNoGraspLook1-v1"}
 N = 50
 GOAL = slice(25, 28)  # state = qpos 9, qvel 9, tcp_pose 7, goal_pos 3
 DEV = "cuda"
@@ -43,7 +47,7 @@ def run(agent, env, goal_env, seed, fake, frames=None):
     else:
         fake_goal = true_goal
     hist = [obs, obs]  # the baseline's FrameStack repeats the first observation
-    d = dict(cube=np.inf, goal=np.inf, fake_goal=np.inf, success=False, grasped=False)
+    d = dict(cube=np.inf, goal=np.inf, fake_goal=np.inf, cube_to_fake_goal=np.inf, success=False, grasped=False)
     step = 0
     while step < 100:
         state = torch.stack([h["state"][0] for h in hist])[None].clone().float()  # (1, 2, 28)
@@ -58,6 +62,7 @@ def run(agent, env, goal_env, seed, fake, frames=None):
             d["cube"] = min(d["cube"], (tcp - u.cube.pose.p[0]).norm().item())
             d["goal"] = min(d["goal"], (tcp - true_goal).norm().item())
             d["fake_goal"] = min(d["fake_goal"], (tcp - fake_goal).norm().item())
+            d["cube_to_fake_goal"] = min(d["cube_to_fake_goal"], (u.cube.pose.p[0] - fake_goal).norm().item())
             d["success"] |= bool(info["success"][0])
             d["grasped"] |= bool(u.agent.is_grasping(u.cube)[0])
             if frames is not None and step % 10 == 0:
@@ -65,12 +70,14 @@ def run(agent, env, goal_env, seed, fake, frames=None):
             if step >= 100:
                 break
     d["fake_goal_to_goal"] = (fake_goal - true_goal).norm().item()
+    d["placed_fake"] = d["cube_to_fake_goal"] < 0.025
     return d
 
 
 if __name__ == "__main__":
-    RUN_DIR = sys.argv[1]
-    OUT = Path("results") / f"{date.today():%Y%m%d}_step1b_cam1_fake_goal"
+    RUN_DIR, DOMAIN = sys.argv[1], sys.argv[2]
+    ENV_ID = ENV[DOMAIN]
+    OUT = Path("results") / f"{date.today():%Y%m%d}_step1b_fake_goal_{DOMAIN}_{Path(RUN_DIR).name.split('_', 1)[1]}"
     OUT.mkdir(parents=True, exist_ok=True)
     kw = dict(control_mode="pd_ee_delta_pos", reward_mode="sparse", obs_mode="rgb", sim_backend="cpu", max_episode_steps=100)
     env = FlattenRGBDObservationWrapper(gym.make(ENV_ID, **kw))
@@ -94,12 +101,13 @@ if __name__ == "__main__":
             eps.append(e)
             if frames is not None and not e["success"]:
                 grid.append(np.concatenate(frames, 1))
-        summ = {k: float(np.mean([e[k] for e in eps])) for k in ("success", "grasped", "cube", "goal", "fake_goal", "fake_goal_to_goal")}
+        summ = {k: float(np.mean([e[k] for e in eps])) for k in ("success", "grasped", "placed_fake", "cube", "goal", "fake_goal", "cube_to_fake_goal", "fake_goal_to_goal")}
         summ["closer_to_fake_goal_than_cube"] = float(np.mean([e["fake_goal"] < e["cube"] for e in eps]))
         summ["closer_to_fake_goal_than_goal"] = float(np.mean([e["fake_goal"] < e["goal"] for e in eps]))
         print(cond, json.dumps(summ), flush=True)
         m[cond] = dict(summary=summ, episodes=eps)
-    Image.fromarray(np.concatenate(grid, 0)).save(OUT / "failed_true_goal_frames.png")
     json.dump(m, open(OUT / "metrics.json", "w"), indent=1)
-    json.dump(dict(run_dir=RUN_DIR, env_id=ENV_ID, n=N, eval_seeds="10000+i", fake_goal_seeds="20000+i",
+    if grid:  # a good oracle may have no failed episode among the first ones
+        Image.fromarray(np.concatenate(grid, 0)).save(OUT / "failed_true_goal_frames.png")
+    json.dump(dict(run_dir=RUN_DIR, domain=DOMAIN, env_id=ENV_ID, n=N, eval_seeds="10000+i", fake_goal_seeds="20000+i",
                    grid="first 3 failed true-goal episodes, every 10th step"), open(OUT / "config.json", "w"), indent=1)

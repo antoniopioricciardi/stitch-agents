@@ -34,7 +34,7 @@ SEED = 0
 # the guard is needed: the eval envs are forkserver workers, which re-import this script
 if __name__ == "__main__":
     RUN_DIR, ENV_ID, DEMOS = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
-    OUT = Path("results") / f"{date.today():%Y%m%d}_step2g_blind_{RUN_DIR.name.split('_', 1)[1]}"
+    OUT = Path("results") / f"{date.today():%Y%m%d}_blind_{RUN_DIR.name.split('_', 1)[1]}"
     OUT.mkdir(parents=True, exist_ok=True)
     dev = "cuda"
     torch.manual_seed(SEED), np.random.seed(SEED)
