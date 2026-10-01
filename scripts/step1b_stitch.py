@@ -213,6 +213,7 @@ if __name__ == "__main__":
                                              success_at_end=float(ev["success_at_end"].mean()), episodes=len(ev["success_once"]))
                 print(f"{D[u]} enc -> {D[v]} ctrl, {name}:", res["aligners"][name], flush=True)
                 del stitched
+            envs.pop(u).close()  # 10 workers per domain: two sets at once exceed 16 GB
         m["stitch"][f"{D[u]}_enc_to_{D[v]}_ctrl"] = res
         json.dump(m, open(OUT / "metrics.json", "w"), indent=1)
 

@@ -32,21 +32,21 @@
   }
  },
  "20261001_step1b_dp_ref_cam1_s2:cam1": {
-  "checkpoint": "results/20261001_step1b_dp_ref_cam1_s2/runs/step1b_dp_ref_cam1_s2/checkpoints/49999.pt",
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261001_step1b_dp_ref_cam1_s2/runs/step1b_dp_ref_cam1_s2/checkpoints/49999.pt",
   "domain": "cam1",
   "n_fit": 7843,
   "n_test": 7839,
   "cube": {
-   "alpha": 0.001,
+   "alpha": 0.0001,
    "r2_xyz_all": [
-    0.654,
-    0.396,
+    0.65,
+    0.401,
     0.673
    ],
    "r2_xyz_on_table": [
-    0.668,
-    0.383,
-    -1931.755
+    0.664,
+    0.387,
+    -1910.877
    ]
   },
   "goal": {
@@ -60,6 +60,70 @@
     -0.022,
     -0.08,
     -0.013
+   ]
+  }
+ },
+ "20261001_step1b_dp_ref_look1_s2:look1": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261001_step1b_dp_ref_look1_s2/runs/step1b_dp_ref_look1_s2/checkpoints/49999.pt",
+  "domain": "look1",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.665,
+    0.551,
+    0.578
+   ],
+   "r2_xyz_on_table": [
+    0.758,
+    0.589,
+    -3434.044
+   ]
+  },
+  "goal": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.045,
+    0.059,
+    0.069
+   ],
+   "r2_xyz_on_table": [
+    0.034,
+    0.043,
+    -0.007
+   ]
+  }
+ },
+ "20261001_step1b_dp_ref_cam2_s2:cam2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261001_step1b_dp_ref_cam2_s2/runs/step1b_dp_ref_cam2_s2/checkpoints/49999.pt",
+  "domain": "cam2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.599,
+    0.777,
+    0.62
+   ],
+   "r2_xyz_on_table": [
+    0.61,
+    0.789,
+    -2401.475
+   ]
+  },
+  "goal": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.006,
+    0.003,
+    0.071
+   ],
+   "r2_xyz_on_table": [
+    -0.024,
+    -0.045,
+    0.004
    ]
   }
  }

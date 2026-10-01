@@ -155,6 +155,61 @@ are the grasp rate and placed_fake.
   cube/goal probe (`probe_cube_goal.py`). Oracle acceptance needs more than a success rate: cam1 would have passed a
   "goes near the goal" eyeball test.
 
+**Second-domain oracles (seed 2, λ = 0; `results/20261001_step1b_dp_ref_{look1,cam2}_s2/`)** — success_once /
+success_at_end every 5k from 0:
+- **look 1:** .000/.000, .024/.020, .480/.340, .612/.456, .668/.460, .676/.464, .680/.532, .720/.532, .712/.528,
+  .696/.564, **final .676 (last-3 .695) / .508 (.533)**. Works, ~0.1 below cam0 (0.82 / 0.79) and just under the
+  0.7–0.85 hypothesis. Checks: blind full .72 / zeroed .02 / shuffled .04 (needs vision); fake goal (50 + 50
+  episodes) grasped .94 → .88, cube approach 1.1 → 1.4 cm, placed at state goal .80 → .68 (finds the cube from the
+  image; placing drops a bit more than cam0's); probe cube x / y .76 / .59 (≈ cam0), goal ≤ .04. **Accepted.**
+- **cam2: fails.** .000, .040, .032, .032, .056, .048, .060, .068, .092, .084, **final .044** (training loss .0003:
+  fits the demos). Unlike cam1 the cube is clearly visible in cam2, so visibility alone does not explain it.
+  Checks: blind full .08 / zeroed .02 / shuffled .03; fake goal: **follows goal_pos like cam1** (closest approach
+  1.1 cm to the fake goal vs 6.8 cm to the cube; grasped .10 → .14; placed at fake goal .04); probe cube x / y
+  .61 / .79 (the y coordinate better than cam0's), goal ≈ 0. So z encodes the cube, yet the controller learned the
+  goal_pos shortcut: the probe does not predict this failure. No stitching on cam2. **To-do:** as cam1 (understand
+  why two of three viewpoints fall into the shortcut while cam0 / look 1 do not).
+- Probe with the extended α grid (α now inside the grid; cube x / y on table): cam0 .78 / .58, cam1 .66 / .39,
+  look 1 .76 / .59. Unchanged from the first pass.
+
+**Row 1, cam0 ↔ look 1, offline** (`results/20261001_step1b_stitch_row1_look1/`; 2000 held-out frames; L2 distance
+between 8-step chunks, all frames / the 30% most vision-sensitive frames; action_pairs = mean of 5 draws, spread ±.002):
+
+| | cam0 enc → look 1 ctrl | look 1 enc → cam0 ctrl |
+|---|---|---|
+| noise floor | .024 / .047 | .030 / .033 |
+| chance for z (shuffled z, state kept) | .255 / .786 | .182 / .551 |
+| identity | .126 / .207 | .144 / .220 |
+| SAPS (paired) | .046 / .093 | .046 / .070 |
+| action_pairs | .055 / .112 | .056 / .094 |
+
+z geometry (training frames, 16 chunk labels): cam0 NC1 .92, effective rank 3.1, variance in top-4 / top-16 PCs
+.77 / .90; look 1 1.29, 4.2, .72 / .89 (Mario BC: NC1 4.97, effective rank 44). Offline, action_pairs is already close
+to SAPS on plain DP, against the row 1 hypothesis; plain DP's z is already very low-dimensional (regression collapse
+without SupCon).
+
+**Row 1, cam0 ↔ look 1, closed loop** (250 episodes, final checkpoints, success_once / success_at_end; the stitched
+agent plays in its encoder's domain; action_pairs = draw 0; natives from the training logs, final (last-3)):
+
+| | cam0 enc → look 1 ctrl (plays cam0) | look 1 enc → cam0 ctrl (plays look 1) |
+|---|---|---|
+| native agent of that domain | .824 (.788) / .596 | .676 (.695) / .508 |
+| identity | .068 / .052 | .048 / .036 |
+| SAPS (paired) | **.452 / .376** (55% of native) | **.452 / .344** (67% of native) |
+| action_pairs | **.396 / .296** (48% of native, **88% of SAPS**) | **.284 / .192** (42% of native, **63% of SAPS**) |
+
+The cam0 → look 1 direction was measured twice (the first run was OOM-killed when it opened the second domain's
+eval envs while the first's were still open; fixed by closing them): identity .028, SAPS .460, action_pairs .376;
+within ±.04 of the run above. Getting there took three OOM kills of the checks service: 10 GB cap too small, then two
+10-worker eval-env sets alive at once.
+- **Takeaway (one seed, pilot):**
+  - **Stop rule passed:** a linear map stitches plain DP latents with paired frames (SAPS ≈ .45 both ways, 55–67% of
+    native), and no map is at blind level (.05–.07).
+  - **Row 1 hypothesis mixed:** label-only action_pairs is 88% of SAPS one way and 63% the other. Offline it looked
+    close to SAPS both ways, so offline agreement overrates action_pairs for look 1 enc → cam0 ctrl.
+  - Plain DP z is already strongly collapsed onto a few directions (effective rank 3–4), which may be why labels
+    already align it partly. Row 2 (SupCon) tests whether collapse onto the chunk labels closes the gap to SAPS.
+
 ---
 
 ## Step 2 handoff (2026-10-01): how to train, load and read the oracles
