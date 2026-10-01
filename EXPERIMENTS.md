@@ -32,8 +32,30 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
     near 0 (≤ 0.05): the cube pose is not in the state, so without vision the policy cannot find the cube.
   - (2) data-limited: with 5× the goal examples, clearly above 0.02 (0.3–0.6). If still near zero: stop; next idea is
     a spatial-softmax ResNet18 encoder (robomimic style), not tuning.
-- **Result:**
+- **Result** (`results/20261001_step2g_dp_core_nograsp_50k_s1/`, `results/20261001_step2g_dp_nogoalstate_498demos_50k_s1/`,
+  `results/20261001_step2g_blind_step2g_dp_core_nograsp_50k_s1/`; ~58 min per run; success_once / success_at_end):
+
+  | iteration | (1) core: goal in state, no is_grasped, 100 demos | (2) goal from pixels, 498 demos |
+  |---|---|---|
+  | 5k | 0.05 / 0.02 | 0.01 / 0.00 |
+  | 10k | 0.55 / 0.33 | 0.05 / 0.02 |
+  | 15k | 0.76 / 0.53 | 0.07 / 0.04 |
+  | 20k | 0.78 / 0.54 | 0.11 / 0.06 |
+  | 25k | 0.76 / 0.58 | 0.15 / 0.10 |
+  | 30k | 0.81 / 0.60 | 0.19 / 0.12 |
+  | 35k | 0.80 / 0.56 | 0.15 / 0.11 |
+  | 40k | 0.80 / 0.60 | 0.15 / 0.10 |
+  | 45k | 0.74 / 0.57 | 0.14 / 0.10 |
+  | **50k (final; last-3 mean)** | **0.824 (0.788) / 0.596 (0.589)** | **0.124 (0.136) / 0.068 (0.091)** |
+
+  Blind check on (1)'s final weights (250 episodes each): **full 0.84 / 0.62, visual feature zeroed 0.044 / 0.036,
+  shuffled 0.060 / 0.044.**
 - **Takeaway:**
+  - **Core oracle recipe confirmed:** goal in state without `is_grasped` = 0.79 last-3 mean, same as with it (0.79).
+    The blind check drops it to ~0.05: the policy needs vision (the cube pose is only in the pixels).
+  - **Goal from pixels is partly data-limited but far from solved:** 498 demos lift it from 0.02 to 0.12–0.19
+    (peak at 30k, then declining), below the 0.3–0.6 hypothesis. Next idea per plan: a spatial-softmax ResNet18
+    encoder (robomimic style); not run.
 
 ---
 
