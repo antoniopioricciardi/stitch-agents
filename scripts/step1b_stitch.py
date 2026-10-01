@@ -29,6 +29,7 @@ from functools import partial
 from pathlib import Path
 
 import gymnasium as gym
+from gymnasium import spaces
 import h5py
 import numpy as np
 import torch
@@ -62,13 +63,13 @@ ENV_KWARGS = dict(control_mode="pd_ee_delta_pos", reward_mode="sparse", obs_mode
 
 
 def load_frames(cam, demos, obs_space):
-    # -> rgb (N, 2, 3, H, W) uint8, state (N, 2, S), chunks (N, 8, A), states (N, ...) env states for the pairing
-    # check; one row per current frame t = 0..L-2 of each demo, obs frames [t-1, t] (t-1 clamped to 0, as the
-    # baseline pads), the same frames and chunks as in training (stitch/labels.py)
+    # -> rgb (F, 3, H, W) uint8 every frame once, idx (N, 2) rows of rgb, state (N, 2, S), chunks (N, 8, A),
+    # tcp (N, 7) for the pairing check; one row per current frame t = 0..L-2 of each demo, obs frames [t-1, t]
+    # (t-1 clamped to 0, as the baseline pads), the same frames and chunks as in training (stitch/labels.py)
     process = partial(convert_obs, concat_fn=partial(np.concatenate, axis=-1),
                       transpose_fn=partial(np.transpose, axes=(0, 3, 1, 2)),
                       state_obs_extractor=build_state_obs_extractor(ENV[D[cam]]), depth=False)
-    rgb, state, chunks, env_states = [], [], [], []
+    rgb, idxs, state, chunks, tcp, n = [], [], [], [], [], 0
     with h5py.File(H5[D[cam]], "r") as f:
         for i in demos:
             traj = load_content_from_h5_file(f[f"traj_{i}"])
@@ -76,17 +77,25 @@ def load_frames(cam, demos, obs_space):
             L = len(traj["actions"])
             t = np.arange(L - 1)
             idx = np.stack([np.maximum(t - 1, 0), t], 1)  # (L-1, 2)
-            rgb.append(obs["rgb"][idx])
+            rgb.append(obs["rgb"])
+            idxs.append(idx + n)
+            n += len(obs["rgb"])
             state.append(obs["state"][idx])
             chunks.append(frame_chunks(traj["actions"]))
-            env_states.append(traj["obs"]["extra"]["tcp_pose"][t])
-    return (torch.from_numpy(np.concatenate(rgb)), torch.from_numpy(np.concatenate(state)).float(),
-            np.concatenate(chunks), np.concatenate(env_states))
+            tcp.append(traj["obs"]["extra"]["tcp_pose"][t])
+    return (torch.from_numpy(np.concatenate(rgb)), np.concatenate(idxs), torch.from_numpy(np.concatenate(state)).float(),
+            np.concatenate(chunks), np.concatenate(tcp))
 
 
-def load_agent(run_dir, envs):
+# Agent only needs the spaces (no eval-env workers): state (2, 28), rgb (2, 128, 128, 3), action in [-1, 1]^4
+SPACES = type("E", (), dict(
+    single_observation_space=spaces.Dict(state=spaces.Box(-np.inf, np.inf, (2, 28)), rgb=spaces.Box(0, 255, (2, 128, 128, 3), np.uint8)),
+    single_action_space=spaces.Box(-1, 1, (4,))))()
+
+
+def load_agent(run_dir):
     ckpt = max(glob.glob(str(Path(run_dir) / "runs/*/checkpoints/[0-9]*.pt")), key=lambda p: int(Path(p).stem))
-    agent = train_rgbd.Agent(envs, train_rgbd.Args()).to(DEV)
+    agent = train_rgbd.Agent(SPACES, train_rgbd.Args()).to(DEV)
     agent.load_state_dict(torch.load(ckpt)["ema_agent"])
     return agent.eval(), ckpt
 
@@ -146,25 +155,25 @@ if __name__ == "__main__":
     tmp = gym.make(ENV["cam0"], **ENV_KWARGS)  # "module:EnvId" imports stitch.envs
     obs_space = tmp.observation_space
     tmp.close()
-    envs = {0: make_eval_envs(ENV["cam0"], 10, "physx_cpu", ENV_KWARGS, dict(obs_horizon=2), video_dir=None,
-                              wrappers=[FlattenRGBDObservationWrapper])}
+    envs = {}  # eval envs, made only for the closed loop
     agents, ckpts = {}, {}
     for c in (0, 1):
-        agents[c], ckpts[c] = load_agent(RUNS[c], envs[0])  # spaces are the same in every domain
+        agents[c], ckpts[c] = load_agent(RUNS[c])
 
     fit, off = {}, {}
     for c in (0, 1):
         fit[c] = load_frames(c, FIT_DEMOS, obs_space)
         off[c] = load_frames(c, HELDOUT_DEMOS, obs_space)
     for d in (fit, off):  # same demo, same step -> same state and actions in both domains (the SAPS pairing)
-        assert np.abs(d[0][3] - d[1][3]).max() < 1e-5 and np.abs(d[0][1].numpy() - d[1][1].numpy()).max() < 1e-5
-        assert np.array_equal(d[0][2], d[1][2])
-    y_fit, y_off = label(fit[0][2]), label(off[0][2])
+        assert np.abs(d[0][4] - d[1][4]).max() < 1e-5 and np.abs(d[0][2].numpy() - d[1][2].numpy()).max() < 1e-5
+        assert np.array_equal(d[0][3], d[1][3])
+    y_fit, y_off = label(fit[0][3]), label(off[0][3])
     sel = rng.permutation(len(y_off))[:N_OFF]  # held-out frames for the offline metrics
     perm = rng.permutation(N_OFF)  # random other frame, for the chance level
 
     # z of the current frames: Z[(encoder cam, image cam)], (N, 256)
-    Z = {(c, c): encode(agents[c].visual_encoder, fit[c][0][:, -1]).cpu().numpy() for c in (0, 1)}
+    Z = {(c, c): encode(agents[c].visual_encoder, fit[c][0][fit[c][1][:, -1]]).cpu().numpy() for c in (0, 1)}
+    del fit  # frees the fit frames (~0.4 GB per domain)
     m = dict(checkpoints={D[c]: ckpts[c] for c in (0, 1)}, label_sizes=np.bincount(y_fit, minlength=16).tolist(),
              geometry={D[c]: geometry(Z[(c, c)], y_fit) for c in (0, 1)}, stitch={})
     print(json.dumps(m["geometry"], indent=1), flush=True)
@@ -173,10 +182,10 @@ if __name__ == "__main__":
         Zs, Zt = Z[(u, u)], Z[(v, v)]
         maps = {"identity": [fit_identity(Zs, Zt)], "saps": [fit_procrustes_paired(Zs, Zt)],
                 "action_pairs": [fit_action_pairs(Zs, Zt, y_fit, y_fit, np.random.default_rng(s)) for s in range(N_DRAWS)]}
-        rgb, state = off[u][0][sel], off[u][1][sel]
+        rgb, state = off[u][0][off[u][1][sel]], off[u][2][sel]  # (N, 2, 3, H, W), (N, 2, S)
         zu = encode(agents[u].visual_encoder, rgb.flatten(0, 1)).reshape(len(sel), 2, -1)  # (N, 2, 256)
         native = denoise(agents[u], zu, state, seed=1)
-        expert = torch.from_numpy(off[u][2][sel]).to(DEV)
+        expert = torch.from_numpy(off[u][3][sel]).to(DEV)
         per_frame = lambda a, b: (a - b).flatten(1).norm(dim=1)  # (N,)
         # vision sensitivity of each frame: how much the native chunk moves when z comes from a random other frame
         # (state kept). Top 30% = the frames where the encoder drives the action, i.e. where stitching matters.
