@@ -19,6 +19,35 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 
 ---
 
+## Step 2 handoff (2026-10-01): how to train, load and read the oracles
+
+- **Oracle recipe:** ManiSkill's Diffusion Policy baseline, unmodified (`third_party/maniskill_diffusion_policy`, v3.0.1),
+  env `StitchPickCubeLollipopNoGrasp-v1` (state = qpos, qvel, tcp_pose, goal_pos; 28-d), 100 demos, 50k iterations.
+- **Train:** `bash scripts/run_dp.sh stitch.envs:<env-id> <demo.h5> <seed> <name>` (env vars `TOTAL_ITERS`, `NUM_DEMOS`;
+  250 eval episodes every 5k; saves the final weights as `checkpoints/49999.pt`). One run at a time: ~12 GB RAM,
+  ~11 GB GPU, ~1 h; launch under `systemd-run --user -p MemoryMax=16G -p MemorySwapMax=0` (see `results/*_chain.sh`).
+- **Env ids** (`stitch/envs.py`, all PickCube): `StitchPickCube-v1` (old sphere), `…HiddenGoal-v1`, `…Lollipop-v1`,
+  `…LollipopNoGrasp-v1` (core), `…LollipopNoGoalState-v1`. Flags: `cam`, `look`, `light`, `task`
+  (default/actuation/goal), `robot_uids`, `goal_marker` (sphere/hidden/lollipop), `goal_in_state`, `grasp_in_state`.
+  The `module:EnvId` form makes the baseline's eval workers import `stitch.envs`; put the repo root and
+  `third_party/maniskill_diffusion_policy` on `PYTHONPATH`.
+- **Demos** (`results/` is not in git; everything is in `/home/ricc/projects/labelstitch-step1/results/`): states +
+  actions per (task, robot) in `20260930_step1_demos_<task>_<robot>_pos/demos.npz`; DP format via
+  `scripts/export_dp_demos.py [goal_marker]` (replays stored actions in our env with `RecordEpisode`; cam0, default
+  task, Panda for now), e.g. `20260930_dp_ours_demos_default_panda_cam0_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5`.
+- **Checkpoints:** core oracle `20261001_step2g_dp_core_nograsp_50k_s1/runs/step2g_dp_core_nograsp_50k_s1/checkpoints/49999.pt`.
+- **Load the final EMA agent** (as in `scripts/eval_dp_blind.py`): `import train_rgbd`; build envs with
+  `make_eval_envs(env_id, 10, "physx_cpu", env_kwargs, dict(obs_horizon=2), wrappers=[FlattenRGBDObservationWrapper])`;
+  `agent = train_rgbd.Agent(envs, train_rgbd.Args())`; `agent.load_state_dict(torch.load(ckpt)["ema_agent"])`.
+  Guard the script with `if __name__ == "__main__"` (forkserver workers re-import it).
+- **The z we stitch:** `agent.visual_encoder` (PlainConv): RGB/255 `(B, 3, 128, 128)` → `(B, 256)` per frame. In
+  `Agent.encode_obs` it is concatenated with the state, per frame (obs horizon 2), into the U-Net's global condition.
+  Patching `visual_encoder.forward` is how the blind check replaces z.
+- **Gotchas:** gymnasium pinned to 0.29.1 (the baseline reads `final_info`); load `.npz` arrays once (they
+  decompress on every access); ManiSkill's evaluation metric is success_once; report final + last-3 mean, 250 episodes.
+
+---
+
 ## 2026-10-01 — Step 2g: core oracle setup (goal in state, no is_grasped) + blind check; goal-from-pixels with 498 demos
 
 - **Setup:** unmodified DP recipe, lollipop visible, seed 1, 50k iterations, 250 eval episodes every 5k; final + mean
