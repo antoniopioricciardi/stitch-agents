@@ -1,0 +1,11 @@
+{
+ "demos": [
+  "/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_demos_default_panda_cam0_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+  "results/20261001_dp_ours_demos_default_panda_cam1_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
+ ],
+ "n_train": 100,
+ "K": 16,
+ "chunk": 8,
+ "seed": 0,
+ "restarts": 10
+}

@@ -182,6 +182,10 @@ register_env("StitchPickCubeLollipop-v1", max_episode_steps=160, goal_marker="lo
 register_env("StitchPickCubeLollipopNoGoalState-v1", max_episode_steps=160, goal_marker="lollipop", goal_in_state=False, grasp_in_state=False)(StitchPickCubeEnv)
 # core oracle setup (Step 2g): goal position in the state, no is_grasped
 register_env("StitchPickCubeLollipopNoGrasp-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False)(StitchPickCubeEnv)
+# the same core setup seen from cam1 (left side; Step 1b)
+register_env("StitchPickCubeLollipopNoGraspCam1-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, cam=1)(StitchPickCubeEnv)
+register_env("StitchPickCubeLollipopNoGraspCam2-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, cam=2)(StitchPickCubeEnv)
+register_env("StitchPickCubeLollipopNoGraspLook1-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, look=1)(StitchPickCubeEnv)
 
 
 def make_env(visual=(0, 0, 0), task="default", robot="panda", obs_mode="rgb", control_mode="pd_joint_pos", goal_marker="sphere"):

@@ -19,6 +19,100 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 
 ---
 
+## 2026-10-01 — Step 1b (rows 1–2): does action collapse make DP encoders alignable from labels? (branch `step1b-labels`)
+
+- **Question:** does the Mario mechanism (SupCon on the latent → action collapse → label-only alignment ≈ paired SAPS)
+  carry over to continuous control with Diffusion Policy?
+- **Setup:**
+  - Core DP recipe (Step 2 handoff), default task, Panda, lollipop, 100 demos, 50k iterations. Domains: cam0
+    (`StitchPickCubeLollipopNoGrasp-v1`) and cam1 (`…NoGraspCam1-v1`, left side view; strong shift).
+  - **Both cameras train on the same demos 0–99** (re-rendered: identical states and actions). A feasibility test,
+    so the easiest conditions; the 3-seed expansion in Step 4 trains extra agents on different demos (e.g. 100–199)
+    to test independent data. Held-out frames for offline metrics: demos 400–497.
+  - z = `agent.visual_encoder` output (256-d per frame); the state (incl. goal_pos) goes to the denoiser unchanged;
+    T maps z per frame (both obs-horizon frames).
+  - **Labels:** frame t → k-means cluster (K = 16) of its executed chunk a[t:t+8] (DP's padding included), each
+    action dimension z-scored over the training actions, then flattened to 32-d. Fitted once on the chunks of demos
+    0–99; actions do not depend on the camera, so the labels are shared. Torch k-means (k-means++, Lloyd, restarts).
+  - **Row 1 (reference):** plain DP. cam0 seed 1 = the Step 2g oracle; cam1 seed 2 new.
+  - **Row 2 (SupCon):** DP loss + λ · SupCon(z_t, chunk label), λ = 1, τ = 0.07 (Mario's SCIL settings), on the
+    current frame's z (L2-normalised). cam0 seed 1, cam1 seed 2.
+  - New runs use `scripts/train_dp_supcon.py`: a copy of the vendored training loop (vendored file untouched) that adds
+    the SupCon term and saves the 40k / 45k / final checkpoints; row 1 cam1 runs it with λ = 0.
+  - **Stitches:** cam0 encoder (s1) → cam1 controller (s2), and cam1 encoder (s2) → cam0 controller (s1); different
+    seeds, so no shared initialisation. Aligners: identity, SAPS (paired frames: same demo and step in both
+    cameras), action_pairs (≤100 same-label pairs per cluster, 5 draws). Fit frames: demos 0–99 of both cameras
+    (same labelled frames for every aligner).
+  - **Metrics:** closed-loop success of the stitched agent in the encoder's domain (250 episodes, final checkpoint
+    only; natives: final (last-3) from the training logs). Offline agreement on held-out frames: L2 distance between
+    the stitched and native (same encoder's own agent) 8-step chunks, with the same DDPM noise; next to it the chance
+    level (native on random other frames) and the noise floor (native vs native, different noise). On every agent:
+    NC1, effective rank (participation ratio), and the regression-collapse check (Andriopoulos et al., NeurIPS 2024):
+    share of z's variance in its top-4 and top-16 principal components.
+  - **Order / stop rule:** row 1 is trained and reported first. If SAPS with paired frames fails on plain DP, stop:
+    DP latents would not be linearly stitchable even with perfect correspondences, and labels cannot fix that.
+- **Hypotheses:**
+  - **Row 1:** SAPS works (a large share of native success); action_pairs well below SAPS (as BC in Mario).
+  - **Row 2:** action_pairs close to SAPS; native success roughly unchanged vs row 1 on the same camera; NC1 and
+    effective rank much lower than row 1.
+  - **Pre-registered fallback:** if row 2's native success is more than ~0.1 below row 1 on the same camera, rerun
+    row 2 with λ = 0.1.
+- **Preparation** (`results/20261001_dp_ours_demos_default_panda_cam1_lollipop/`, `results/20261001_step1b_labels/`):
+  - cam1 demos exported with `scripts/export_dp_demos.py lollipop 1 <demos.npz>`: 498/498 replay; actions identical
+    to cam0's (checked), so the labels are shared by construction.
+  - Labels (7618 chunks of demos 0–99): cluster sizes 88–1772 (imbalanced; the largest, 1772, is the near-still
+    closed-gripper phase incl. end padding); 6 clusters mainly gripper-open, 10 mainly closed, one of them (500) the
+    grasp transition (50% open steps).
+  - Smoke test (cam1, seed 2): the copied loop at λ = 0 gives exactly the vendored `train_rgbd.py` loss at each of the
+    first 30 iterations. With λ = 1 SupCon dominates the encoder gradient more and more: ‖∇_enc‖ SupCon / DP = 3× at
+    iteration 0, 18–80× at 50–90, 100–250× at 100–190 (the DP gradient into the encoder falls 0.23 → 0.04, SupCon's
+    grows 0.7 → 9); SupCon itself only starts to fall (5.54 = chance → 5.2 at 190).
+- **Result 1, cam1 oracle (row 1, seed 2, λ = 0; `results/20261001_step1b_dp_ref_cam1_s2/`): fails.**
+  success_once / success_at_end every 5k from 0: .004/.004, .064/.036, .024/.012, .052/.024, .048/.032, .056/.036,
+  .056/.036, .040/.036, .048/.024, .044/.028, **final .048 (last-3 .047) / .032 (.028)**: blind level (Step 2g blind
+  check ≈ .05), against cam0's .82 (.79) with the same recipe. Training loss is as low as cam0's (~.001–.002 at 26k).
+  Not a pipeline bug: the cam1 demo frames are pixel-identical to the cam1 eval env's frames for the same seeds.
+  Likely cause (from the frames): from the left side the cube is a few dark-red pixels on the orange wooden table,
+  often lined up with the lollipop pole and the gripper, and its position along the viewing axis is hard to read.
+  In cam2 and in cam0 with look 1 / look 2 the cube is as visible as in cam0.
+- **Decision:** stopped per "oracles first"; no stitching run on cam1 (a cam1 controller and a cam1 native at blind
+  level make every stitching number meaningless). Row 2 not trained. Next domain to choose (see the takeaway).
+- **Takeaway:** cam1 is not a usable domain for the DP core recipe (100 demos, PlainConv); the second domain must be one
+  whose oracle works. Oracle quality limits which domains can be stitched at all.
+- **To-do (cam1, kept, nothing deleted):** cam1 oracle fails (0.05, blind level) because the cube is a few pixels and
+  aligned with the pole/gripper; redesign the pose (closer/higher) later to keep a strong viewpoint shift with a
+  working oracle.
+
+**Update (2026-10-01): second domains = cam0 + look 1 (appearance shift; first), then cam2 (viewpoint shift).**
+Same recipe as above (λ = 0 reference, seed 2, demos 0–99; env ids `…NoGraspLook1-v1`, `…NoGraspCam2-v1`; demos
+exported with `export_dp_demos.py lollipop <cam> <demos.npz> <look>`). Row 1 runs on every second domain whose oracle
+works, with cam0 seed 1 as the other side; reported before any row 2 agent is trained. Labels unchanged (actions are
+identical in every render). λ plan unchanged.
+- **Hypotheses:** look 1 oracle ≈ cam0 (0.7–0.85: same geometry, the yellow cube on grey is more visible than red on
+  wood); cam2 oracle a bit lower (0.6–0.8: low front view, depth along the viewing axis harder).
+- **Offline-metric fix (before any reported number):** a code test of `step1b_stitch.py --offline-only` on cam0 / cam1
+  showed that on demo frames the state alone predicts most of the chunk: native vs native on a random other frame
+  (state and z both changed) = 3.15, but identity stitch = 0.10–0.18 and SAPS 0.06–0.07 even with the failing cam1
+  agent. So the chance level for z now keeps the state and takes z from a random other frame (`chance_z`: 0.25 / 0.35
+  in that test); the frame-level one is kept as `chance_frame`. Offline agreement on demo frames is therefore a weak
+  signal for these agents; closed loop is the real test.
+
+**cam1 diagnostics (no training; hypotheses before running).** In two eval videos the gripper goes to the goal marker,
+not the cube, and never grasps. Candidates: (A) the policy cannot find the cube in cam1 and falls back on goal_pos from
+the state (the goal is usually near the cube in x/y); (B) it confuses the marker with the cube.
+1. **Linear probe** from frozen z (each agent on its own camera's frames; current frames; fit on demos 0–99, test on
+   400–497; ridge, regularisation by CV, latents centred only) to the cube position and the goal position, R² per
+   coordinate. Also on the look 1 / cam2 oracles when they finish. Hypotheses: cam0 z → cube x/y R² ≥ 0.8; cam1 z →
+   cube x/y R² clearly lower (≤ 0.5) under (A), high under (B). Goal from z: moderate in both (the marker is visible
+   but goal_pos is in the state, so the encoder need not encode it).
+2. **Fake goal:** cam1 agent, 50 episodes, goal_pos in the state replaced by the goal of another seed's reset
+   (the env's own goal distribution); the real marker stays in the image. Under (A) the gripper follows the fake goal:
+   its closest approach to the fake goal is much smaller than to the cube and to the real marker. Control: 50 episodes
+   with the true goal (closest approach to cube vs goal).
+3. **Policy frames:** the 128×128 cam1 frames of 3 failed true-goal episodes, as a grid.
+
+---
+
 ## Step 2 handoff (2026-10-01): how to train, load and read the oracles
 
 - **Oracle recipe:** ManiSkill's Diffusion Policy baseline, unmodified (`third_party/maniskill_diffusion_policy`, v3.0.1),
