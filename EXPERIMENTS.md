@@ -256,6 +256,9 @@ within ±.04 of the run above. Getting there took three OOM kills of the checks 
 - **Takeaway (row 2):** **both pre-registered row 2 hypotheses rejected** at λ = 1 and λ = 0.1: SupCon on 16 chunk
   clusters erases the cube position from z even at a tenth of the weight, and the agents fall back on the goal_pos
   shortcut. Not running TACO / other labels yet (agreed: report first).
+- **Row 2 result (logged as agreed):** SupCon on 16 chunk clusters at λ ≥ 0.1 erases the cube position; a weak-λ test
+  is pending. (Plan, once the env is decided: pick λ from the smoke test's measured gradient ratio so that SupCon's
+  encoder gradient is about equal to the DP term's, likely .005–.01; λ = .1 was still 10–25× stronger.)
 
 **Map-class check, row 1 agents (closed loop, 250 episodes; `results/20261001_step1b_stitch_row1mapclass_look1/`):**
 
@@ -335,6 +338,32 @@ trains).** Can labels alone get closer to the affine ceiling without SupCon?
   50% to 59–84% of the affine ceiling, about SAPS level, **without SupCon**. nn orth vs nn affine: no clear winner
   (each ahead in one direction, within noise), so neither the z residual nor the chunk distance predicted the
   ordering between them.
+
+**cam2 pilot with the goal away from the cube (2026-10-02; GPU).** Does cam2's oracle fail because "go to goal_pos"
+already brings the gripper near the cube? Env `StitchPickCubeLollipopNoGraspCam2Goal-v1` = cam2 + the Step 1 goal
+variant (goal y ∈ [0.15, 0.25], disjoint from the cube's [−0.1, 0.1]; x and height as default); demos = the goal
+variant's planner demos (`20260930_step1_demos_goal_panda_pos`), exported with `export_dp_demos.py lollipop 2
+<demos.npz> 0 goal`. One plain-DP oracle (λ = 0, seed 2, demos 0–99, 50k), then blind, fake goal, probe. This decides
+whether the core env switches (which would mean retraining all oracles), so no seeds / SupCon runs until it is done.
+- **Hypothesis:** with the shortcut useless, cam2's controller must use z for the cube: the oracle works (≥ .6
+  success_once last-3, about look 1 / cam0 level), blind drops it to ≤ .05, and under a fake goal it still grasps
+  (≥ .8× the true-goal rate) and carries the cube to the fake goal. If it still fails, cam2's problem is not the
+  shortcut but reading the cube from that view (its probe R² was .61 / .79, so this would point at the controller /
+  training, not the encoder).
+
+**Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
+- (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two
+  rescaled variants: orthogonal + per-dimension scale, affine + rescale to the target's per-dimension variance
+  (scales from the fit frames). (b) **Pairing on [z-scored chunk, proprio]** (tcp pose + gripper finger qpos, z-scored;
+  each block scaled by 1/√dim so chunk and proprio weigh equally), orthogonal / affine. (c) **Mutual-nearest-neighbour
+  filtering** (keep only pairs that are each other's nearest neighbour), on every nearest-neighbour variant. (d) **Fair
+  ceiling:** affine paired fitted on demos 0–49 only (the label-based fits' frame budget), next to the demos 0–99
+  ceiling. Metrics: z residual against both ceilings, chunk distance.
+- **Hypotheses:** (a) nn_affine shrinks the mapped variance (total variance ratio < .8) and nn_orth does not (≈ 1:
+  orthogonal maps keep norms); rescaling affine raises its residual a bit but lowers its chunk distance. (b) adding
+  proprio makes the pairs closer to true correspondences (same phase and arm pose), lowering the residual of both maps
+  by ≥ .05. (c) mutual-NN filtering removes bad pairs and lowers the residual further, at the cost of fewer pairs.
+  (d) the half-budget ceiling is within .03 of the full one (3.7k paired frames are plenty for a 256-d affine map).
 - **After both trainings, one eval batch (no training running):** (1) row 2 oracle checks (blind, fake goal, probe),
   collapse measures, stitching cam0 ↔ look 1 (identity / SAPS / action_pairs, offline + closed loop); (2) the map-class
   check below.

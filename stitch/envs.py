@@ -186,6 +186,8 @@ register_env("StitchPickCubeLollipopNoGrasp-v1", max_episode_steps=160, goal_mar
 register_env("StitchPickCubeLollipopNoGraspCam1-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, cam=1)(StitchPickCubeEnv)
 register_env("StitchPickCubeLollipopNoGraspCam2-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, cam=2)(StitchPickCubeEnv)
 register_env("StitchPickCubeLollipopNoGraspLook1-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, look=1)(StitchPickCubeEnv)
+# cam2 with the goal variant (goal y in GOAL_Y, disjoint from the cube area): "go to goal_pos" cannot find the cube
+register_env("StitchPickCubeLollipopNoGraspCam2Goal-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, cam=2, task="goal")(StitchPickCubeEnv)
 
 
 def make_env(visual=(0, 0, 0), task="default", robot="panda", obs_mode="rgb", control_mode="pd_joint_pos", goal_marker="sphere"):

@@ -1,6 +1,6 @@
 """Oracle check (Step 1b): does the agent find the cube from the image, or follow goal_pos from the state?
 
-Usage: uv run python scripts/fake_goal_check.py <run_dir> <domain>   (domain: cam0, cam1, cam2, look1;
+Usage: uv run python scripts/fake_goal_check.py <run_dir> <domain>   (domain: cam0, cam1, cam2, look1, cam2goal;
        PYTHONPATH=<repo>:<repo>/third_party/maniskill_diffusion_policy)
 Final EMA agent, one CPU env (the domain's core setup, 100 steps, as the baseline's eval), the agent's own action loop
 (obs horizon 2, 8 of 16 predicted actions executed, as diffusion_policy/evaluate.py). Two conditions, N episodes each,
@@ -30,7 +30,8 @@ import train_rgbd
 import stitch.envs  # noqa: F401 (registers the env ids)
 
 ENV = {"cam0": "StitchPickCubeLollipopNoGrasp-v1", "cam1": "StitchPickCubeLollipopNoGraspCam1-v1",
-       "cam2": "StitchPickCubeLollipopNoGraspCam2-v1", "look1": "StitchPickCubeLollipopNoGraspLook1-v1"}
+       "cam2": "StitchPickCubeLollipopNoGraspCam2-v1", "look1": "StitchPickCubeLollipopNoGraspLook1-v1",
+       "cam2goal": "StitchPickCubeLollipopNoGraspCam2Goal-v1"}
 N = 50
 GOAL = slice(25, 28)  # state = qpos 9, qvel 9, tcp_pose 7, goal_pos 3
 DEV = "cuda"
