@@ -247,6 +247,15 @@ within ±.04 of the run above. Getting there took three OOM kills of the checks 
   goal_pos shortcut (follows a fake goal to 0.8 cm, grasps 10%), as in cam1 / cam2. So the collapse-vs-control risk
   (PROJECT.md) shows up in its strongest form: with chunk labels the within-label information the policy needs (where
   the cube is) is exactly what collapse throws away. λ = 0.1 is training.
+- **λ = 0.1 (`results/20261001_step1b_dp_supcon01_{cam0_s1,look1_s2}/`): native collapses too.** cam0: .000, .044,
+  .040, .048, .048, .048, .044, .040, .060, .044, **final .048 (last-3 .051)**; look 1: .004, .028, .040, .076, .040,
+  .056, .072, .068, .068, .088, **final .060 (last-3 .072)** (success_once every 5k). NC1 .10 / .10, effective rank
+  3.8 / 3.2, variance in top 16 PCs 1.00; probe cube x / y .17 / .10 and .14 / .11 (row 1: .78 / .58, .76 / .59);
+  blind full .04 = zeroed .06 / .03; fake goal: follows goal_pos (0.7–1.2 cm), grasps 4–16%. Stitching all
+  .04–.06. Chance level for z below the noise floor again (.016 / .022 vs .023 / .027): z is ignored.
+- **Takeaway (row 2):** **both pre-registered row 2 hypotheses rejected** at λ = 1 and λ = 0.1: SupCon on 16 chunk
+  clusters erases the cube position from z even at a tenth of the weight, and the agents fall back on the goal_pos
+  shortcut. Not running TACO / other labels yet (agreed: report first).
 
 **Map-class check, row 1 agents (closed loop, 250 episodes; `results/20261001_step1b_stitch_row1mapclass_look1/`):**
 
@@ -311,6 +320,21 @@ trains).** Can labels alone get closer to the affine ceiling without SupCon?
     but raises the chunk distance (nn affine .062 vs nn orth .048). A plausible reason: least squares on noisy pairs
     shrinks the mapped z towards the mean (regression dilution: lower MSE, but off the target's distribution). Not
     tested. Closed loop decides: nn_orth and nn_affine are queued (250 episodes, both directions, after λ = 0.1).
+- **Closed loop** (`results/20261001_step1b_stitch_row1labelmaps_look1/`; 250 episodes, success_once / at_end;
+  % of the affine paired ceiling .764 / .580 from the map-class run):
+
+  | map | cam0 enc → look 1 ctrl | look 1 enc → cam0 ctrl |
+  |---|---|---|
+  | affine paired (ceiling) | .764 / .556 | .580 / .452 |
+  | SAPS (orth, paired; 2–3 runs) | .46 / .45 / .48 | .45 / .39 |
+  | k16 orth (= action_pairs) | .396 (52%) | .284 (49%) |
+  | **nn orth** | **.452 (59%)** / .320 | **.488 (84%)** / .340 |
+  | **nn affine** | **.492 (64%)** / .356 | **.408 (70%)** / .316 |
+
+- **Takeaway (one seed, eval noise ≈ ±.06):** continuous nearest-chunk pairs lift label-only stitching from about
+  50% to 59–84% of the affine ceiling, about SAPS level, **without SupCon**. nn orth vs nn affine: no clear winner
+  (each ahead in one direction, within noise), so neither the z residual nor the chunk distance predicted the
+  ordering between them.
 - **After both trainings, one eval batch (no training running):** (1) row 2 oracle checks (blind, fake goal, probe),
   collapse measures, stitching cam0 ↔ look 1 (identity / SAPS / action_pairs, offline + closed loop); (2) the map-class
   check below.
