@@ -215,6 +215,54 @@ within ±.04 of the run above. Getting there took three OOM kills of the checks 
 (action_pairs close to SAPS; native roughly unchanged; NC1 / effective rank much lower than row 1).
 - **Fallback rule, made precise before the results:** compare the last-3 mean success_once with row 1 on the same
   domain (cam0 .788, look 1 .695); if either drops by more than .1, rerun row 2 with λ = 0.1.
+- **cam0 seed 1, λ = 1 (`results/20261001_step1b_dp_supcon_cam0_s1/`): native collapses.** success_once /
+  success_at_end every 5k from 0: .008/.004, .048/.028, .036/.024, .092/.076, .068/.064, .076/.064, .052/.040,
+  .052/.048, .064/.044, .064/.048, **final .024 (last-3 .051) / .020 (.037)**, against row 1's .824 (.788): blind
+  level. **The λ = 0.1 fallback triggers.** (look 1 seed 2 at λ = 1 runs anyway, as approved, since the proposal to
+  skip it got no answer before cam0 finished.)
+- **look 1 seed 2, λ = 1 (`results/20261001_step1b_dp_supcon_look1_s2/`): native collapses too.** .004/.004,
+  .048/.020, .068/.040, .056/.040, .052/.040, .076/.052, .052/.032, .036/.028, .032/.028, .020/.012,
+  **final .060 (last-3 .037) / .048 (.029)**, against row 1's .676 (.695).
+- **Fallback launched as pre-registered:** row 2 at λ = 0.1 (cam0 seed 1, look 1 seed 2, `…_dp_supcon01_…`), queued
+  after the eval batch, followed by the three checks and row 2 stitching on the λ = 0.1 agents. The eval batch still
+  runs the λ = 1 checks / collapse measures / stitching (stitched numbers meaningless with blind-level natives; the
+  collapse measures are the useful part).
+- **λ = 1 eval batch results** (`results/20261001_step1b_stitch_row2_look1/`, `…_blind_step1b_dp_supcon_*`,
+  `…_fake_goal_*_step1b_dp_supcon_*`, `…_probe_cube_goal/`):
+
+  | | row 1 cam0 / look 1 | row 2 λ = 1 cam0 / look 1 |
+  |---|---|---|
+  | NC1 (16 chunk labels) | .92 / 1.29 | **.085 / .092** |
+  | effective rank | 3.1 / 4.2 | 4.5 / 4.4 |
+  | variance in top 4 / top 16 PCs | .77 / .90, .72 / .89 | .81 / **1.00**, .83 / **1.00** |
+  | probe cube x / y (on table) | .78 / .58, .76 / .59 | **.19 / .14, .22 / .11** |
+  | blind: full / zeroed / shuffled | .84 / .04 / .06, .72 / .02 / .04 | .05 / .04 / .05, .04 / .01 / .03 |
+  | fake goal: grasped true → fake; closest to state goal | .90 → .88; —, .94 → .88; — | .10 → .10; 0.8 cm, .06 → .10; 1.2 cm |
+  | stitching identity / SAPS / action_pairs (cam0 enc → look 1 ctrl) | .07 / .45 / .40 | .06 / .05 / .06 |
+
+  Offline, row 2's chance level for z (.021 / .020) is below its noise floor (.028 / .024): the controller's chunk no
+  longer depends on z at all.
+- **Takeaway (λ = 1):** SupCon on the chunk labels collapses z as intended (NC1 10× lower, all variance in the
+  16-class span) but **erases the cube position** from z (probe R² .78 → .19), and the controller falls back on the
+  goal_pos shortcut (follows a fake goal to 0.8 cm, grasps 10%), as in cam1 / cam2. So the collapse-vs-control risk
+  (PROJECT.md) shows up in its strongest form: with chunk labels the within-label information the policy needs (where
+  the cube is) is exactly what collapse throws away. λ = 0.1 is training.
+
+**Map-class check, row 1 agents (closed loop, 250 episodes; `results/20261001_step1b_stitch_row1mapclass_look1/`):**
+
+| | cam0 enc → look 1 ctrl (native cam0 .824) | look 1 enc → cam0 ctrl (native look 1 .676) |
+|---|---|---|
+| SAPS (orthogonal) | .480 / .380 (58% of native); z residual .49 | .388 / .272 (57%); z residual .47 |
+| **affine (least squares)** | **.764 / .556 (93%)**; z residual .28 | **.580 / .452 (86%)**; z residual .24 |
+| MLP (affine + 1 hidden layer) | .752 / .612 (91%); z residual .29; early stop at epoch 24 | .580 / .432 (86%); z residual .22; epoch 118 |
+
+success_once / success_at_end. SAPS repeats across runs: cam0 enc → look 1 ctrl .460 / .452 / .480, look 1 enc → cam0
+ctrl .452 / .388 (spread up to .06 between identical maps: eval noise at 250 episodes).
+- **Takeaway: hypothesis rejected — the map class is the bottleneck, not the denoiser.** An unconstrained affine map
+  recovers 86–93% of native, against 57–58% for the orthogonal one; the MLP adds nothing over affine. So the paired
+  ceiling must be defined with the affine map, and "% of paired ceiling" for row 1 action_pairs drops to about
+  .40 / .76 = 52% and .28 / .58 = 48%. The offline chunk distance did not see this (affine ≈ SAPS on all frames,
+  .042 vs .046), but the held-out z residual did (.28 vs .49): the residual is the better offline proxy here.
 - **After both trainings, one eval batch (no training running):** (1) row 2 oracle checks (blind, fake goal, probe),
   collapse measures, stitching cam0 ↔ look 1 (identity / SAPS / action_pairs, offline + closed loop); (2) the map-class
   check below.

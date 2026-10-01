@@ -1,0 +1,180 @@
+{
+ "checkpoints": {
+  "cam0": "/home/ricc/projects/labelstitch-step1/results/20261001_step2g_dp_core_nograsp_50k_s1/runs/step2g_dp_core_nograsp_50k_s1/checkpoints/49999.pt",
+  "look1": "/home/ricc/projects/labelstitch-1b/results/20261001_step1b_dp_ref_look1_s2/runs/step1b_dp_ref_look1_s2/checkpoints/49999.pt"
+ },
+ "label_sizes": [
+  946,
+  408,
+  310,
+  1772,
+  114,
+  500,
+  178,
+  1287,
+  297,
+  88,
+  184,
+  309,
+  438,
+  215,
+  199,
+  398
+ ],
+ "geometry": {
+  "cam0": {
+   "nc1": 0.9204210042953491,
+   "eff_rank": 3.1027952070127602,
+   "var_top4": 0.7709375104545121,
+   "var_top16": 0.9033908955930577
+  },
+  "look1": {
+   "nc1": 1.291641116142273,
+   "eff_rank": 4.223089660910902,
+   "var_top4": 0.7160665681677768,
+   "var_top16": 0.8944564683182855
+  }
+ },
+ "stitch": {
+  "cam0_enc_to_look1_ctrl": {
+   "native_vs_expert": [
+    0.07711277902126312,
+    0.13562093675136566
+   ],
+   "chance_frame": [
+    3.151400089263916,
+    3.4292562007904053
+   ],
+   "chance_z": [
+    0.2546798884868622,
+    0.7858083844184875
+   ],
+   "noise_floor": [
+    0.02449430152773857,
+    0.046657495200634
+   ],
+   "aligners": {
+    "saps": {
+     "offline_dist": [
+      0.04629999026656151,
+      0.09260207414627075
+     ],
+     "offline_dist_draws": [
+      [
+       0.04629999026656151,
+       0.09260207414627075
+      ]
+     ],
+     "z_residual": 0.484897255897522,
+     "success_once": 0.48,
+     "success_at_end": 0.38,
+     "episodes": 250
+    },
+    "affine": {
+     "offline_dist": [
+      0.04163546860218048,
+      0.09180066734552383
+     ],
+     "offline_dist_draws": [
+      [
+       0.04163546860218048,
+       0.09180066734552383
+      ]
+     ],
+     "z_residual": 0.2839253544807434,
+     "success_once": 0.764,
+     "success_at_end": 0.556,
+     "episodes": 250
+    },
+    "mlp": {
+     "offline_dist": [
+      0.040782321244478226,
+      0.0921374037861824
+     ],
+     "offline_dist_draws": [
+      [
+       0.040782321244478226,
+       0.0921374037861824
+      ]
+     ],
+     "z_residual": 0.2901657223701477,
+     "val_mse": 0.0011873148614540696,
+     "epochs": 24,
+     "success_once": 0.752,
+     "success_at_end": 0.612,
+     "episodes": 250
+    }
+   }
+  },
+  "look1_enc_to_cam0_ctrl": {
+   "native_vs_expert": [
+    0.08152315020561218,
+    0.11468981951475143
+   ],
+   "chance_frame": [
+    3.1507437229156494,
+    3.361013412475586
+   ],
+   "chance_z": [
+    0.18180601298809052,
+    0.550829291343689
+   ],
+   "noise_floor": [
+    0.03048758953809738,
+    0.0331537239253521
+   ],
+   "aligners": {
+    "saps": {
+     "offline_dist": [
+      0.045582521706819534,
+      0.06957798451185226
+     ],
+     "offline_dist_draws": [
+      [
+       0.045582521706819534,
+       0.06957798451185226
+      ]
+     ],
+     "z_residual": 0.46494191884994507,
+     "success_once": 0.388,
+     "success_at_end": 0.272,
+     "episodes": 250
+    },
+    "affine": {
+     "offline_dist": [
+      0.038685042411088943,
+      0.04127001389861107
+     ],
+     "offline_dist_draws": [
+      [
+       0.038685042411088943,
+       0.04127001389861107
+      ]
+     ],
+     "z_residual": 0.2376234233379364,
+     "success_once": 0.58,
+     "success_at_end": 0.452,
+     "episodes": 250
+    },
+    "mlp": {
+     "offline_dist": [
+      0.039712581783533096,
+      0.04930354654788971
+     ],
+     "offline_dist_draws": [
+      [
+       0.039712581783533096,
+       0.04930354654788971
+      ]
+     ],
+     "z_residual": 0.2202966958284378,
+     "val_mse": 0.0008838479407131672,
+     "epochs": 118,
+     "success_once": 0.58,
+     "success_at_end": 0.432,
+     "episodes": 250
+    }
+   }
+  }
+ }
+}

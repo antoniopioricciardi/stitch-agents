@@ -126,5 +126,69 @@
     0.004
    ]
   }
+ },
+ "20261001_step1b_dp_supcon_cam0_s1:cam0": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261001_step1b_dp_supcon_cam0_s1/runs/step1b_dp_supcon_cam0_s1/checkpoints/49999.pt",
+  "domain": "cam0",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.0001,
+   "r2_xyz_all": [
+    0.148,
+    0.1,
+    0.296
+   ],
+   "r2_xyz_on_table": [
+    0.192,
+    0.136,
+    -1602.806
+   ]
+  },
+  "goal": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.036,
+    -0.047,
+    0.029
+   ],
+   "r2_xyz_on_table": [
+    0.027,
+    -0.049,
+    0.001
+   ]
+  }
+ },
+ "20261001_step1b_dp_supcon_look1_s2:look1": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261001_step1b_dp_supcon_look1_s2/runs/step1b_dp_supcon_look1_s2/checkpoints/49999.pt",
+  "domain": "look1",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.0001,
+   "r2_xyz_all": [
+    0.163,
+    0.078,
+    0.245
+   ],
+   "r2_xyz_on_table": [
+    0.221,
+    0.112,
+    -1751.682
+   ]
+  },
+  "goal": {
+   "alpha": 1e-05,
+   "r2_xyz_all": [
+    0.118,
+    -0.006,
+    0.026
+   ],
+   "r2_xyz_on_table": [
+    0.097,
+    0.01,
+    0.011
+   ]
+  }
  }
 }
