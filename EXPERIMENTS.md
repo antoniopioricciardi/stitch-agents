@@ -263,6 +263,54 @@ ctrl .452 / .388 (spread up to .06 between identical maps: eval noise at 250 epi
   ceiling must be defined with the affine map, and "% of paired ceiling" for row 1 action_pairs drops to about
   .40 / .76 = 52% and .28 / .58 = 48%. The offline chunk distance did not see this (affine ≈ SAPS on all frames,
   .042 vs .046), but the held-out z residual did (.28 vs .49): the residual is the better offline proxy here.
+- **Decision (2026-10-01):** from now on, the paired ceiling = affine least squares on paired frames.
+
+**Label-based correspondence × map class, offline (row 1 agents, cam0 ↔ look 1, both directions; CPU, while λ = 0.1
+trains).** Can labels alone get closer to the affine ceiling without SupCon?
+- **Setup:** every label-based fit takes source frames from demos 0–49 (source domain) and target frames from demos
+  50–99 (target domain), so no pair can be the same frame of the same demo (both agents trained on the same demos:
+  fine labels or nearest-neighbour matching would otherwise be paired data in disguise). The same frames are
+  available to every variant. Correspondences: chunk clusters K = 16 (current labels), K = 64, K = 256 (k-means on
+  the same z-scored chunks of demos 0–99, as for K = 16; random same-cluster pairs, ≤100 per cluster, 5 draws);
+  continuous action pairs (each source frame paired with the target frame whose z-scored 8-step chunk is nearest).
+  Maps on the same pairs: orthogonal Procrustes (current action_pairs) vs affine least squares. References: identity,
+  SAPS (paired, demos 0–99), affine paired = the ceiling (demos 0–99). Metrics: held-out z residual (main proxy) and
+  offline chunk distance (all / top-30% vision-sensitive frames), on the same 2000 held-out frames as before.
+- **Hypotheses:**
+  - H1: orthogonal maps stay near or above SAPS's residual (.47–.49) whatever the correspondence: the map class limits.
+  - H2: affine on random same-cluster pairs suffers regression dilution at K = 16 (the arbitrary within-cluster
+    pairing shrinks the map towards the cluster means), so it is no better than orthogonal there; it improves as the
+    correspondence gets finer (K = 64, 256), and continuous nearest-chunk pairs with affine are the best label-based
+    variant, closing at least half of the gap between orthogonal action_pairs (.75–.79) and the affine ceiling
+    (.24–.28).
+  - H3: the offline chunk distance separates the variants less than the z residual.
+- **Result** (`results/20261001_step1b_label_maps/`; CPU; z residual = mean of 5 draws for the k* rows, [min–max];
+  chunk distance on draw 0, all / top-30%; CPU noise draws, so distances are comparable within this table only):
+
+  | map | pairs | cam0 enc → look 1 ctrl: z residual | chunk dist | look 1 enc → cam0 ctrl: z residual | chunk dist |
+  |---|---|---|---|---|---|
+  | identity | — | 4.46 | .120 / .181 | 4.27 | .155 / .243 |
+  | SAPS (paired, orth) | 7618 | .485 | .050 / .082 | .465 | .054 / .093 |
+  | **affine paired (ceiling)** | 7618 | **.284** | .041 / .067 | **.238** | .048 / .070 |
+  | k16 orth (= action_pairs) | 1318 | .826 [.81–.85] | .062 / .094 | .763 [.75–.78] | .065 / .123 |
+  | k16 affine | 1318 | .711 [.69–.72] | .078 / .149 | .671 [.60–.80] | .092 / .164 |
+  | k64 orth | 2389 | .697 [.68–.71] | .057 / .088 | .661 [.65–.68] | .056 / .102 |
+  | k64 affine | 2389 | .542 [.52–.56] | .063 / .115 | 1.076 [.53–1.96] | .063 / .112 |
+  | k256 orth | 2602 | .672 [.66–.69] | .057 / .087 | .636 [.63–.64] | .059 / .101 |
+  | k256 affine | 2602 | .534 [.52–.54] | .066 / .108 | 1.333 [.84–2.25] | .061 / .126 |
+  | nn orth | 3720 | .612 | **.048 / .078** | .598 | .061 / .107 |
+  | **nn affine** | 3720 | **.473** | .062 / .101 | **.420** | .057 / .105 |
+
+- **Takeaway (offline, one seed):**
+  - **H1 confirmed:** orthogonal maps improve with finer correspondence (.83 → .70 → .67 → .61) but stay above SAPS (.49).
+  - **H2 partly:** continuous nearest-chunk pairs + affine are the best label-based variant (.47 / .42, about SAPS's
+    residual) and close 65% of the gap between k16 orth and the affine ceiling in both directions (≥ half: confirmed).
+    But the dilution prediction is wrong at K = 16 (affine beats orth there), and affine on random cluster pairs is
+    unstable at K = 64 / 256 in one direction (draws up to 2.2: few pairs per cluster, arbitrary pairings).
+  - **H3, stronger than predicted:** chunk distance and z residual disagree. Affine on label pairs lowers the residual
+    but raises the chunk distance (nn affine .062 vs nn orth .048). A plausible reason: least squares on noisy pairs
+    shrinks the mapped z towards the mean (regression dilution: lower MSE, but off the target's distribution). Not
+    tested. Closed loop decides: nn_orth and nn_affine are queued (250 episodes, both directions, after λ = 0.1).
 - **After both trainings, one eval batch (no training running):** (1) row 2 oracle checks (blind, fake goal, probe),
   collapse measures, stitching cam0 ↔ look 1 (identity / SAPS / action_pairs, offline + closed loop); (2) the map-class
   check below.
