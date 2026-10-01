@@ -110,6 +110,22 @@ the state (the goal is usually near the cube in x/y); (B) it confuses the marker
    its closest approach to the fake goal is much smaller than to the cube and to the real marker. Control: 50 episodes
    with the true goal (closest approach to cube vs goal).
 3. **Policy frames:** the 128×128 cam1 frames of 3 failed true-goal episodes, as a grid.
+- **Results** (`results/20261001_step1b_probe_cube_goal/`, `results/20261001_step1b_cam1_fake_goal/`):
+  1. Probe, first pass (test R² on demos 400–497; cube x / y on frames with the cube on the table; α grid then
+     1e-3…1e3, CV picked its lower edge, so the grid is now extended to 1e-6 and the final numbers come with the
+     look 1 / cam2 run): cam0 z → cube 0.78 / 0.58, cam1 z → cube 0.67 / 0.38; goal from z ≈ 0 for both (≤ 0.03).
+  2. Fake goal (50 episodes each; mean closest approach of the TCP, m):
+
+     | cam1 agent | success | grasped | to cube | to real goal | to state goal_pos | closer to state goal than to real goal |
+     |---|---|---|---|---|---|---|
+     | true goal | .02 | .08 | .078 | .013 | (= real) | — |
+     | fake goal (16 cm from the real one on average) | .00 | .08 | .082 | .078 | **.015** | **92%** |
+
+  3. Frame grid: the cube is visible as a red dot in the 128×128 cam1 frames; the gripper moves past it to the marker.
+- **Takeaway:** **(A) supported, (B) rejected.** The cam1 agent goes wherever goal_pos in the state says (1.5 cm from a
+  fake goal, 8 cm from the real marker), so it ignores the marker in the image, and it ignores the cube. Yet cam1's z
+  still encodes the cube's x/y moderately (R² 0.67 / 0.38 vs cam0's 0.78 / 0.58): the information is partly there,
+  but the controller learned the goal_pos shortcut instead of using it. Not a visibility problem alone.
 
 ---
 

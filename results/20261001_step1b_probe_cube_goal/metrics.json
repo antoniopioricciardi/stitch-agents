@@ -1,0 +1,66 @@
+{
+ "20261001_step2g_dp_core_nograsp_50k_s1:cam0": {
+  "checkpoint": "/home/ricc/projects/labelstitch-step1/results/20261001_step2g_dp_core_nograsp_50k_s1/runs/step2g_dp_core_nograsp_50k_s1/checkpoints/49999.pt",
+  "domain": "cam0",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.714,
+    0.573,
+    0.639
+   ],
+   "r2_xyz_on_table": [
+    0.776,
+    0.584,
+    -3091.359
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    -0.002,
+    -0.043,
+    0.031
+   ],
+   "r2_xyz_on_table": [
+    -0.006,
+    -0.045,
+    -0.03
+   ]
+  }
+ },
+ "20261001_step1b_dp_ref_cam1_s2:cam1": {
+  "checkpoint": "results/20261001_step1b_dp_ref_cam1_s2/runs/step1b_dp_ref_cam1_s2/checkpoints/49999.pt",
+  "domain": "cam1",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.654,
+    0.396,
+    0.673
+   ],
+   "r2_xyz_on_table": [
+    0.668,
+    0.383,
+    -1931.755
+   ]
+  },
+  "goal": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.013,
+    -0.074,
+    0.05
+   ],
+   "r2_xyz_on_table": [
+    -0.022,
+    -0.08,
+    -0.013
+   ]
+  }
+ }
+}

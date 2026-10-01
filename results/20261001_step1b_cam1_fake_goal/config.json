@@ -1,0 +1,8 @@
+{
+ "run_dir": "results/20261001_step1b_dp_ref_cam1_s2",
+ "env_id": "StitchPickCubeLollipopNoGraspCam1-v1",
+ "n": 50,
+ "eval_seeds": "10000+i",
+ "fake_goal_seeds": "20000+i",
+ "grid": "first 3 failed true-goal episodes, every 10th step"
+}
