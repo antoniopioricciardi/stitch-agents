@@ -8,12 +8,14 @@ Each step answers **one question**. For each step you get:
 Don't start a step until the previous exit criterion is met. If a result surprises you, stop and discuss it; the plan is allowed to change.
 
 **Rough timeline, targeting ICML 2027 (late January):**
-- Oct: Steps 0c–3 (including 1b, the action-labelling question)
+- Oct: Steps 1b–3 (Steps 0, 0c and 1 are done; Step 2 oracles in progress)
 - Nov: Steps 4–5
-- Dec: Steps 6–8 + ablations
+- Dec: Steps 6, 6b, 7, 8 + ablations
 - Jan: writing
 
 Step 9 (CARLA) can move to the NeurIPS/CoRL version.
+
+**Evaluation protocol (all ManiSkill steps):** report the final checkpoint (mean of the last 3 in brackets), never the best checkpoint; 250 evaluation episodes for oracle and stitched numbers; success at any step and at the end.
 
 ---
 
@@ -32,44 +34,29 @@ Step 9 (CARLA) can move to the NeurIPS/CoRL version.
 - Frozen ResNet18 / DINOv2 do not remove the visual-shift problem and play worse (weak test on NES frames).
 - Stitchability pilot: offline agreement vs in-game ρ ≈ 0.69 for well-trained agents, ≈ 0 for weak ones.
 
-## Step 0c — Mario: does a TACO-style temporal loss keep or break alignability? (optional, ~half a day)
+## Step 0c — Mario: does a TACO-style temporal loss keep or break alignability? (done)
 
-**Question:** before continuous control, check the two TACO roles we care about on known ground.
+**Findings (2026-09-29, details in `EXPERIMENTS.md`):**
+- TACO alone does not collapse and aligns from labels as badly as BC or worse.
+- **SCIL + TACO (K = 3) keeps SCIL's label-only alignability** (matches SCIL in-game) and **recovers the native play lost to collapse** (1-2: 654 → 1207, 18% flags).
+- Within-action probe on 1-1: SCIL < BC ≈ SCIL+TACO (future-action accuracy: SCIL at the majority baseline). Supportive, but the absolute signal is weak.
+- **Decision:** SCIL + TACO (K = 3) is the leading hybrid for Step 1b. Open control for the paper: the TACO term saw 1024 extra transitions per step (batch confound).
 
-> Read CLAUDE.md, PROJECT.md and the latest EXPERIMENTS.md entries. Write the hypotheses in EXPERIMENTS.md first:
-> (H1) a TACO-only encoder (temporal InfoNCE: latent of frame t + embedded actions t..t+K−1 ↔ latent of frame t+K, K ∈ {1, 3}; BC on the controller) does not collapse and aligns from labels about as badly as BC;
-> (H2) SCIL + TACO (SupCon on the latent + TACO on its own projection heads) keeps SCIL's collapse and alignability while native play is equal or better.
-> Train Nature CNN agents for BC, SCIL, TACO, SCIL+TACO on 1-1 v0/v1/v2 and 1-2 v0 (3 seeds, 50 epochs, same recipe as before). Report: NC1, effective rank, variance in the centroid span, native play, and label-only alignability (offline agreement for version pairs and levels; in-game v1 pairs and cross-level), with the adopted anchor recipe. Keep the code minimal; TACO heads are small MLPs, batch as large as memory allows.
+## Step 1 — ManiSkill3 environment with variation axes (done, 2026-09-30)
 
-- **Exit:** one table in `EXPERIMENTS.md`.
-- **Decision:**
-  - If SCIL+TACO keeps alignability, it goes into the Step 1b candidate list as the leading hybrid.
-  - If TACO destroys collapse even as an auxiliary term, drop the hybrid and keep TACO only as a labelling function and dynamics aligner.
-
-## Step 1 — ManiSkill3 environment with variation axes
-
-**Question:** can we generate controlled visual, task and embodiment variants, plus expert demos, cheaply?
-
-> Read CLAUDE.md and PROJECT.md. In `stitch/envs.py`, write `make_env(visual, task, robot)` for ManiSkill3, starting from a single task (PickCube or PushCube). The axes are:
-> - visual: camera pose ×3, texture/colour ×3, lighting ×2
-> - task: default vs changed actuation (EE-delta bounds ×0.5), and one goal variant
-> - robot: Panda, plus a second arm or a locked joint
->
-> Then write `scripts/check_envs.py`, which saves one RGB frame per variant to `results/` so I can inspect them, and prints the rendering FPS. Keep it minimal.
-
-> Write `scripts/collect_demos.py`, which collects N motion-planning expert demos per (visual, task, robot) combination and saves them in the dataset format defined in CLAUDE.md.
-
-- **Exit:** frames look right, and there are ≥100 successful demos per combination.
-- **Decision:** confirm ManiSkill3 as the main environment. If the visual axes are too weak, look at Colosseum V2.
-- **Status: done (2026-09-30).** ManiSkill3 confirmed. PickCube (`stitch/envs.py`): camera ×3, look ×3, light ×2;
-  tasks default / actuation (EE-delta bounds ×0.5; replaced friction/mass, which did not change the open-loop
-  expert) / goal; Panda and xArm6 (locked joint missing). 500 planner attempts per (task, robot): ≥ 99% planner
-  success, ~100% conversion, in both `pd_ee_delta_pose` and `pd_ee_delta_pos`; states stored for re-rendering.
-  Goal marker: magenta lollipop (the visible sphere covered the cube and cost ~0.2 success).
+**Findings (2026-09-29/30, details in `EXPERIMENTS.md`):** ManiSkill3 confirmed as the main environment.
+- Task: **PickCube** (supports both robots and has working planner solutions for both).
+- Axes: camera ×3 (cam0 → cam2 mild, cam0 → cam1 strong), look ×3, light ×2; task: default, **actuation** (EE-delta bounds ×0.5), goal (y ∈ [0.15, 0.25]); robot: Panda, xArm6 + Robotiq. The locked joint is not supported in this version.
+- The friction/mass variant was dropped: the open-loop planner ignores physics, so expert actions didn't change.
+- Goal marker: a **lollipop** (magenta 1.25 cm sphere on a 12 mm pole, non-colliding). The original solid sphere covered ~10% of the cube in cam0 and cost ~0.2 success.
+- Demos: ~500 per (task, robot), position-only control (`pd_ee_delta_pos`, 4-d on both robots), states stored so any trajectory can be re-rendered in any visual variant (paired frames for the SAPS ceiling). 500 planner attempts per (task, robot): ≥ 99% planner success, ~100% conversion (496–498 demos saved per combination); 0.3–1.4 s per demo. Our demos are identical to ManiSkill's official PickCube demos for the same seeds.
+- Known limitations: at some goal positions the hand hides the marker from cam0; low goals are only a few pixels.
 
 ## Step 1b — Action labelling for continuous control (the key design question)
 
 **Question:** which action labelling / objective keeps encoders alignable from labels alone **and** keeps enough within-action information for fine control?
+
+**Policy class:** ManiSkill's Diffusion Policy (see Step 2). SupCon goes on the observation-encoder output (= z); the conditional denoiser is the controller. Agreement between stitched and native agents is measured as a distance between predicted action chunks.
 
 > On one ManiSkill3 task, two visual domains (e.g., two camera poses) and the default robot, train encoders + controllers with each candidate:
 > 1. BC (reference, no collapse)
@@ -79,7 +66,7 @@ Step 9 (CARLA) can move to the NeurIPS/CoRL version.
 > 5. SupCon on clusters in a TACO action space (action encoder trained on actions pooled from both domains, so labels are shared)
 > 6. Rank-N-Contrast on continuous actions
 > 7. Fixed simplex (ETF) head on the cluster labels
-> 8. Hybrid: best of 2–5 + TACO temporal term (only if Step 0c supports it)
+> 8. Hybrid: best of 2–5 + TACO temporal term (leading candidate after Step 0c)
 > 9. Temporal anchors: anchor pairs matched on action + steps-to-grasp (or task phase). Test only if the probe-transfer test below shows a drop.
 >
 > For each: native success rate, NC1 / effective rank, label-only alignability (offline action agreement and closed-loop success of the cross-domain stitch, vs SAPS paired), and a within-action information probe (regress the continuous action from the latent within each cluster; report R²). Also:
@@ -89,20 +76,28 @@ Step 9 (CARLA) can move to the NeurIPS/CoRL version.
 - **Exit:** one table: candidate × {native success, stitched success, % of paired ceiling, within-cluster R²}.
 - **Decision:** pick the labelling/objective for the rest of the project. If nothing keeps both native performance and alignability, reframe: label-only alignment for coarse control, few-shot map refinement for fine control.
 
-## Step 2 — Agents and oracles
+## Step 2 — Agents and oracles (core recipe done 2026-10-01; oracles for the other combinations to do)
 
 **Question:** do our agents solve each combination on their own?
 
-> In `stitch/models.py`, write a small CNN (or ViT-S) Encoder with latent dim d = 64–256, and an MLP Controller that takes z and optionally proprioception. Write `scripts/train_bc.py`, which trains one agent per combination with BC plus the encoder objective chosen in Step 1b. Write `stitch/evaluate.py`, which runs closed-loop success-rate evaluation. Use 3 seeds.
+**Recipe:** ManiSkill's published **Diffusion Policy** baseline (RGB, vendored unmodified in `third_party/`), not a hand-written BC. Plain single-step BC on planner demos failed (0/100), even from the true state, because of planner rest steps and ambiguity; chunked DP is the standard answer.
 
-- **Exit:** every oracle reaches at least ~80% success, or the best achievable for that task.
+**Status (2026-10-01): core recipe done, fixed only for default task / Panda / cam0, one seed (seed 1).**
+- Reproduction on ManiSkill's own env: 0.77 success (their run: 0.81).
+- Our env, goal marker hidden: 0.776. With the lollipop: 0.716 at 30k, 0.772 (last-3 0.789) at 50k.
+- **Core recipe:** DP baseline unmodified, 100 demos, `pd_ee_delta_pos`, 50k iterations, lollipop visible,
+  state = qpos, qvel, tcp_pose, **goal_pos** (no `is_grasped`): **0.82 final / 0.79 last-3 mean** (250 episodes).
+  Blind check (visual feature zeroed / shuffled): ≈ 0.05, so vision is essential (the cube is only in the image).
+- The 256-d visual feature (PlainConv, per frame) is the z we stitch; the conditional denoiser is the controller.
+- Goal from pixels (no `goal_pos`, no `is_grasped`) is parked until Step 6b: 0.02 with 100 demos, 0.12–0.19 with 498;
+  likely an encoder limitation (next idea: spatial-softmax ResNet18).
+- How to train, load and read the oracles: the "Step 2 handoff" section in `EXPERIMENTS.md`.
+
+> Next: with the objective chosen in Step 1b, train oracles for every combination needed by Steps 4–6, 3 seeds each. Write `stitch/evaluate.py` wrappers around the vendored evaluation where needed.
+
+- **Exit:** every oracle reaches a stable success rate under the protocol above (no fixed threshold: stitched agents are compared with native agents in the same setting, not with ManiSkill's published number).
 - **Decision:** fix the architecture and latent dimension for the rest of the project.
-- **Status: done (2026-10-01) for the core recipe** on default task / Panda / cam0, seed 1. Own BC failed (0/100,
-  also from the true state: planner rest steps), so oracles use ManiSkill's Diffusion Policy baseline unmodified
-  (`third_party/maniskill_diffusion_policy`): 100 demos, `pd_ee_delta_pos`, 50k iterations, state = qpos, qvel,
-  tcp_pose, goal_pos (no is_grasped). **0.82 final / 0.79 last-3 mean** (250 episodes; reference reproduced at 0.77
-  vs 0.81); blind (visual feature zeroed / shuffled) ≈ 0.05. Visual feature: PlainConv, 256-d per frame. Still to do:
-  3 seeds and the other combinations. Goal-from-pixels parked (498 demos: 0.12–0.19).
+- **Design constraint from Step 6b:** if we run Step 6b, the source agents there must take privileged information (e.g. `goal_pos`) **through the encoder**, not through the controller's state input.
 
 ## Step 3 — The "why stitch?" baseline
 
@@ -119,10 +114,12 @@ Step 9 (CARLA) can move to the NeurIPS/CoRL version.
 
 **Question:** how much of the paired ceiling can we recover with no paired frames?
 
-> In `stitch/align.py`, implement `fit_identity`, `fit_procrustes_paired` (SAPS), `fit_action_pairs` (random same-action pairs, then Procrustes; the Mario recipe), `fit_gw` (entropic GW with POT, then barycentric Procrustes) and `fit_action_pairs_fgw` (action-pair initialisation plus fused-GW refinement). Write `scripts/stitch_matrix.py`, which evaluates every encoder_u × controller_u' pair for the same task and saves an N×N success matrix per method.
+**Already done offline on Mario (2026-09-30, branch `step4-aligners`):** `stitch/align.py` exists with identity, SAPS, action_pairs, GW and action_pairs + FGW. `action_pairs` is the default aligner (fast, robust at 5 pairs per action). Label-free GW is unreliable: it fails by swapping action clusters, and its objective gives no failure signal. FGW helps only non-collapsed (BC) encoders.
+
+> Write `scripts/stitch_matrix.py`, which evaluates every encoder_u × controller_u' pair for the same task (closed-loop, protocol above) and saves an N×N success matrix per method: identity, SAPS (paired ceiling), action_pairs (≤100 and 5 per action), GW, action_pairs + FGW. Include pairs whose state distributions differ (e.g. different demo subsets or initial-state ranges), not only matched ones: in Mario, geometry sometimes worked when the two domains shared their state distribution.
 
 - **Exit:** success matrices per method, and the % of paired ceiling.
-- **Decision:** pick the default aligner. Target: at least ~70–80% of the paired ceiling. Add the HGA / Latent Functional Maps baselines here.
+- **Decision:** confirm the default aligner. Target: at least ~70–80% of the paired ceiling. Add the HGA / Latent Functional Maps baselines here.
 
 ## Step 5 — Task shift
 
@@ -142,18 +139,42 @@ Step 9 (CARLA) can move to the NeurIPS/CoRL version.
 
 **Question:** can we stitch across robots if the controller owns the proprioception?
 
-> Stitch encoders across the Panda and second-robot (or locked-joint) variants, keeping each robot's own controller with proprio input. Use the best aligner from Steps 4–5.
+> Stitch encoders across the Panda and xArm6 variants, keeping each robot's own controller with proprio input. Use the best aligner from Steps 4–5.
 
 - **Exit:** a results table.
 - **Decision:** does embodiment stay in the main claim, or move to the appendix?
+
+## Step 6b — Privileged-to-deployable transfer (sim-to-sim proxy for sim-to-real)
+
+**Question:** can a controller trained with privileged information be reused, through stitching, by an encoder that must read that information from pixels in a harder domain, **with fewer target demos than training a new policy**?
+
+**Why:** this is the application story. In sim-to-real, the source (simulation) can use privileged information and plenty of demos; the target (real) has only pixels and few, expensive demos. We have no real robot, so this is a **sim-to-sim proxy**, and the paper must call it that.
+
+**Design:**
+- **Source agent:** privileged information enters **through the encoder**: E_src(image, goal_pos) → z, controller C(z, proprio). If the privileged input went to the controller directly, stitching could not replace it.
+- **Target domain:** harder than the source: different look / light / camera, no `goal_pos` and no `is_grasped` in any input, optionally sensor effects (noise, blur). The goal is visible only through the marker.
+- **Target encoder:** E_tgt(image) only, trained with the Step 1b objective on N target demos, then stitched to C with `action_pairs`.
+
+> Build the source agent (encoder with the privileged input) and the target domain above. For N ∈ {10, 25, 50, 100} target demos, 3 seeds each, compare closed-loop success of:
+> 1. **stitched:** E_tgt (trained on N demos) + action_pairs map + frozen source controller C;
+> 2. **target from scratch:** a full policy trained on the same N target demos;
+> 3. **fine-tuned source:** the source policy fine-tuned on the N target demos, with the privileged input removed (the standard adaptation baseline);
+> 4. **paired ceiling:** the same stitch with SAPS on paired frames (re-rendered from stored states; not available on a real robot).
+> Write the hypotheses first: stitched > target-from-scratch at small N, with the gap closing as N grows.
+
+- **Exit:** a data-efficiency curve: success vs N for the four methods.
+- **Decision:**
+  - If stitching clearly beats training from scratch and fine-tuning at small N, this becomes the paper's application section.
+  - If the curves overlap, drop it: the utility argument doesn't hold, and it's better to know early.
+- **Related work to position against:** Latent Adaptation of Foundation Policies for Sim-to-Real (ICLR 2026; small target data), A Stitch in Time (perception updates, paired or task-supervised), privileged teacher → student distillation (e.g. Learning by Cheating). Our difference: label-only alignment, no paired data, and the data-efficiency comparison.
 
 ## Step 7 — Stitchability score
 
 **Question:** can we predict stitch success without doing rollouts?
 
-Mario pilot: offline agreement predicts in-game play for well-trained agents (ρ ≈ 0.69) but not for weak ones (ρ ≈ 0).
+Mario pilot: offline agreement predicts in-game play for well-trained agents (ρ ≈ 0.69) but not for weak ones (ρ ≈ 0). Mario Step 4: the GW objective is not a usable failure signal.
 
-> In `stitch/score.py`, compute: held-out anchor residual, cycle error, GW distortion, CKA, and action agreement on a few labelled target samples. Over all pairs from Steps 4–6, report the Spearman ρ of each component and of their combination against success, plus the ROC of a deploy / don't-deploy threshold. Exclude or flag pairs whose native agents are weak.
+> In `stitch/score.py`, compute: held-out anchor residual, cycle error, GW distortion, CKA, and action agreement on a few labelled target samples. Over all pairs from Steps 4–6b, report the Spearman ρ of each component and of their combination against success, plus the ROC of a deploy / don't-deploy threshold. Exclude or flag pairs whose native agents are weak.
 
 - **Exit:** a correlation plot.
 - **Decision:** is the score a headline contribution, or an analysis section?
@@ -181,9 +202,11 @@ Mario pilot: offline agreement predicts in-game play for well-trained agents (ρ
   - number of anchors
   - K
   - latent dimension d
+  - batch-size control for the TACO term (Step 0c confound)
 - **Writing:**
   - The intro builds on the limitations stated by Policy Stitching and Perception Stitching, and positions against Zhang et al. 2021 (unpaired, but trained translators) and A Stitch in Time (paired or task-supervised).
-  - The mechanism section: action collapse (NC1), the projection-head ablation, and why NC2 is not needed.
+  - The mechanism section: action collapse (NC1), the projection-head ablation, why NC2 is not needed, and why label-free geometry is unreliable (cluster swaps, no failure signal).
   - The main table has three column groups: visual | task | embodiment.
+  - The application section (if Step 6b holds): privileged-to-deployable transfer, framed as a sim-to-sim proxy.
   - Paper-quality Mario rows: more episodes and confidence intervals.
   - Post to arXiv early, because of the scoop risk.

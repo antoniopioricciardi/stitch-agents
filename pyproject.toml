@@ -8,6 +8,7 @@ dependencies = [
     "mani-skill>=3.0.1",
     "matplotlib>=3.11.2",
     "numpy<2",
+    "pot>=0.9.7.post1",
     "tensorboard>=2.21.0",
     "torch>=2.14.0",
     "torchvision>=0.29.0",

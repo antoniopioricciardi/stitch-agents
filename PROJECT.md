@@ -1,6 +1,6 @@
 # Anchor-free model stitching for autonomous agents — project brief
 
-_Last updated: 29 Sep 2026. Owner: Antonio._
+_Last updated: 30 Sep 2026. Owner: Antonio._
 
 ## Thesis (one line)
 
@@ -159,6 +159,7 @@ Novelty check (29 Sep 2026, ~10 targeted searches): no paper found that aligns i
 7. Does a TACO-style temporal term preserve or destroy label-only alignability when combined with SupCon? (Step 0c.) *(Answered 2026-09-29 in Mario: the temporal term preserves alignability; see Decisions.)*
 8. Is latent dynamics consistency a reliable correspondence signal under goal/reward shift? (Step 5.)
 9. Label anchors only fix the map on the span of the action centroids. Is the within-action structure added by TACO aligned across encoders, or scrambled by the map? Candidate fixes: finer labels (action chunks, more clusters), temporal anchors (pair by action + steps-to-event).
+10. When does label-free geometry work? Mario: GW fails on mismatched halves of a level for SCIL, but works on mismatched halves and across levels for SCIL+TACO (every seed), while failing on some matched version pairs. So matched state distributions are neither necessary nor sufficient. Shared dynamics structure from the temporal term, or optimisation luck (which local optimum the solver finds)?
 
 ## Decisions
 
@@ -173,4 +174,5 @@ Novelty check (29 Sep 2026, ~10 targeted searches): no paper found that aligns i
 - 2026-09-29 (Step 0c, Mario): SCIL + TACO (K=3) keeps SCIL's label-only alignability (matches SCIL in-game) and recovers native play lost to collapse (1-2: 654 → 1207). The within-action probe on 1-1 supports SCIL < BC ≈ SCIL+TACO (future-action accuracy: SCIL at the majority baseline, 0.624 vs 0.621; SCIL+TACO 0.654; BC 0.664), but the absolute signal is weak. SCIL+TACO K=3 is the leading candidate for Step 1b. Mario is frozen.
 - 2026-09-29 (F1): no-map agreement across levels is at chance (the controller gets stuck on "right"); always report it next to its chance level.
 - 2026-09-29: physics variant replaced by actuation; planner is open-loop, so friction/mass left expert actions unchanged.
+- 2026-09-30 (Step 4 offline, Mario): action_pairs is the default aligner (fast, robust at 5 pairs/action). Label-free GW is unreliable: it fails by swapping action clusters, and seed/pair-dependent. The GW objective gives no usable label-free failure signal. FGW helps only non-collapsed (BC) encoders; kept as a candidate for open question 9.
 - 2026-10-01: core experiments keep goal_pos in the state and remove is_grasped (DP baseline, 100 demos, 50k iterations: 0.82 final / 0.79 last-3; blind ≈0.05, so vision is essential because the cube is only in the image). Goal-from-pixels is parked until Step 6b (498 demos: 0.12–0.19; likely an encoder limitation; next idea: spatial-softmax ResNet18).

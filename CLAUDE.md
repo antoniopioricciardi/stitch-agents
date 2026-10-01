@@ -85,3 +85,4 @@ Start with these files. Split a file only when it becomes hard to read.
 - Before running an experiment, write its hypothesis in `EXPERIMENTS.md`. Afterwards, add the result and a one-line takeaway.
 - **Oracles first.** Oracle agents must work in every domain before any stitching number means anything.
 - **The frozen-DINO + controller baseline is in every comparison.** It's the main "why stitch at all?" check.
+- For standard components (policies, baselines, datasets), use the published implementation and modify it minimally. Write from scratch only what is new in this project (alignment, scores, analysis).

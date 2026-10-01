@@ -393,6 +393,68 @@ Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the 
 
 ---
 
+## 2026-09-29 — Step 4 (offline, Mario latents): GW and action-pair + fused-GW aligners
+
+- **Hypotheses:**
+  - **H1:** GW alone (label-free) < action_pairs. Pure geometry cannot recover the map. Expected failure mode: collapsed SCIL clusters of similar size get swapped by a label-blind matcher, giving plausible geometry but the wrong actions. This shows up as low plan label accuracy (fraction of transported mass landing on same-action frames).
+  - **H2:** action_pairs_fgw ≈ action_pairs with all pairs (≤100 per action), and better than action_pairs with few pairs (5 per action).
+- **Setup:** offline only, on exported latents (`mario/export_latents.py` → `results/20260929_step4_latents/`). Nature CNN bc / scil / scil_taco3, seeds 0–2, encoder seed s + controller seed s+1. Settings: v1 version pairs (v0→v1, v1→v0, v1→v2, v2→v1; unpaired fits on disjoint episodes) and cross-level (1-1 ↔ 1-2). Agreement = stitched controller vs the native agent's action on held-out frames.
+  - Aligners: identity; SAPS (versions only); gw (2–3 ε values, every ε reported, none selected on agreement); action_pairs at ≤100 and at 5 per action (5 draws, plus the same first 3 draws); action_pairs_fgw at ≤100 and at 5 per action (3 draws, α = 0.5).
+  - GW/FGW run on 1000 frames per side, and the map is applied to all frames. GW subsamples uniformly (label-free). FGW with 5 per action: only the anchor frames keep labels; they are forced into the subsample, and pairs with unlabelled frames get a neutral mismatch of 0.5.
+  - Reproduction check first: identity / SAPS / action_pairs on all 6 version permutations must match `20260929_anchors_offline*`.
+- **Pilot** (seed 0, one draw, v0→v1 and 1-1 with the 1-2 controller): reproduction matches the reference to three decimals. At ε ∈ {0.005, 0.01, 0.05} the GW plans are nearly uniform (each source frame spreads its mass over 370–950 of 1000 targets), so GW failures there are an ε artefact. Full-run ε grid changed to **{0.0005, 0.001, 0.005}** for GW and FGW, chosen by plan sharpness (label-free), not by agreement. Surprise: at small ε, SCIL GW reaches action_pairs level across versions (.747 vs .734, 79% of mass on same-action frames) but fails across levels (.34 vs .83).
+- **Added hypothesis H3 (written after the pilot, before the test):** GW works across versions because both clouds share one state distribution (same level, same human runs), and fails across levels because they don't. Test within one level: v0→v1, fitting on source frames from the first half of 1-1 (x-position below the median) and target frames from the second half (disjoint episodes as before); evaluate on all held-out frames. Prediction: GW drops to the cross-level result (plan label accuracy near chance), while action_pairs stays close to its normal value. bc and scil; gw (3 ε), action_pairs, fgw.
+- **What was tested:** offline action agreement only, on held-out frames of exported Mario latents. No in-game play.
+- **Result** (agreement, mean ± std over 3 seeds, each seed averaged over its pairs; versions = 4 v1 pairs, levels = both directions, halves = v0→v1 fitted on first half → second half of 1-1; `results/20260929_step4_aligners_offline_full/`):
+
+  | aligner | bc versions | scil versions | scil_taco3 versions | bc levels | scil levels | scil_taco3 levels | bc halves | scil halves | fit time |
+  |---|---|---|---|---|---|---|---|---|---|
+  | identity | .396 ± .014 | .355 ± .018 | .382 ± .074 | .411 ± .016 | .309 ± .018 | .388 ± .082 | .423 ± .029 | .229 ± .068 | 0 s |
+  | SAPS (paired ceiling) | .705 ± .001 | .752 ± .015 | .758 ± .010 | — | — | — | — | — | 0.07 s |
+  | action_pairs ≤100 (5 / 3 draws) | .630 / .635 | .743 / .744 | .748 / .746 | .682 / .682 | .844 / .838 | .827 / .825 | .593 / .599 | .731 / .730 | 0.03 s |
+  | action_pairs 5 (5 / 3 draws) | .473 / .472 | .731 / .731 | .718 / .719 | .508 / .501 | .825 / .820 | .780 / .784 | .450 / .461 | .716 / .722 | 0.03 s |
+  | gw ε .0005 | .413 ± .016 | .670 ± .006 | .593 ± .051 | .401 ± .042 | .631 ± .049 | .818 ± .007 | .376 ± .031 | .405 ± .092 | 19.5 s |
+  | gw ε .001 | .402 ± .043 | .647 ± .013 | .571 ± .064 | .397 ± .015 | .596 ± .047 | .817 ± .010 | .359 ± .035 | .409 ± .096 | 9.9 s |
+  | gw ε .005 | .411 ± .022 | .645 ± .029 | .506 ± .081 | .389 ± .024 | .575 ± .032 | .795 ± .022 | .368 ± .049 | .349 ± .105 | 0.9 s |
+  | fgw ≤100, ε .0005 / .001 / .005 | .664 / .662 / .663 | .745 / .742 / .742 | .748 / .741 / .741 | .717 / .712 / .708 | .828 / .815 / .808 | .831 / .829 / .829 | .594 / .593 / .605 | .697 / .697 / .696 | 3.0 / 1.7 / 1.1 s |
+  | fgw 5, ε .0005 / .001 / .005 | .533 / .534 / .536 | .739 / .739 / .739 | .739 / .738 / .738 | .548 / .549 / .552 | .803 / .803 / .800 | .824 / .822 / .822 | .473 / .475 / .480 | .700 / .700 / .704 | 2.6 / 1.8 / 1.3 s |
+
+  FGW uses 3 draws; compare it with the 3-draw action_pairs numbers. FGW std over seeds is ≤ .019 everywhere.
+  Plan label accuracy for GW at ε .0005 (chance ≈ .28–.29): bc .32 / .32 / .32 (versions / levels / halves); scil .74 / .65 / .41; scil_taco3 .61 / .78 / —. Each source frame spreads its mass over 40–96 targets at ε .0005 and 340–620 at ε .005.
+  Per-seed GW agreement tracks plan label accuracy. Examples: scil v0→v1 gives .74 / .51 / .71 at label accuracy .79 / .58 / .84, and on halves .47 / .27 / .48 at .47 / .25 / .53. scil_taco3 v0→v1 gives .36 / .50 / .60, yet across levels it gives .78–.84 in every seed.
+  Full run: ~2 h of fitting on 6 CPU cores, dominated by GW at ε ≤ .001. At ε ≤ .001, FGW ≤100 does not fully converge (Sinkhorn marginal error up to 0.1–0.2); at ε .005 the error is 5e-3 and agreement is the same.
+- **Takeaway:**
+  - **H1 confirmed on average, and GW is unreliable.** Label-free GW is below action_pairs for every encoder and setting except scil_taco3 across levels (.818 vs .827). For BC it is near identity and its plans are at chance (label accuracy .32 vs .29): BC latents have no action geometry for GW to find. For collapsed encoders GW sometimes recovers the right cluster matching and sometimes not, depending on seed and pair. Agreement follows how much mass lands on same-action frames, which is the predicted failure mode (label-blind cluster swaps). We have no label-free signal yet that tells a good GW plan from a bad one.
+  - **H2 holds only for BC.** With ≤100 pairs, FGW ≈ action_pairs for SCIL and SCIL+TACO (within ±.02; slightly worse on SCIL levels, −.010, and halves, −.033). With 5 pairs, FGW does **not** help SCIL: 5 pairs already give 98% of the ≤100 number. For BC, FGW adds +.03 (≤100) and +.03 to +.06 (5 pairs), still well below SAPS (.664 vs .705). The ε choice barely matters for FGW. **action_pairs stays the default aligner:** 100× faster, and never worse for collapsed encoders.
+  - **H3 partly supported.** Within one level, fitting on disjoint halves drops SCIL GW from .670 (label accuracy .74) to .405 (.41), while action_pairs barely moves (.731 vs .743 on v1 pairs; .73 vs .73 on v0→v1 alone). But scil_taco3 GW works *across* levels (.818, every seed) and fails in some v0→v1 seeds, so "different levels = different state distributions" does not explain everything. **Claim to test, not a fact:** "pure geometric alignment requires matched state distributions; label alignment does not." Evidence for: the halves test. Evidence against: scil_taco3 across levels.
+- **Next (not run):** check whether the GW objective (label-free) predicts which GW plans are good; if not, GW stays out of the method as more than a baseline. Test the halves split for scil_taco3 and in ManiSkill (Step 4 proper) before using this claim in the paper.
+
+**Follow-ups (2026-09-30, hypotheses written before running):**
+- **F1, halves for scil_taco3** (same setup as bc/scil, all aligners). If GW still works on mismatched halves, that favours a "shared dynamics structure" explanation over "matched state distributions". My expectation: it fails, like SCIL (.41). SCIL+TACO's cross-level success would then be about 1-1 and 1-2 sharing a whole-run structure that disjoint halves of one level do not.
+- **F2, is the GW objective a label-free failure signal?** Over all GW fits (per draw, same seeds as the full run, so the same plans), Spearman ρ between the final GW objective (the square-loss GW term Σ (C1_ik − C2_jl)² P_ij P_kl, without entropy) and (a) plan label accuracy, (b) agreement. Pooled and within each (encoder, pair type, ε) group. Hypothesis: within a group, lower objective ↔ higher label accuracy (ρ ≲ −0.5), because a wrong cluster swap should distort the geometry more than the right matching; pooled ρ is confounded by encoder type.
+- **F1 result** (scil_taco3, v0→v1 fitted on first half → second half of 1-1, mean ± std over 3 seeds; `results/20260930_step4_aligners_offline_followup/`):
+
+  | scil_taco3 halves | identity | action_pairs ≤100 / 5 (3 draws) | gw ε .0005 / .001 / .005 | fgw ≤100 (ε .0005) | fgw 5 (ε .0005) |
+  |---|---|---|---|---|---|
+  | agreement | .437 ± .072 | .741 / .701 | **.673 ± .017** / .671 / .651 | .697 | .701 |
+  | plan label accuracy (chance ≈ .28) | — | — | .67 / .66 / .54 | .81 | .69 |
+
+  **Refutes my expectation.** GW on mismatched halves works for SCIL+TACO in every seed (.65–.69, 91% of action_pairs), while it fails for SCIL (.41) on the same split. For SCIL+TACO it even beats the *matched* v0→v1 case (.36 / .50 / .60 over seeds). So matched state distributions are neither necessary (SCIL+TACO halves and levels) nor sufficient (SCIL+TACO v0→v1) for GW. The candidate explanations are a geometry shaped by the temporal (TACO) term that is shared across parts of the game, or which local optimum the solver lands in. Neither is tested yet.
+- **F2 result** (567 GW fits, one per draw; the plans are identical to the full run, whose agreement values match exactly): Spearman ρ between the final GW objective and plan label accuracy / agreement.
+
+  | | versions | levels | halves |
+  |---|---|---|---|
+  | bc | −.08 / +.07 | +.13 / −.06 | +.01 / −.10 |
+  | scil | −.21 / −.22 | −.29 / −.35 | +.25 / +.22 |
+  | scil_taco3 | **−.67 / −.55** | −.36 / −.41 | +.15 / −.60 |
+
+  (mean over the 3 ε values; n = 36 / 18 / 9 fits per ε). Pooled over everything: −.23 / −.05. Within an encoder, pooled over pair types: scil_taco3 +.29 with agreement, i.e. the wrong sign, because objective values are not comparable across pair types.
+
+  **Hypothesis mostly rejected.** The GW objective predicts plan quality only for SCIL+TACO within a fixed pair type (ρ ≈ −.6 on versions). It is weak for SCIL (≈ −.25, and positive on halves), absent for BC, and useless across pair types. **No usable label-free failure signal for GW** in these runs; this is a limitation of GW as an aligner and rules the GW objective out as a stitchability component for now.
+- **Updated claim to test:** the "pure geometric alignment requires matched state distributions; label alignment does not" reading is **not supported** as stated. The evidence for it (SCIL: halves .41 vs versions .67) is outweighed by SCIL+TACO (halves .67 and levels .82 work; matched v0→v1 .49 does not). What stands: **label alignment is robust to the state-distribution change** in every encoder (action_pairs moves by ≤ .03 on halves). When label-free geometry works is open (PROJECT.md, open question 10).
+
+---
+
 ## 2026-09-29 — Step 0c: does a TACO temporal loss keep or break label-only alignability?
 
 - **Hypotheses:**
