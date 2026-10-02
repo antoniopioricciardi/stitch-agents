@@ -407,6 +407,22 @@ Rendered first: the cube is visible in all four (darker and lower-contrast under
   limitation list (with cam1, cam2), as a low-contrast case. Usable second domains so far: look 1, look 2,
   look 2 + light 1, cam3.
 
+**Decisions (2026-10-02):** keep the current core env. Seeds go to every working second domain (look 1, look 2,
+look 2 + light 1, cam3), so they form the main Step 4 table. Weak-λ SupCon: λ = .01 on cam0 s1 and look 1 s2.
+Order: (1) stitching on the new domain pairs (evals only), (2) weak-λ SupCon, (3) seeds (10 oracles, unattended).
+
+**(1) Stitching cam0 s1 ↔ {look 2, look 2 + light 1, cam3} s2, both directions (pilot, one seed).** Aligners:
+identity, affine paired (the ceiling, demos 0–99), SAPS, K = 16 action pairs on the halves (`k16_half`: source demos
+0–49, target 50–99, orthogonal, draw 0 in closed loop; residual over 5 draws), nn_orth, nn_affine. Closed loop 250
+episodes + held-out z residual. look 1 is in the same table from the runs above, plus a new closed loop for k16_half
+(the earlier action_pairs fitted both sides on demos 0–99). `k16_half` reproduces round 1's k16 orth residual
+(.825 / .764).
+- **Hypotheses** (from look 1): identity at blind level (≤ .1) everywhere; affine ceiling 80–95% of the native agent
+  of the played domain; SAPS 55–70%; k16_half ≈ 50% of the ceiling; nn_orth / nn_affine 60–85% of the ceiling. By
+  domain: look 2 like look 1 (appearance only); look 2 + light 1 a bit lower for every aligner (largest appearance
+  change); cam3 the hardest for orthogonal maps (geometry changes how the cube moves in the image, which a rotation
+  of z may not capture) but close to the others with the affine ceiling.
+
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two
   rescaled variants: orthogonal + per-dimension scale, affine + rescale to the target's per-dimension variance

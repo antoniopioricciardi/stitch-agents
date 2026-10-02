@@ -1,10 +1,10 @@
 """Step 1b: stitch DP agents across two visual domains (cam0 <-> a second domain) and measure collapse.
 
 Usage: uv run python scripts/step1b_stitch.py <row-name> <domain> <cam0_run_dir> <domain_run_dir> <labels.pt> [--offline-only]
-       [--maps=identity,saps,action_pairs]   (also: affine, mlp, nn_orth, nn_affine, nn_affine_rescale, nn_mnn_affine;
+       [--maps=identity,saps,action_pairs]   (also: affine, mlp, k16_half, nn_orth, nn_affine, nn_affine_rescale, nn_mnn_affine;
        the map-class check uses
        --maps=saps,affine,mlp)
-  domain: cam1, cam2 or look1 (the second domain; see ENV / H5)
+  domain: the second domain (see ENV / H5)
   run dirs: results/<run>/ with runs/<name>/checkpoints/<final>.pt (largest numeric tag = final weights)
 Run from the repo root with PYTHONPATH=<repo>:<repo>/third_party/maniskill_diffusion_policy.
 
@@ -16,6 +16,8 @@ agent_v with its visual_encoder replaced by [E_u, z -> z @ R.T + b], T applied p
     Map-class check, also on the paired frames: affine (least squares, no orthogonality) and mlp (z -> affine(z) +
     MLP(z), 256 -> 512 -> 256 ReLU; the affine part starts at the least-squares fit, so the class contains affine;
     MSE, Adam, early-stopped on the pairs of 10 held-out fit demos).
+    k16_half: action_pairs (K = 16, <=100 pairs per cluster, N_DRAWS draws, orthogonal) with source frames from demos
+    0-49 and target frames from demos 50-99, like every label fit from Step 1b round 1 on.
     nn_orth / nn_affine (label-based, scripts/step1b_label_maps.py): source frames of demos 0-49, each paired with the
     target frame of demos 50-99 whose z-scored 8-step chunk is nearest; orthogonal / affine least squares.
     nn_affine_rescale: nn_affine, then each output dimension given the target's per-dimension mean and std (stats of
@@ -52,16 +54,21 @@ from diffusion_policy.evaluate import evaluate
 from diffusion_policy.make_env import make_eval_envs
 from diffusion_policy.utils import build_state_obs_extractor, convert_obs, load_content_from_h5_file
 from mani_skill.utils.wrappers.flatten import FlattenRGBDObservationWrapper
-from stitch.align import fit_action_pairs, fit_affine_paired, fit_identity, fit_procrustes_paired
+from stitch.align import action_pairs, fit_action_pairs, fit_affine_paired, fit_identity, fit_procrustes_paired
 from stitch.labels import assign, frame_chunks, standardise
 
 ENV = {"cam0": "stitch.envs:StitchPickCubeLollipopNoGrasp-v1", "cam1": "stitch.envs:StitchPickCubeLollipopNoGraspCam1-v1",
-       "cam2": "stitch.envs:StitchPickCubeLollipopNoGraspCam2-v1", "look1": "stitch.envs:StitchPickCubeLollipopNoGraspLook1-v1"}
+       "cam2": "stitch.envs:StitchPickCubeLollipopNoGraspCam2-v1", "look1": "stitch.envs:StitchPickCubeLollipopNoGraspLook1-v1",
+       "look2": "stitch.envs:StitchPickCubeLollipopNoGraspLook2-v1", "look2light1": "stitch.envs:StitchPickCubeLollipopNoGraspLook2Light1-v1",
+       "cam3": "stitch.envs:StitchPickCubeLollipopNoGraspCam3-v1"}
 TRAJ = "trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
 H5 = {"cam0": f"/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_demos_default_panda_cam0_lollipop/{TRAJ}",
       "cam1": f"results/20261001_dp_ours_demos_default_panda_cam1_lollipop/{TRAJ}",
       "cam2": f"results/20261001_dp_ours_demos_default_panda_cam2_lollipop/{TRAJ}",
-      "look1": f"results/20261001_dp_ours_demos_default_panda_cam0_look1_lollipop/{TRAJ}"}
+      "look1": f"results/20261001_dp_ours_demos_default_panda_cam0_look1_lollipop/{TRAJ}",
+      "look2": f"results/20261002_dp_ours_demos_default_panda_cam0_look2_lollipop/{TRAJ}",
+      "look2light1": f"results/20261002_dp_ours_demos_default_panda_cam0_look2_light1_lollipop/{TRAJ}",
+      "cam3": f"results/20261002_dp_ours_demos_default_panda_cam3_lollipop/{TRAJ}"}
 FIT_DEMOS = range(0, 100)
 HELDOUT_DEMOS = range(400, 498)
 N_OFF = 2000
@@ -251,6 +258,8 @@ if __name__ == "__main__":
                 "affine": lambda: [affine(*fit_affine_paired(Zs, Zt))],
                 "action_pairs": lambda: [affine(*fit_action_pairs(Zs, Zt, y_fit, y_fit, np.random.default_rng(s))) for s in range(N_DRAWS)],
                 "mlp": lambda: [fit_mlp_paired(Zs, Zt, fit_demo)],
+                "k16_half": lambda: [affine(*fit_procrustes_paired(Zs[src[ia]], Zt[tgt[ib]])) for ia, ib in
+                                     (action_pairs(y_fit[src], y_fit[tgt], np.random.default_rng(s)) for s in range(N_DRAWS))],
                 "nn_orth": lambda: [affine(*fit_procrustes_paired(Zs[src], Zt[nn_tgt]))],
                 "nn_affine": lambda: [affine(*fit_affine_paired(Zs[src], Zt[nn_tgt]))],
                 "nn_affine_rescale": lambda: [affine(*rescale(*fit_affine_paired(Zs[src], Zt[nn_tgt]), Zs[src], Zt[tgt]))],
