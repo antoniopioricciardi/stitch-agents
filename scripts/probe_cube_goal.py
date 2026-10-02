@@ -36,6 +36,8 @@ def load(path, demos):
     rgb, cube, goal, demo = [], [], [], []
     with h5py.File(path, "r") as f:
         for i in demos:
+            if f"traj_{i}" not in f:  # the goal-variant demo set has 496 demos (traj_0-495)
+                continue
             t = f[f"traj_{i}"]
             rgb.append(t["obs/sensor_data/base_camera/rgb"][:])
             cube.append(t["env_states/actors/cube"][:, :3])

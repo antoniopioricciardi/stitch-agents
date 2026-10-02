@@ -1,0 +1,34 @@
+{
+ "20261002_step1b_dp_ref_cam2goal_s2:cam2goal": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_cam2goal_s2/runs/step1b_dp_ref_cam2goal_s2/checkpoints/49999.pt",
+  "domain": "cam2goal",
+  "n_fit": 8085,
+  "n_test": 7853,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.546,
+    0.804,
+    0.789
+   ],
+   "r2_xyz_on_table": [
+    0.528,
+    0.611,
+    -1420.882
+   ]
+  },
+  "goal": {
+   "alpha": 0.01,
+   "r2_xyz_all": [
+    0.127,
+    0.014,
+    0.402
+   ],
+   "r2_xyz_on_table": [
+    0.035,
+    -0.016,
+    0.357
+   ]
+  }
+ }
+}

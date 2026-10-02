@@ -350,6 +350,20 @@ whether the core env switches (which would mean retraining all oracles), so no s
   (≥ .8× the true-goal rate) and carries the cube to the fake goal. If it still fails, cam2's problem is not the
   shortcut but reading the cube from that view (its probe R² was .61 / .79, so this would point at the controller /
   training, not the encoder).
+- **Result** (`results/20261002_step1b_dp_ref_cam2goal_s2/`, `…_blind_step1b_dp_ref_cam2goal_s2/`,
+  `…_step1b_fake_goal_cam2goal_*/`, `results/20261002_step1b_probe_cube_goal/`): **the oracle still fails.**
+  success_once / success_at_end every 5k from 0: .000/.000, .020/.008, .028/.016, .020/.016, .060/.056, .048/.040,
+  .024/.024, .072/.072, .076/.076, .068/.068, **final .060 (last-3 .068) / .060 (.068)**; training loss .0005.
+  Blind: full .064 = zeroed .060 / shuffled .040 (z is not used). Fake goal (50 + 50): it still goes to goal_pos
+  (1.7 cm from the goal vs 7.3 cm from the cube; grasps 14%; with a fake goal 1.4 cm from it, 96% closer to it than
+  to the cube) although that is now 15–35 cm from the cube. Probe cube x / y .53 / .61, goal ≈ 0 (the goal-variant
+  demo set has 496 demos: the probe now skips missing held-out demos).
+- **Takeaway: hypothesis rejected.** Making "go to goal_pos" useless for grasping does not make cam2's controller use
+  z: it ignores the image entirely (blind = full) and still drives to goal_pos, which no demo does before grasping.
+  So cam2's failure is not the shortcut being rewarded; the DP baseline fails to exploit the cam2 image at all (100
+  demos, PlainConv), and falls back on what the state predicts. Why cam0 / look 1 work and cam1 / cam2 do not is
+  open (the linear cube probe is moderate in all of them: .53–.78 on x). The core env question: the goal-away variant
+  does not rescue cam2, so it gives no reason to switch the core env.
 
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two
@@ -397,6 +411,19 @@ whether the core env switches (which would mean retraining all oracles), so no s
     Against the fair ceiling, nn_affine closes 69% / 70% of the gap from k16 orth.
   - Closed loop (queued after the cam2 pilot): nn_affine_rescale and nn_mnn_affine, the two variants that test whether
     affine's shrinkage hurts in closed loop (round 1: nn_affine .49 / .41, nn_orth .45 / .49).
+- **Closed loop** (`results/20261002_step1b_stitch_row1labelmaps2_look1/`; 250 episodes, success_once / at_end; % of
+  the affine paired ceiling .764 / .580):
+
+  | map | cam0 enc → look 1 ctrl | look 1 enc → cam0 ctrl |
+  |---|---|---|
+  | nn_orth (round 1) | .452 (59%) | .488 (84%) |
+  | nn_affine (round 1) | .492 (64%) | .408 (70%) |
+  | nn_affine + rescale | .364 / .280 (48%) | .384 / .272 (66%) |
+  | nn_mnn_affine | .516 / .404 (68%) | .420 / .316 (72%) |
+
+- **Takeaway:** rescaling does not help in closed loop (worse one way, same the other), so affine's shrinkage is not
+  what limits it; mutual-NN affine ≈ nn_affine (within the ±.06 eval noise). All nearest-chunk variants land at
+  .41–.52 (59–84% of the ceiling); none stands out at one seed.
 - **After both trainings, one eval batch (no training running):** (1) row 2 oracle checks (blind, fake goal, probe),
   collapse measures, stitching cam0 ↔ look 1 (identity / SAPS / action_pairs, offline + closed loop); (2) the map-class
   check below.

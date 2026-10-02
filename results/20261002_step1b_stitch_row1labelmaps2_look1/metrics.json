@@ -1,0 +1,144 @@
+{
+ "checkpoints": {
+  "cam0": "/home/ricc/projects/labelstitch-step1/results/20261001_step2g_dp_core_nograsp_50k_s1/runs/step2g_dp_core_nograsp_50k_s1/checkpoints/49999.pt",
+  "look1": "/home/ricc/projects/labelstitch-1b/results/20261001_step1b_dp_ref_look1_s2/runs/step1b_dp_ref_look1_s2/checkpoints/49999.pt"
+ },
+ "label_sizes": [
+  946,
+  408,
+  310,
+  1772,
+  114,
+  500,
+  178,
+  1287,
+  297,
+  88,
+  184,
+  309,
+  438,
+  215,
+  199,
+  398
+ ],
+ "geometry": {
+  "cam0": {
+   "nc1": 0.9204210042953491,
+   "eff_rank": 3.1027952070127602,
+   "var_top4": 0.7709375104545121,
+   "var_top16": 0.9033908955930577
+  },
+  "look1": {
+   "nc1": 1.291641116142273,
+   "eff_rank": 4.223089660910902,
+   "var_top4": 0.7160665681677768,
+   "var_top16": 0.8944564683182855
+  }
+ },
+ "stitch": {
+  "cam0_enc_to_look1_ctrl": {
+   "native_vs_expert": [
+    0.07711277902126312,
+    0.13562093675136566
+   ],
+   "chance_frame": [
+    3.151400089263916,
+    3.4292562007904053
+   ],
+   "chance_z": [
+    0.2546798884868622,
+    0.7858083844184875
+   ],
+   "noise_floor": [
+    0.02449430152773857,
+    0.046657495200634
+   ],
+   "aligners": {
+    "nn_affine_rescale": {
+     "offline_dist": [
+      0.05720942094922066,
+      0.11953938007354736
+     ],
+     "offline_dist_draws": [
+      [
+       0.05720942094922066,
+       0.11953938007354736
+      ]
+     ],
+     "z_residual": 0.7121668457984924,
+     "success_once": 0.364,
+     "success_at_end": 0.28,
+     "episodes": 250
+    },
+    "nn_mnn_affine": {
+     "offline_dist": [
+      0.06208755820989609,
+      0.1315925121307373
+     ],
+     "offline_dist_draws": [
+      [
+       0.06208755820989609,
+       0.1315925121307373
+      ]
+     ],
+     "z_residual": 0.5811671018600464,
+     "success_once": 0.516,
+     "success_at_end": 0.404,
+     "episodes": 250
+    }
+   }
+  },
+  "look1_enc_to_cam0_ctrl": {
+   "native_vs_expert": [
+    0.08152315020561218,
+    0.11468981951475143
+   ],
+   "chance_frame": [
+    3.1507437229156494,
+    3.361013412475586
+   ],
+   "chance_z": [
+    0.18180601298809052,
+    0.550829291343689
+   ],
+   "noise_floor": [
+    0.03048758953809738,
+    0.0331537239253521
+   ],
+   "aligners": {
+    "nn_affine_rescale": {
+     "offline_dist": [
+      0.059001293033361435,
+      0.07885409146547318
+     ],
+     "offline_dist_draws": [
+      [
+       0.059001293033361435,
+       0.07885409146547318
+      ]
+     ],
+     "z_residual": 0.5086492896080017,
+     "success_once": 0.384,
+     "success_at_end": 0.272,
+     "episodes": 250
+    },
+    "nn_mnn_affine": {
+     "offline_dist": [
+      0.05613496154546738,
+      0.10170344263315201
+     ],
+     "offline_dist_draws": [
+      [
+       0.05613496154546738,
+       0.10170344263315201
+      ]
+     ],
+     "z_residual": 0.5319254994392395,
+     "success_once": 0.42,
+     "success_at_end": 0.316,
+     "episodes": 250
+    }
+   }
+  }
+ }
+}
