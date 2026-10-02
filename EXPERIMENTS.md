@@ -446,12 +446,26 @@ episodes + held-out z residual. look 1 is in the same table from the runs above,
 - **Takeaway (one seed per domain, ±.06 eval noise):**
   - Hypotheses mostly confirmed: identity at blind level everywhere; the affine ceiling recovers 80–104% of native
     (mean 89%); SAPS 50–69% (mean 61%); k16 label pairs about half of the ceiling (mean 52%).
-  - **nn_affine is the best label-only map in 7 of 8 directions: 60–76% of the ceiling, mean 70%, above paired SAPS
-    (61%)** (it is orthogonal-constrained). nn_orth is less stable (34–84%, mean 55%). The z residual ranks the maps
-    consistently with closed loop across domains (affine < nn_affine < SAPS / nn_orth < k16), unlike within one pair.
+  - **nn_affine leads in 7/8 directions (one seed); default aligner decided on 3-seed means per the fixed rule.**
+    Pilot numbers: 60–76% of the ceiling, mean 70%, against SAPS 61% (orthogonal-constrained) and nn_orth 55%
+    (34–84%, less stable). The z residual ranks the map types as closed loop does across domains (affine <
+    nn_affine < SAPS / nn_orth < k16), unlike within one pair.
   - By domain: look 2 ≈ look 1; look 2 + light 1 is the lowest when its own encoder plays (nn_affine 60%, SAPS 50%);
     cam3 is the hardest for orthogonal maps (SAPS 52–56%, nn_orth 44–53%) but not for affine ones (affine 80–104%,
     nn_affine 70–73%), as predicted.
+
+**(2) Weak-λ SupCon: λ = .01 on cam0 s1 and look 1 s2** (`…_dp_supcon001_{cam0_s1,look1_s2}/`; same recipe; then
+the three checks, collapse measures, and stitching cam0 ↔ look 1 with identity / affine / SAPS / k16_half / nn_orth /
+nn_affine, closed loop 250 episodes + z residual). λ from the smoke test: SupCon's encoder gradient was 3× the DP
+term's at iteration 0 and 100–250× by iterations 100–190 at λ = 1, so at λ = .01 it starts at ~.03× and grows to
+~1–2.5×, i.e. about equal to the DP term's.
+- **Hypotheses:** native success within .1 of row 1 (cam0 ≥ .69, look 1 ≥ .60 last-3); the cube survives in z (probe
+  cube x R² ≥ .6) and the three checks pass; z collapses partly (NC1 between row 1's ~1 and λ = .1's .10, e.g.
+  .3–.6); label-only stitching gets closer to the ceiling than on row 1 (k16_half and nn_affine both ≥ 70% of the
+  affine ceiling). If native drops by more than .1, λ = .01 still erases the cube and SupCon on chunk clusters is
+  ruled out for this policy class.
+- **Then (3), unattended, queued right after (2):** plain-DP oracles cam0 s2, s3 and look 1 / look 2 / look 2 +
+  light 1 / cam3 at seeds 1 and 3 (10 runs, one at a time, three checks each; no stitching evals yet).
 
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two
