@@ -464,6 +464,44 @@ term's at iteration 0 and 100–250× by iterations 100–190 at λ = 1, so at �
   .3–.6); label-only stitching gets closer to the ceiling than on row 1 (k16_half and nn_affine both ≥ 70% of the
   affine ceiling). If native drops by more than .1, λ = .01 still erases the cube and SupCon on chunk clusters is
   ruled out for this policy class.
+- **Result** (`results/20261002_step1b_dp_supcon001_{cam0_s1,look1_s2}/`, `…_stitch_supcon001_look1/`, probe in
+  `results/20261002_step1b_probe_cube_goal/`). success_once / success_at_end every 5k from 0:
+  cam0: .008/.000, .180/.108, .284/.220, .364/.240, .344/.272, .324/.248, .352/.280, .372/.276, .312/.220, .300/.232,
+  **final .288 (last-3 .300) / .208 (.220)**; look 1: .000/.000, .104/.060, .196/.152, .232/.148, .212/.164,
+  .232/.168, .260/.212, .208/.172, .284/.248, .216/.172, **final .268 (last-3 .256) / .200 (.197)**. Encoder gradient
+  at iteration 0: SupCon .0013 vs DP .238 (.005×; this seed starts lower than the smoke test's 3× at λ = 1).
+
+  | | row 1 (λ = 0) cam0 / look 1 | **λ = .01** cam0 / look 1 | λ = .1 cam0 / look 1 |
+  |---|---|---|---|
+  | native success_once, last-3 | .788 / .695 | **.300 / .256** | .051 / .072 |
+  | NC1 / effective rank | .92, 3.1 / 1.29, 4.2 | **.124, 2.6 / .118, 2.8** | .10, 3.8 / .10, 3.2 |
+  | variance in top 4 PCs | .77 / .72 | **.95 / .92** | .87 / .90 |
+  | probe cube x / y | .78 / .58, .76 / .59 | **.31 / .26, .30 / .24** | .17 / .10, .14 / .11 |
+  | blind full / zeroed | .84 / .04, .72 / .02 | **.34 / .05, .20 / .02** | .04 / .06, .04 / .03 |
+  | fake goal: grasped true → fake; placed at state goal | .90 → .88, .94 → .88 | **.54 → .54, .50 → .50; .28 → .20, .28 → .28** | follows goal_pos |
+
+  Closed-loop fake goal: closest approach to the cube 3.0–3.2 cm in both conditions (row 1: ~1 cm): the λ = .01 agents
+  look for the cube with the image (no goal_pos shortcut), but less precisely.
+
+  Stitching cam0 ↔ look 1 (λ = .01 agents; success_once, in brackets % of the affine ceiling; ceiling as % of the
+  native of the played domain, .288 cam0 / .268 look 1; z residual after the slash):
+
+  | stitch (plays in) | identity | affine (ceiling) | SAPS | k16_half | nn_orth | nn_affine |
+  |---|---|---|---|---|---|---|
+  | cam0 enc → look 1 ctrl (cam0) | .044 / 2.55 | .292 (101%) / .37 | .292 (100%) / .54 | .184 (63%) / .55 | .244 (84%) / .55 | .244 (84%) / .40 |
+  | look 1 enc → cam0 ctrl (look 1) | .040 / 1.89 | .240 (90%) / .33 | .220 (92%) / .40 | .184 (77%) / .41 | .192 (80%) / .41 | .192 (80%) / .38 |
+
+- **Takeaway (pilot, one seed): hypothesis rejected on native success, the mechanism partly reproduces.**
+  - Even at λ = .01 (encoder gradient starting at .005× the DP term's), SupCon on 16 chunk clusters collapses z almost
+    as much as λ = .1 (NC1 .12, 92–95% of the variance in 4 PCs) and halves the cube information (probe .30 vs .77).
+    Native success falls to .26–.30 (row 1: .70–.79), far beyond the .1 tolerance. Unlike λ ≥ .1, the agents still use
+    vision (blind .34 → .05) and do not fall back on goal_pos.
+  - **Relative alignability improves, as in Mario:** SAPS ≈ the affine ceiling (92–100% vs 63–67% on row 1), and the
+    label maps get closer to it (k16_half 63–77% vs 38–78%, nn_affine 80–84% vs 64–70%). But in absolute terms every
+    stitched agent is worse than on row 1 (≤ .29 vs .41–.76), because the natives are.
+  - So the collapse-vs-control trade-off holds down to λ = .01 for chunk-cluster SupCon in this DP setup: it buys
+    relative alignability at a large cost in native success. Not pursued further without a new idea (e.g. labels
+    that keep the cube position).
 - **Then (3), unattended, queued right after (2):** plain-DP oracles cam0 s2, s3 and look 1 / look 2 / look 2 +
   light 1 / cam3 at seeds 1 and 3 (10 runs, one at a time, three checks each; no stitching evals yet).
 
