@@ -422,6 +422,36 @@ episodes + held-out z residual. look 1 is in the same table from the runs above,
   domain: look 2 like look 1 (appearance only); look 2 + light 1 a bit lower for every aligner (largest appearance
   change); cam3 the hardest for orthogonal maps (geometry changes how the cube moves in the image, which a rotation
   of z may not capture) but close to the others with the affine ceiling.
+- **Result** (`results/20261002_step1b_stitch_pilot_{look2,look2light1,cam3}/`,
+  `results/20261002_step1b_stitch_pilot_k16half_look1/`; look 1's other numbers from the row 1 / map-class / label-map
+  runs above). success_once (250 episodes), in brackets % of the affine ceiling (affine: % of the native agent of the
+  played domain: cam0 .824, look 1 .676, look 2 .708, look 2 + light 1 .708, cam3 .676); z residual below.
+
+  | stitch (plays in) | identity | affine paired (ceiling) | SAPS | k16_half | nn_orth | nn_affine |
+  |---|---|---|---|---|---|---|
+  | cam0 enc → look 1 ctrl (cam0) | .068 | .764 (93%) | .480 (63%) | .292 (38%) | .452 (59%) | .492 (64%) |
+  | look 1 enc → cam0 ctrl (look 1) | .048 | .580 (86%) | .388 (67%) | .452 (78%) | .488 (84%) | .408 (70%) |
+  | cam0 enc → look 2 ctrl (cam0) | .044 | .756 (92%) | .480 (63%) | .340 (45%) | .476 (63%) | **.576 (76%)** |
+  | look 2 enc → cam0 ctrl (look 2) | .048 | .612 (86%) | .424 (69%) | .348 (57%) | .296 (48%) | **.420 (69%)** |
+  | cam0 enc → look 2 + light 1 ctrl (cam0) | .068 | .712 (86%) | .468 (66%) | .460 (65%) | .416 (58%) | **.532 (75%)** |
+  | look 2 + light 1 enc → cam0 ctrl (look 2 + light 1) | .028 | .596 (84%) | .300 (50%) | .224 (38%) | .204 (34%) | **.356 (60%)** |
+  | cam0 enc → cam3 ctrl (cam0) | .036 | .660 (80%) | .372 (56%) | .340 (52%) | .352 (53%) | **.464 (70%)** |
+  | cam3 enc → cam0 ctrl (cam3) | .036 | .704 (104%) | .364 (52%) | .276 (39%) | .308 (44%) | **.512 (73%)** |
+  | **mean of the 8** | ≈ .05 | **89% of native** | **61%** | **52%** | **55%** | **70%** |
+
+  z residual (same order of rows): affine .28 / .24 / .38 / .27 / .37 / .26 / .36 / .28; SAPS .49 / .47 / .65 / .57 /
+  .74 / .52 / .95 / .46; k16_half .83 / .76 / .98 / .87 / 1.13 / .79 / 1.33 / .65; nn_orth .61 / .60 / .81 / .69 / .90 /
+  .64 / 1.11 / .53; nn_affine .47 / .42 / .59 / .43 / .59 / .44 / .51 / .40. z geometry of the new agents (NC1,
+  effective rank): look 2 1.52, 6.4; look 2 + light 1 1.63, 7.7; cam3 1.67, 4.9 (cam0 .92, 3.1; look 1 1.29, 4.2).
+- **Takeaway (one seed per domain, ±.06 eval noise):**
+  - Hypotheses mostly confirmed: identity at blind level everywhere; the affine ceiling recovers 80–104% of native
+    (mean 89%); SAPS 50–69% (mean 61%); k16 label pairs about half of the ceiling (mean 52%).
+  - **nn_affine is the best label-only map in 7 of 8 directions: 60–76% of the ceiling, mean 70%, above paired SAPS
+    (61%)** (it is orthogonal-constrained). nn_orth is less stable (34–84%, mean 55%). The z residual ranks the maps
+    consistently with closed loop across domains (affine < nn_affine < SAPS / nn_orth < k16), unlike within one pair.
+  - By domain: look 2 ≈ look 1; look 2 + light 1 is the lowest when its own encoder plays (nn_affine 60%, SAPS 50%);
+    cam3 is the hardest for orthogonal maps (SAPS 52–56%, nn_orth 44–53%) but not for affine ones (affine 80–104%,
+    nn_affine 70–73%), as predicted.
 
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two
