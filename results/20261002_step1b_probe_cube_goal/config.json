@@ -25,6 +25,10 @@
   "cam1": "results/20261001_dp_ours_demos_default_panda_cam1_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
   "cam2": "results/20261001_dp_ours_demos_default_panda_cam2_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
   "look1": "results/20261001_dp_ours_demos_default_panda_cam0_look1_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
-  "cam2goal": "results/20261002_dp_ours_demos_goal_panda_cam2_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
+  "cam2goal": "results/20261002_dp_ours_demos_goal_panda_cam2_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+  "look2": "results/20261002_dp_ours_demos_default_panda_cam0_look2_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+  "light1": "results/20261002_dp_ours_demos_default_panda_cam0_light1_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+  "look2light1": "results/20261002_dp_ours_demos_default_panda_cam0_look2_light1_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+  "cam3": "results/20261002_dp_ours_demos_default_panda_cam3_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
  }
 }

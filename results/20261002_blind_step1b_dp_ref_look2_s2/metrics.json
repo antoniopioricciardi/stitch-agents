@@ -1,0 +1,18 @@
+{
+ "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_look2_s2/runs/step1b_dp_ref_look2_s2/checkpoints/49999.pt",
+ "full": {
+  "success_once": 0.756,
+  "success_at_end": 0.52,
+  "episodes": 250
+ },
+ "zeroed": {
+  "success_once": 0.02,
+  "success_at_end": 0.02,
+  "episodes": 250
+ },
+ "shuffled": {
+  "success_once": 0.056,
+  "success_at_end": 0.032,
+  "episodes": 250
+ }
+}

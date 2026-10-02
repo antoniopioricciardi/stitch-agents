@@ -380,6 +380,32 @@ Rendered first: the cube is visible in all four (darker and lower-contrast under
   visible); light 1 and look 2 + light 1 a bit lower (.5–.75: lower contrast). Each passes the three checks
   (blind ≤ .06; fake goal grasp rate ≥ .8× the true-goal rate; probe cube x R² ≳ .7). If any fails like cam1/cam2
   (blind = full, follows goal_pos), that shift joins the stated limitation.
+- **Result** (`results/20261002_step1b_dp_ref_{look2,light1,look2light1,cam3}_s2/` + their `…_blind_…`,
+  `…_fake_goal_…` and `results/20261002_step1b_probe_cube_goal/`). success_once every 5k from 0:
+  - look 2: .008, .116, .532, .700, .756, .780, .716, .764, .704, .680, .708
+  - light 1: .004, .028, .032, .048, .092, .076, .088, .120, .144, .148, .104
+  - look 2 + light 1: .000, .020, .448, .640, .708, .716, .716, .720, .732, .720, .708
+  - cam3: .000, .036, .052, .340, .536, .556, .588, .612, .612, .616, .676
+
+  | oracle | success_once final (last-3) | success_at_end final (last-3) | blind full / zeroed / shuffled | fake goal: grasped true → fake; placed at state goal | probe cube x / y | verdict |
+  |---|---|---|---|---|---|---|
+  | cam0 (Step 2g, seed 1) | .824 (.788) | .596 (.589) | .84 / .04 / .06 | .90 → .88; .80 → .78 | .78 / .58 | works |
+  | look 1 | .676 (.695) | .508 (.533) | .72 / .02 / .04 | .94 → .88; .80 → .68 | .76 / .59 | works |
+  | **look 2** | **.708 (.697)** | .532 (.496) | .76 / .02 / .06 | .90 → .82; .74 → .72 | .79 / .76 | **works** |
+  | **light 1** | **.104 (.132)** | .080 (.095) | .11 / .03 / .06 | .28 → .26; .12 → .10 | .53 / .68 | **fails** (weak, partly uses z) |
+  | **look 2 + light 1** | **.708 (.720)** | .468 (.511) | .76 / .03 / .03 | .90 → .90; .80 → .78 | .69 / .78 | **works** |
+  | **cam3 (cam0 orbited 15°)** | **.676 (.635)** | .504 (.447) | .63 / .03 / .05 | .86 → .88; .60 → .66 | .82 / .58 | **works** |
+
+  (fake goal: 50 + 50 episodes; closest approach to the cube 1.2–1.7 cm for the working oracles in both conditions,
+  5.3–5.4 cm for light 1.)
+- **Takeaway:** **three of four new shifts give working oracles** that pass all three checks: look 2 (≈ look 1),
+  look 2 + light 1 (.72), and cam3 (.64 last-3, still rising at 50k: a mild viewpoint shift works). **light 1 alone
+  fails** (.13 last-3): it uses z a little (blind .11 → .03) but grasps in only 26–28% of episodes and ends 5 cm from
+  the cube on average. In light 1 the cube is dark red on dark wood (low contrast); with look 2 under the same light
+  the cube is cyan on grey and the oracle works, so the failure looks like cube contrast, not the lighting itself.
+  Hypotheses: look 2 and cam3 confirmed; look 2 + light 1 better than predicted; light 1 rejected. light 1 joins the
+  limitation list (with cam1, cam2), as a low-contrast case. Usable second domains so far: look 1, look 2,
+  look 2 + light 1, cam3.
 
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two
