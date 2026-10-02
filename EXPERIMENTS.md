@@ -364,6 +364,22 @@ whether the core env switches (which would mean retraining all oracles), so no s
   demos, PlainConv), and falls back on what the state predicts. Why cam0 / look 1 work and cam1 / cam2 do not is
   open (the linear cube probe is moderate in all of them: .53–.78 on x). The core env question: the goal-away variant
   does not rescue cam2, so it gives no reason to switch the core env.
+- **To-do (parked):** cam2 follow-ups, i.e. all 498 demos, or a spatial-softmax encoder (image keypoints), to test
+  whether the low / side views fail for lack of data or because of the encoder. **Strong viewpoint changes (cam1,
+  cam2) are now a stated limitation of the DP-baseline oracles, not a goal.** (The controller's state is identical
+  across renders: qpos, qvel, tcp_pose and goal_pos are world-frame and match to 0 between the cam0, cam1, cam2 and
+  look 1 demos, so the failure is not a view-dependent state.)
+
+**New shifts with (expected) working oracles (2026-10-02; replaces the "seeds + weak-λ SupCon" next step).** Plain DP
+(λ = 0), seed 2, demos 0–99, 50k, one at a time, then the three checks (blind, fake goal, probe). Only report; no
+stitching yet. Domains (env ids `StitchPickCubeLollipopNoGrasp{Look2,Light1,Look2Light1,Cam3}-v1`):
+look 2 (cyan cube, checkerboard table, purple floor), light 1 (dim, warm, low light from the left, shadows),
+look 2 + light 1, and cam3 = cam0 orbited 15° about the vertical axis through its target (mild viewpoint shift).
+Rendered first: the cube is visible in all four (darker and lower-contrast under light 1).
+- **Hypotheses:** look 2 and cam3 work like look 1 (.6–.8 last-3: same or nearly the same geometry, cube clearly
+  visible); light 1 and look 2 + light 1 a bit lower (.5–.75: lower contrast). Each passes the three checks
+  (blind ≤ .06; fake goal grasp rate ≥ .8× the true-goal rate; probe cube x R² ≳ .7). If any fails like cam1/cam2
+  (blind = full, follows goal_pos), that shift joins the stated limitation.
 
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two

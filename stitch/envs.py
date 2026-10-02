@@ -22,6 +22,9 @@ CAMERAS = [
     ([0.3, 0.0, 0.6], [-0.1, 0.0, 0.1]),     # 0 default: in front of the robot, above
     ([0.0, 0.6, 0.45], [-0.05, 0.0, 0.1]),   # 1 left side
     ([0.55, -0.2, 0.25], [-0.1, 0.0, 0.15]), # 2 low front-right
+    # 3 = cam0 orbited 15 deg about the vertical axis through its target (mild viewpoint shift, Step 1b):
+    # eye - target = (0.4, 0, 0.5) -> (0.4 cos 15, 0.4 sin 15, 0.5)
+    ([0.2864, 0.1035, 0.6], [-0.1, 0.0, 0.1]),
 ]
 
 # visual axis 2: look = colours / textures of cube, table, floor. None = ManiSkill default
@@ -186,6 +189,11 @@ register_env("StitchPickCubeLollipopNoGrasp-v1", max_episode_steps=160, goal_mar
 register_env("StitchPickCubeLollipopNoGraspCam1-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, cam=1)(StitchPickCubeEnv)
 register_env("StitchPickCubeLollipopNoGraspCam2-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, cam=2)(StitchPickCubeEnv)
 register_env("StitchPickCubeLollipopNoGraspLook1-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, look=1)(StitchPickCubeEnv)
+# Step 1b shifts with (expected) working oracles: look 2, light 1, both, and cam3 (= cam0 orbited 15 deg)
+register_env("StitchPickCubeLollipopNoGraspLook2-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, look=2)(StitchPickCubeEnv)
+register_env("StitchPickCubeLollipopNoGraspLight1-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, light=1)(StitchPickCubeEnv)
+register_env("StitchPickCubeLollipopNoGraspLook2Light1-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, look=2, light=1)(StitchPickCubeEnv)
+register_env("StitchPickCubeLollipopNoGraspCam3-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, cam=3)(StitchPickCubeEnv)
 # cam2 with the goal variant (goal y in GOAL_Y, disjoint from the cube area): "go to goal_pos" cannot find the cube
 register_env("StitchPickCubeLollipopNoGraspCam2Goal-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, cam=2, task="goal")(StitchPickCubeEnv)
 

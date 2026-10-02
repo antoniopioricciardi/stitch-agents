@@ -1,6 +1,6 @@
 """Step 1b diagnostic: does an agent's frozen z encode where the cube and the goal are?
 
-Usage: uv run python scripts/probe_cube_goal.py <run_dir> <domain> [<run_dir> <domain> ...]   (domain: cam0, cam1, cam2, look1, cam2goal)
+Usage: uv run python scripts/probe_cube_goal.py <run_dir> <domain> [<run_dir> <domain> ...]   (domain: see H5)
 Encoder = the final EMA agent's visual_encoder (PlainConv), on its own domain's frames (every frame of a demo).
 Linear probe z -> cube position (env_states/actors/cube[:, :3]) and goal position (obs/extra/goal_pos): ridge on centred
 latents (no per-unit scaling, Mario F2), alpha chosen by 5-fold CV over demos 0-99 (folds = whole demos), test on
@@ -25,7 +25,11 @@ H5 = {"cam0": f"/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_d
       "cam1": f"results/20261001_dp_ours_demos_default_panda_cam1_lollipop/{TRAJ}",
       "cam2": f"results/20261001_dp_ours_demos_default_panda_cam2_lollipop/{TRAJ}",
       "look1": f"results/20261001_dp_ours_demos_default_panda_cam0_look1_lollipop/{TRAJ}",
-      "cam2goal": f"results/20261002_dp_ours_demos_goal_panda_cam2_lollipop/{TRAJ}"}
+      "cam2goal": f"results/20261002_dp_ours_demos_goal_panda_cam2_lollipop/{TRAJ}",
+      "look2": f"results/20261002_dp_ours_demos_default_panda_cam0_look2_lollipop/{TRAJ}",
+      "light1": f"results/20261002_dp_ours_demos_default_panda_cam0_light1_lollipop/{TRAJ}",
+      "look2light1": f"results/20261002_dp_ours_demos_default_panda_cam0_look2_light1_lollipop/{TRAJ}",
+      "cam3": f"results/20261002_dp_ours_demos_default_panda_cam3_lollipop/{TRAJ}"}
 FIT, TEST = range(0, 100), range(400, 498)
 ALPHAS = [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1, 10, 100, 1000]
 ON_TABLE_Z = 0.025  # cube half size 0.02: resting on the table
