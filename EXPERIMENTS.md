@@ -537,6 +537,15 @@ Per domain over 3 seeds (success_once last-3, mean ± std): cam0 .569 ± .19 (s1
   (from 15–20k) and are still climbing at 50k; look 1 s1 / s3 .57 / .54 (s2 .70). So the single-seed cam0 oracle
   (Step 2g) was a lucky seed: the 3-seed cam0 mean is .57. look 2 and look 2 + light 1 are the most stable (std .05).
   For the matrix, stitched numbers must be read against the native of the same seed.
+- **Decision (2026-10-03):** all 10 accepted (cam0 s3's fake-goal grasp ratio .79, just under the .8 bar, noted). No
+  retraining for now; if the matrix ratios turn out too noisy, longer training is the first fix.
+
+**SupCon branch closed (2026-10-03).** Summary over λ ∈ {0, .01, .1, 1} (cam0 s1 ↔ look 1 s2, chunk-cluster labels,
+K = 16): **a tradeoff.** Relative alignability rises with λ (SAPS / affine ceiling 65% → 96%, nn_affine 67% → 82%,
+from λ = 0 to .01) while native success falls (cam0 .79 → .30 → .05 → .05, look 1 .70 → .26 → .07 → .04); at λ ≥ .1
+the natives are at blind level and stitching is undefined. Figure: `results/20261003_step1b_supcon_tradeoff/tradeoff.png`
+(`scripts/step1b_supcon_tradeoff_plot.py`; two panels sharing x, no dual axis). No more SupCon runs; the main line
+uses plain-DP encoders with label-only maps.
 
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two
