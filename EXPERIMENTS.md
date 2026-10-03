@@ -573,6 +573,11 @@ uses plain-DP encoders with label-only maps.
     parameters per output (N = 5 → 189 source frames vs 257): nn_affine is underdetermined there (held-out residual
     1.82 vs .27 for the paired ceiling in the test). So nn_orth (well-posed with few pairs) is run at every N as well;
     the hypothesis above likely fails for nn_affine at N ≤ 5.
+    Added (user request, before running): **nn_affine_pca16** for N ∈ {1, 2, 5, 10}: nn_affine in the top-16 PCA
+    subspace of z (PCA on each side's own fit frames; 16 → 16 affine map on the projected nearest-chunk pairs; lifted
+    back with the target basis, outside the subspace = the target mean). Rationale: z's effective rank is 3–4, so the
+    map stays well-posed with few demos. Hypothesis: at N ≤ 5 nn_affine_pca16 ≥ both nn_affine and nn_orth in closed
+    loop. (Code test at N = 5, held-out z residual: pca16 .56, nn_orth .98, nn_affine 1.82.)
   - (c) **Embodiment:** look 2 Panda encoder (s2) → aligner → cam0 xArm controller (s2), on the xArm in look 2. Paired
     frames = the xArm demos rendered in look 2 (encoded by the Panda encoder: it never saw the xArm) and in cam0
     (xArm encoder); label pairs on the shared EE actions (same z-scored chunk statistics). Same aligners, one direction.

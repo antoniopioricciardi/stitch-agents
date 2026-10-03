@@ -23,6 +23,9 @@ agent_v with its visual_encoder replaced by [E_u, z -> z @ R.T + b], T applied p
     nn_affine_rescale: nn_affine, then each output dimension given the target's per-dimension mean and std (stats of
     all source frames of demos 0-49 mapped vs all target frames of demos 50-99); nn_mnn_affine: affine on the
     mutual-nearest-neighbour pairs only (scripts/step1b_label_maps2.py).
+    nn_affine_pca16: nn_affine in the top-16 PCA subspace of z (z's effective rank is 3-4, so the map stays well-posed
+    with few demos): PCA on each side's fit frames (source Zs[src], target Zt[tgt]), a 16 -> 16 affine map on the
+    projected nearest-chunk pairs, lifted back with the target basis (outside the subspace: the target mean).
     *_pre (k16_half_pre, nn_orth_pre, nn_affine_pre): the same label maps with source and target frames restricted to
     the frames before the grasp closes (the first gripper-close action of each demo; reach and grasp only).
   --domain0: the controller-side domain (default cam0; e.g. xarm_cam0, goal_cam0). --only-dir=10: only the domain-1
@@ -175,6 +178,17 @@ def affine(R, b):
     return lin
 
 
+def pca_affine(Zs_all, Zt_all, Ps, Pt, k=16):
+    # affine map in the top-k PCA subspaces -> (R, b) on the full z: z -> mu_t + Ut (A Us^T (z - mu_s) + c)
+    # Zs_all / Zt_all: each side's fit frames (PCA), Ps / Pt: the paired latents (rows correspond)
+    mu_s, mu_t = Zs_all.mean(0), Zt_all.mean(0)
+    Us = np.linalg.svd(Zs_all - mu_s, full_matrices=False)[2][:k].T  # (d, k)
+    Ut = np.linalg.svd(Zt_all - mu_t, full_matrices=False)[2][:k].T
+    A, c = fit_affine_paired((Ps - mu_s) @ Us, (Pt - mu_t) @ Ut)  # k -> k
+    R = Ut @ A @ Us.T
+    return R, mu_t + Ut @ c - R @ mu_s
+
+
 def rescale(R, b, Zs_all, Zt_all):
     # (R, b) -> (R', b'): mapped z standardised per dimension, then given the target's per-dimension mean and std
     # (copied from scripts/step1b_label_maps2.py)
@@ -288,6 +302,7 @@ if __name__ == "__main__":
                                      (action_pairs(y_fit[src], y_fit[tgt], np.random.default_rng(s)) for s in range(N_DRAWS))],
                 "nn_orth": lambda: [affine(*fit_procrustes_paired(Zs[src], Zt[nn_tgt]))],
                 "nn_affine": lambda: [affine(*fit_affine_paired(Zs[src], Zt[nn_tgt]))],
+                "nn_affine_pca16": lambda: [affine(*pca_affine(Zs[src], Zt[tgt], Zs[src], Zt[nn_tgt]))],
                 "nn_affine_rescale": lambda: [affine(*rescale(*fit_affine_paired(Zs[src], Zt[nn_tgt]), Zs[src], Zt[tgt]))],
                 "nn_mnn_affine": lambda: [affine(*fit_affine_paired(Zs[src[mnn]], Zt[nn_tgt[mnn]]))],
                 "k16_half_pre": lambda: [affine(*fit_procrustes_paired(Zs[src_pre[ia]], Zt[tgt_pre[ib]])) for ia, ib in
