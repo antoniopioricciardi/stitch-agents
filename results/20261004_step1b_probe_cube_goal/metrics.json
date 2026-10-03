@@ -1,0 +1,98 @@
+{
+ "20261003_step1b_dp_scratch_look2_n5_s2:look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_scratch_look2_n5_s2/runs/step1b_dp_scratch_look2_n5_s2/checkpoints/49999.pt",
+  "domain": "look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.41,
+    0.508,
+    0.489
+   ],
+   "r2_xyz_on_table": [
+    0.447,
+    0.517,
+    -2892.429
+   ]
+  },
+  "goal": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.005,
+    0.008,
+    0.079
+   ],
+   "r2_xyz_on_table": [
+    -0.015,
+    -0.025,
+    0.014
+   ]
+  }
+ },
+ "20261003_step1b_dp_scratch_look2_n10_s2:look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_scratch_look2_n10_s2/runs/step1b_dp_scratch_look2_n10_s2/checkpoints/49999.pt",
+  "domain": "look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.456,
+    0.527,
+    0.47
+   ],
+   "r2_xyz_on_table": [
+    0.529,
+    0.533,
+    -3316.395
+   ]
+  },
+  "goal": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.009,
+    -0.019,
+    0.059
+   ],
+   "r2_xyz_on_table": [
+    -0.012,
+    -0.054,
+    -0.01
+   ]
+  }
+ },
+ "20261003_step1b_dp_scratch_look2_n25_s2:look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_scratch_look2_n25_s2/runs/step1b_dp_scratch_look2_n25_s2/checkpoints/49999.pt",
+  "domain": "look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.497,
+    0.385,
+    0.432
+   ],
+   "r2_xyz_on_table": [
+    0.571,
+    0.446,
+    -3715.11
+   ]
+  },
+  "goal": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.007,
+    0.001,
+    0.068
+   ],
+   "r2_xyz_on_table": [
+    -0.004,
+    -0.011,
+    0.011
+   ]
+  }
+ }
+}

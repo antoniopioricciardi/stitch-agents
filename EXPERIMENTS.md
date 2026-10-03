@@ -690,6 +690,24 @@ success (.008 / .004 / .100). Also the cube probe on the three scratch encoders 
   their failure is mostly the controller overfitting few demos), so stitching to a well-trained controller rescues
   them: stitched > native at every N, about .1–.2 at N = 5 / 10 and .2–.35 at N = 25 (below the 100-demo-encoder
   curve: .24 / .34 / .31). nn_affine_pca16 ≥ nn_orth.
+- **Result** (`results/20261004_step1b_stitch_fairde_n{5,10,25}_look2/`, probe in `results/20261004_step1b_probe_cube_goal/`;
+  success_once / success_at_end, 250 episodes; z residual in brackets):
+
+  | N look 2 demos | scratch native (last-3) | stitched nn_affine_pca16 | stitched nn_orth | encoder NC1 / eff. rank | probe cube x / y |
+  |---|---|---|---|---|---|
+  | 5 | .008 | .048 / .036 (.86) | .048 / .024 (1.11) | 8.77 / 9.3 | .45 / .52 |
+  | 10 | .004 | .052 / .032 (.78) | .048 / .032 (1.00) | 8.90 / 10.5 | .53 / .53 |
+  | 25 | .104 | .108 / .064 (.59) | .092 / .064 (.87) | 2.92 / 6.4 | .57 / .45 |
+  | (100-demo look 2 encoder, same maps: item (b)) | (.697) | .244 / .344 / — at N = 5 / 10 | .204 / .188 / .308 at N = 5 / 10 / 25 | 1.52 / 6.4 | .79 / .76 |
+
+- **Takeaway: hypothesis rejected.** A controller trained elsewhere does **not** rescue a domain whose encoder saw only
+  N = 5–25 demos: stitched success stays at blind level (≈ .05) at N = 5 / 10 and equals the scratch agent's own native
+  at N = 25 (.10). The scratch encoders do carry some cube information (linear probe .45–.57 on x) but their latent
+  space is unstructured (NC1 ≈ 9 vs 1–1.5 for 100-demo encoders, effective rank 9–10), and the map fitted on N demos
+  does not land them in the controller's space (held-out residual .59–.86 vs .45–.56 for the 100-demo encoder with the
+  same N). So the item (b) curve was carried by the 100-demo encoder: **the bottleneck in the low-data regime is the
+  encoder, not the map's label budget.** The adaptation baselines in (2) test whether reusing a trained encoder
+  (fine-tuning) fixes this.
 
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two

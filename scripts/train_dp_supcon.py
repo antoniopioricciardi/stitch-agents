@@ -9,8 +9,14 @@ The training loop is a copy of the `__main__` block of third_party/maniskill_dif
   - every log_freq iterations, logs the SupCon value and the gradient norm each term sends into the encoder.
   - checkpoints at total_iters - 10000, total_iters - 5000 and total_iters - 1 (40k / 45k / final for 50k),
     instead of --save_freq.
+  - fine-tuning (Step 1b adaptation baselines): --init_ckpt (start from a trained agent), or --init_encoder_ckpt +
+    --init_controller_ckpt + --init_map (stitched start: one agent's encoder, an affine map "<maps.npz>:<map name>" from
+    step1b_stitch.py --save-maps (z -> z @ R.T + b) or "identity", another agent's controller). --train_part: all | encoder (controller frozen:
+    the DP loss trains the encoder through the frozen denoiser) | map (only the affine map). --final_eval_episodes:
+    episodes of the evaluation at total_iters (default: num_eval_episodes).
 Usage: as run_dp.sh, via scripts/run_dp_supcon.sh.
 """
+import copy
 import os
 import random
 import time
@@ -21,6 +27,7 @@ from functools import partial
 import gymnasium as gym
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import tyro
@@ -45,6 +52,12 @@ class Args(train_rgbd.Args):
     """labels.pt from scripts/step1b_labels.py (k-means centroids, action mean/std)"""
     supcon_weight: float = 0.0
     supcon_tau: float = 0.07
+    init_ckpt: str = ""
+    init_encoder_ckpt: str = ""
+    init_controller_ckpt: str = ""
+    init_map: str = ""
+    train_part: str = "all"
+    final_eval_episodes: int = 0
 
 
 def supcon(e, y, tau=0.07):
@@ -149,16 +162,39 @@ if __name__ == "__main__":
     )
 
     agent = train_rgbd.Agent(envs, args).to(device)
+    ema_sd = lambda path: torch.load(path, map_location=device)["ema_agent"]
+    if args.init_ckpt:  # fine-tune a trained agent
+        agent.load_state_dict(ema_sd(args.init_ckpt))
+    if args.init_controller_ckpt:  # stitched start: controller (and state handling) of one agent, encoder of another
+        agent.load_state_dict(ema_sd(args.init_controller_ckpt))
+        agent.visual_encoder.load_state_dict({k[len("visual_encoder."):]: v for k, v in ema_sd(args.init_encoder_ckpt).items()
+                                              if k.startswith("visual_encoder.")})
+    if args.init_map:  # affine map between encoder and controller, z -> z @ R.T + b
+        lin = nn.Linear(256, 256).to(device)
+        if args.init_map == "identity":
+            R, b = np.eye(256), np.zeros(256)
+        else:
+            path, name = args.init_map.split(":")  # maps .npz from step1b_stitch.py --save-maps, and a map name
+            M = np.load(path)
+            R, b = M[f"{name}_R"], M[f"{name}_b"]
+        lin.weight.data, lin.bias.data = torch.tensor(R, dtype=torch.float32, device=device), torch.tensor(b, dtype=torch.float32, device=device)
+        agent.visual_encoder = nn.Sequential(agent.visual_encoder, lin)
+    if args.train_part == "encoder":  # controller frozen
+        agent.noise_pred_net.requires_grad_(False)
+    if args.train_part == "map":  # only the affine map
+        agent.requires_grad_(False)
+        agent.visual_encoder[1].requires_grad_(True)
 
-    optimizer = optim.AdamW(params=agent.parameters(), lr=args.lr, betas=(0.95, 0.999), weight_decay=1e-6)
+    optimizer = optim.AdamW(params=[p for p in agent.parameters() if p.requires_grad], lr=args.lr, betas=(0.95, 0.999), weight_decay=1e-6)
     lr_scheduler = get_scheduler(name="cosine", optimizer=optimizer, num_warmup_steps=500, num_training_steps=args.total_iters)
     ema = EMAModel(parameters=agent.parameters(), power=0.75)
-    ema_agent = train_rgbd.Agent(envs, args).to(device)
+    # same structure as agent (incl. a map); a fresh Agent otherwise, as the vendored loop (keeps its RNG stream)
+    ema_agent = copy.deepcopy(agent) if args.init_map else train_rgbd.Agent(envs, args).to(device)
 
     # z of every encoder call during compute_loss: (B * obs_horizon, 256)
     feats = {}
     agent.visual_encoder.register_forward_hook(lambda m, inp, out: feats.__setitem__("z", out))
-    enc_params = list(agent.visual_encoder.parameters())
+    enc_params = [p for p in agent.visual_encoder.parameters() if p.requires_grad]
 
     best_eval_metrics = defaultdict(float)
     timings = defaultdict(float)
@@ -169,11 +205,11 @@ if __name__ == "__main__":
         ema.copy_to(ema_agent.parameters())
         torch.save({"agent": agent.state_dict(), "ema_agent": ema_agent.state_dict()}, f"runs/{run_name}/checkpoints/{tag}.pt")
 
-    def evaluate_and_save_best(iteration):
+    def evaluate_and_save_best(iteration, n_episodes=args.num_eval_episodes):
         if iteration % args.eval_freq == 0:
             last_tick = time.time()
             ema.copy_to(ema_agent.parameters())
-            eval_metrics = evaluate(args.num_eval_episodes, ema_agent, envs, device, args.sim_backend)
+            eval_metrics = evaluate(n_episodes, ema_agent, envs, device, args.sim_backend)
             timings["eval"] += time.time() - last_tick
 
             print(f"Evaluated {len(eval_metrics['success_at_end'])} episodes")
@@ -214,7 +250,7 @@ if __name__ == "__main__":
         timings["forward"] += time.time() - last_tick
 
         if iteration % args.log_freq == 0:
-            g_dp = grad_norm(dp_loss, enc_params)
+            g_dp = grad_norm(dp_loss, enc_params) if enc_params else 0.0
             g_sc = grad_norm(args.supcon_weight * sc, enc_params) if args.supcon_weight > 0 else 0.0
             for k, v in dict(dp=dp_loss.item(), supcon=sc.item(), grad_enc_dp=g_dp, grad_enc_supcon=g_sc).items():
                 writer.add_scalar(f"losses/{k}", v, iteration)
@@ -241,7 +277,7 @@ if __name__ == "__main__":
         pbar.set_postfix({"loss": total_loss.item()})
         last_tick = time.time()
 
-    evaluate_and_save_best(args.total_iters)
+    evaluate_and_save_best(args.total_iters, args.final_eval_episodes or args.num_eval_episodes)
     log_metrics(args.total_iters)
 
     envs.close()

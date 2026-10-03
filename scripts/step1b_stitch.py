@@ -31,7 +31,8 @@ agent_v with its visual_encoder replaced by [E_u, z -> z @ R.T + b], T applied p
   --domain0: the controller-side domain (default cam0; e.g. xarm_cam0, goal_cam0). --only-dir=10: only the domain-1
     encoder -> domain-0 controller direction, z residual and closed loop only (no offline chunk metrics: the domain-1
     run's own agent cannot play domain 1's robot or task there). --src-demos=N: label fits use source demos 0..N-1
-    only (data-efficiency curve; target side unchanged, demos 50-99).
+    only (data-efficiency curve; target side unchanged, demos 50-99). --save-maps: also writes each direction's affine maps (R, b; first
+    draw) to OUT/maps_<u>_to_<v>.npz as <map>_R, <map>_b.
   Held-out z-space residual per map: ||T(z_s) - z_t||^2 / ||z_t - mean||^2 on the paired held-out frames.
   Offline (held-out demos 400-497, N_OFF frames of domain u): ||stitched chunk - native chunk|| (L2 over the
     8 executed steps x 4 dims), native = agent_u, both denoised from the same DDPM noise. References:
@@ -356,6 +357,9 @@ if __name__ == "__main__":
                 print(f"{D[u]} enc -> {D[v]} ctrl, {name}:", res["aligners"][name], flush=True)
                 del stitched
             envs.pop(u).close()  # 10 workers per domain: two sets at once exceed 16 GB
+        if "--save-maps" in sys.argv:  # (R, b) of each affine map (first draw), for fine-tuning from a stitched start
+            np.savez(OUT / f"maps_{D[u]}_to_{D[v]}.npz", **{f"{n}_{k}": t for n, Ts in maps.items() if isinstance(Ts[0], nn.Linear)
+                                                         for k, t in (("R", Ts[0].weight.detach().cpu().numpy()), ("b", Ts[0].bias.detach().cpu().numpy()))})
         m["stitch"][f"{D[u]}_enc_to_{D[v]}_ctrl"] = res
         json.dump(m, open(OUT / "metrics.json", "w"), indent=1)
 
