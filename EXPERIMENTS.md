@@ -569,6 +569,10 @@ uses plain-DP encoders with label-only maps.
     demos" read as N demos of the deployment domain (look 2). Hypothesis: the stitched agent stays ≥ .4 from N = 5 on
     (each demo gives ~75 frames; nearest-chunk pairing needs only coverage of the action space), above from-scratch at
     N = 5–25.
+    Note added before running (code test): at small N the label fit has fewer frames than an affine map has
+    parameters per output (N = 5 → 189 source frames vs 257): nn_affine is underdetermined there (held-out residual
+    1.82 vs .27 for the paired ceiling in the test). So nn_orth (well-posed with few pairs) is run at every N as well;
+    the hypothesis above likely fails for nn_affine at N ≤ 5.
   - (c) **Embodiment:** look 2 Panda encoder (s2) → aligner → cam0 xArm controller (s2), on the xArm in look 2. Paired
     frames = the xArm demos rendered in look 2 (encoded by the Panda encoder: it never saw the xArm) and in cam0
     (xArm encoder); label pairs on the shared EE actions (same z-scored chunk statistics). Same aligners, one direction.

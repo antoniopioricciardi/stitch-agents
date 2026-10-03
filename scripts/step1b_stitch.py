@@ -1,7 +1,7 @@
 """Step 1b: stitch DP agents across two visual domains (cam0 <-> a second domain) and measure collapse.
 
 Usage: uv run python scripts/step1b_stitch.py <row-name> <domain> <cam0_run_dir> <domain_run_dir> <labels.pt> [--offline-only]
-       [--maps=identity,saps,action_pairs]   (also: affine, mlp, k16_half, nn_orth, nn_affine, nn_affine_rescale, nn_mnn_affine;
+       [--domain0=cam0] [--only-dir=10] [--src-demos=50] [--maps=identity,saps,action_pairs]   (also: affine, mlp, k16_half, nn_orth, nn_affine, nn_affine_rescale, nn_mnn_affine;
        the map-class check uses
        --maps=saps,affine,mlp)
   domain: the second domain (see ENV / H5)
@@ -23,6 +23,12 @@ agent_v with its visual_encoder replaced by [E_u, z -> z @ R.T + b], T applied p
     nn_affine_rescale: nn_affine, then each output dimension given the target's per-dimension mean and std (stats of
     all source frames of demos 0-49 mapped vs all target frames of demos 50-99); nn_mnn_affine: affine on the
     mutual-nearest-neighbour pairs only (scripts/step1b_label_maps2.py).
+    *_pre (k16_half_pre, nn_orth_pre, nn_affine_pre): the same label maps with source and target frames restricted to
+    the frames before the grasp closes (the first gripper-close action of each demo; reach and grasp only).
+  --domain0: the controller-side domain (default cam0; e.g. xarm_cam0, goal_cam0). --only-dir=10: only the domain-1
+    encoder -> domain-0 controller direction, z residual and closed loop only (no offline chunk metrics: the domain-1
+    run's own agent cannot play domain 1's robot or task there). --src-demos=N: label fits use source demos 0..N-1
+    only (data-efficiency curve; target side unchanged, demos 50-99).
   Held-out z-space residual per map: ||T(z_s) - z_t||^2 / ||z_t - mean||^2 on the paired held-out frames.
   Offline (held-out demos 400-497, N_OFF frames of domain u): ||stitched chunk - native chunk|| (L2 over the
     8 executed steps x 4 dims), native = agent_u, both denoised from the same DDPM noise. References:
@@ -60,7 +66,9 @@ from stitch.labels import assign, frame_chunks, standardise
 ENV = {"cam0": "stitch.envs:StitchPickCubeLollipopNoGrasp-v1", "cam1": "stitch.envs:StitchPickCubeLollipopNoGraspCam1-v1",
        "cam2": "stitch.envs:StitchPickCubeLollipopNoGraspCam2-v1", "look1": "stitch.envs:StitchPickCubeLollipopNoGraspLook1-v1",
        "look2": "stitch.envs:StitchPickCubeLollipopNoGraspLook2-v1", "look2light1": "stitch.envs:StitchPickCubeLollipopNoGraspLook2Light1-v1",
-       "cam3": "stitch.envs:StitchPickCubeLollipopNoGraspCam3-v1"}
+       "cam3": "stitch.envs:StitchPickCubeLollipopNoGraspCam3-v1",
+       "xarm_cam0": "stitch.envs:StitchPickCubeLollipopNoGraspXarm-v1", "xarm_look2": "stitch.envs:StitchPickCubeLollipopNoGraspLook2Xarm-v1",
+       "goal_cam0": "stitch.envs:StitchPickCubeLollipopNoGraspGoal-v1", "goal_look2": "stitch.envs:StitchPickCubeLollipopNoGraspLook2Goal-v1"}
 TRAJ = "trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
 H5 = {"cam0": f"/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_demos_default_panda_cam0_lollipop/{TRAJ}",
       "cam1": f"results/20261001_dp_ours_demos_default_panda_cam1_lollipop/{TRAJ}",
@@ -68,7 +76,11 @@ H5 = {"cam0": f"/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_d
       "look1": f"results/20261001_dp_ours_demos_default_panda_cam0_look1_lollipop/{TRAJ}",
       "look2": f"results/20261002_dp_ours_demos_default_panda_cam0_look2_lollipop/{TRAJ}",
       "look2light1": f"results/20261002_dp_ours_demos_default_panda_cam0_look2_light1_lollipop/{TRAJ}",
-      "cam3": f"results/20261002_dp_ours_demos_default_panda_cam3_lollipop/{TRAJ}"}
+      "cam3": f"results/20261002_dp_ours_demos_default_panda_cam3_lollipop/{TRAJ}",
+      "xarm_cam0": f"results/20261003_dp_ours_demos_default_xarm6_cam0_lollipop/{TRAJ}",
+      "xarm_look2": f"results/20261003_dp_ours_demos_default_xarm6_cam0_look2_lollipop/{TRAJ}",
+      "goal_cam0": f"results/20261003_dp_ours_demos_goal_panda_cam0_lollipop/{TRAJ}",
+      "goal_look2": f"results/20261003_dp_ours_demos_goal_panda_cam0_look2_lollipop/{TRAJ}"}
 FIT_DEMOS = range(0, 100)
 HELDOUT_DEMOS = range(400, 498)
 N_OFF = 2000
@@ -91,6 +103,8 @@ def load_frames(cam, demos, obs_space):
     rgb, idxs, state, chunks, tcp, demo, n = [], [], [], [], [], [], 0
     with h5py.File(H5[D[cam]], "r") as f:
         for i in demos:
+            if f"traj_{i}" not in f:  # the goal-variant demo set has 496 demos (traj_0-495)
+                continue
             traj = load_content_from_h5_file(f[f"traj_{i}"])
             obs = process(train_rgbd.reorder_keys(traj["obs"], obs_space))
             L = len(traj["actions"])
@@ -107,16 +121,18 @@ def load_frames(cam, demos, obs_space):
             np.concatenate(chunks), np.concatenate(tcp), np.concatenate(demo))
 
 
-# Agent only needs the spaces (no eval-env workers): state (2, 28), rgb (2, 128, 128, 3), action in [-1, 1]^4
-SPACES = type("E", (), dict(
-    single_observation_space=spaces.Dict(state=spaces.Box(-np.inf, np.inf, (2, 28)), rgb=spaces.Box(0, 255, (2, 128, 128, 3), np.uint8)),
-    single_action_space=spaces.Box(-1, 1, (4,))))()
-
-
 def load_agent(run_dir):
+    # the Agent only needs the spaces (no eval-env workers): state (2, S), rgb (2, 128, 128, 3), action in [-1, 1]^4
     ckpt = max(glob.glob(str(Path(run_dir) / "runs/*/checkpoints/[0-9]*.pt")), key=lambda p: int(Path(p).stem))
-    agent = train_rgbd.Agent(SPACES, train_rgbd.Args()).to(DEV)
-    agent.load_state_dict(torch.load(ckpt, map_location=DEV)["ema_agent"])
+    sd = torch.load(ckpt, map_location=DEV)["ema_agent"]
+    # state size S from the U-Net's FiLM input: cond = diffusion step embedding (64) + obs_horizon * (256 + S)
+    cond = sd["noise_pred_net.down_modules.0.0.cond_encoder.1.weight"].shape[1]
+    S = (cond - 64) // 2 - 256
+    spaces_s = type("E", (), dict(
+        single_observation_space=spaces.Dict(state=spaces.Box(-np.inf, np.inf, (2, S)), rgb=spaces.Box(0, 255, (2, 128, 128, 3), np.uint8)),
+        single_action_space=spaces.Box(-1, 1, (4,))))()
+    agent = train_rgbd.Agent(spaces_s, train_rgbd.Args()).to(DEV)
+    agent.load_state_dict(sd)
     return agent.eval(), ckpt
 
 
@@ -208,7 +224,10 @@ def fit_mlp_paired(Zs, Zt, demo, seed=0, n_val=10, patience=20, max_epochs=500):
 # the guard is needed: the eval envs are forkserver workers, which re-import this script
 if __name__ == "__main__":
     ROW, DOMAIN, LABELS = sys.argv[1], sys.argv[2], sys.argv[5]
-    D = {0: "cam0", 1: DOMAIN}  # domain index -> name
+    opt = lambda k, d: next((a.split("=")[1] for a in sys.argv if a.startswith(f"--{k}=")), d)
+    D = {0: opt("domain0", "cam0"), 1: DOMAIN}  # domain index -> name
+    ONLY_DIR = opt("only-dir", "") == "10"
+    SRC_DEMOS = int(opt("src-demos", "50"))
     RUNS = {0: sys.argv[3], 1: sys.argv[4]}
     OFFLINE_ONLY = "--offline-only" in sys.argv
     MAPS = next((a.split("=")[1] for a in sys.argv if a.startswith("--maps=")), "identity,saps,action_pairs").split(",")
@@ -219,7 +238,7 @@ if __name__ == "__main__":
     label = lambda ch: assign(torch.from_numpy(standardise(ch, lab["mean"].numpy(), lab["std"].numpy())).float(),
                               lab["centroids"].float()).numpy()
 
-    tmp = gym.make(ENV["cam0"], **ENV_KWARGS)  # "module:EnvId" imports stitch.envs
+    tmp = gym.make(ENV[D[0]], **ENV_KWARGS)  # "module:EnvId" imports stitch.envs
     obs_space = tmp.observation_space
     tmp.close()
     envs = {}  # eval envs, made only for the closed loop
@@ -243,16 +262,23 @@ if __name__ == "__main__":
     fit_demo = fit[0][5]
     # continuous action pairs (nn_*): source frames from demos 0-49, nearest z-scored chunk among target demos 50-99
     X = torch.from_numpy(standardise(fit[0][3], lab["mean"].numpy(), lab["std"].numpy())).float()
-    src, tgt = np.where(fit_demo < 50)[0], np.where(fit_demo >= 50)[0]
+    src, tgt = np.where(fit_demo < SRC_DEMOS)[0], np.where(fit_demo >= 50)[0]
     dX = torch.cdist(X[src], X[tgt])
     nn_tgt = tgt[dX.argmin(1).numpy()]
     mnn = (dX.argmin(0)[dX.argmin(1)] == torch.arange(len(src))).numpy()  # source i is the nearest of its own match
+    # pre-grasp frames: before the first gripper-close action (raw action[-1] < 0) of each demo
+    grip, pre = fit[0][3][:, 0, -1], np.zeros(len(fit_demo), bool)
+    for dm in np.unique(fit_demo):
+        idx = np.where(fit_demo == dm)[0]  # this demo's frames, in time order
+        pre[idx] = np.cumsum(grip[idx] < 0) == 0
+    src_pre, tgt_pre = src[pre[src]], tgt[pre[tgt]]
+    nn_tgt_pre = tgt_pre[torch.cdist(X[src_pre], X[tgt_pre]).argmin(1).numpy()]
     del fit  # frees the fit frames (~0.4 GB per domain)
     m = dict(checkpoints={D[c]: ckpts[c] for c in (0, 1)}, label_sizes=np.bincount(y_fit, minlength=16).tolist(),
              geometry={D[c]: geometry(Z[(c, c)], y_fit) for c in (0, 1)}, stitch={})
     print(json.dumps(m["geometry"], indent=1), flush=True)
 
-    for u, v in ((0, 1), (1, 0)):
+    for u, v in (((1, 0),) if ONLY_DIR else ((0, 1), (1, 0))):
         Zs, Zt = Z[(u, u)], Z[(v, v)]
         fits = {"identity": lambda: [affine(*fit_identity(Zs, Zt))], "saps": lambda: [affine(*fit_procrustes_paired(Zs, Zt))],
                 "affine": lambda: [affine(*fit_affine_paired(Zs, Zt))],
@@ -263,7 +289,11 @@ if __name__ == "__main__":
                 "nn_orth": lambda: [affine(*fit_procrustes_paired(Zs[src], Zt[nn_tgt]))],
                 "nn_affine": lambda: [affine(*fit_affine_paired(Zs[src], Zt[nn_tgt]))],
                 "nn_affine_rescale": lambda: [affine(*rescale(*fit_affine_paired(Zs[src], Zt[nn_tgt]), Zs[src], Zt[tgt]))],
-                "nn_mnn_affine": lambda: [affine(*fit_affine_paired(Zs[src[mnn]], Zt[nn_tgt[mnn]]))]}
+                "nn_mnn_affine": lambda: [affine(*fit_affine_paired(Zs[src[mnn]], Zt[nn_tgt[mnn]]))],
+                "k16_half_pre": lambda: [affine(*fit_procrustes_paired(Zs[src_pre[ia]], Zt[tgt_pre[ib]])) for ia, ib in
+                                         (action_pairs(y_fit[src_pre], y_fit[tgt_pre], np.random.default_rng(s)) for s in range(N_DRAWS))],
+                "nn_orth_pre": lambda: [affine(*fit_procrustes_paired(Zs[src_pre], Zt[nn_tgt_pre]))],
+                "nn_affine_pre": lambda: [affine(*fit_affine_paired(Zs[src_pre], Zt[nn_tgt_pre]))]}
         maps, map_info = {}, {}
         for name in MAPS:
             maps[name] = fits[name]()
@@ -272,18 +302,25 @@ if __name__ == "__main__":
         rgb, state = off[u][0][off[u][1][sel]], off[u][2][sel]  # (N, 2, 3, H, W), (N, 2, S)
         zu = encode(agents[u].visual_encoder, rgb.flatten(0, 1)).reshape(len(sel), 2, -1)  # (N, 2, 256)
         zv_cur = encode(agents[v].visual_encoder, off[v][0][off[v][1][sel][:, -1]])  # (N, 256): paired target z
-        native = denoise(agents[u], zu, state, seed=1)
+        res = dict(aligners={})
+        if ONLY_DIR:  # z residual only
+            for name, Ts in maps.items():
+                with torch.no_grad():
+                    resid = [(((T(zu[:, -1]) - zv_cur) ** 2).sum() / ((zv_cur - zv_cur.mean(0)) ** 2).sum()).item() for T in Ts]
+                res["aligners"][name] = dict(z_residual=float(np.mean(resid)), z_residual_draws=resid)
+        native = None if ONLY_DIR else denoise(agents[u], zu, state, seed=1)
         expert = torch.from_numpy(off[u][3][sel]).to(DEV)
         per_frame = lambda a, b: (a - b).flatten(1).norm(dim=1)  # (N,)
         # vision sensitivity of each frame: how much the native chunk moves when z comes from a random other frame
         # (state kept). Top 30% = the frames where the encoder drives the action, i.e. where stitching matters.
-        sens = per_frame(native, denoise(agents[u], zu[perm], state, seed=1))
-        top = sens >= sens.quantile(1 - TOP_SENSITIVE)
-        dist = lambda a, b: [per_frame(a, b).mean().item(), per_frame(a, b)[top].mean().item()]  # [all, top 30%]
-        res = dict(native_vs_expert=dist(native, expert), chance_frame=dist(native, native[perm]),
-                   chance_z=[sens.mean().item(), sens[top].mean().item()],
-                   noise_floor=dist(native, denoise(agents[u], zu, state, seed=2)), aligners={})
-        for name, Ts in maps.items():
+        for name, Ts in ({} if ONLY_DIR else maps).items():
+            if not res.get("chance_z"):
+                sens = per_frame(native, denoise(agents[u], zu[perm], state, seed=1))
+                top = sens >= sens.quantile(1 - TOP_SENSITIVE)
+                dist = lambda a, b: [per_frame(a, b).mean().item(), per_frame(a, b)[top].mean().item()]  # [all, top 30%]
+                res.update(native_vs_expert=dist(native, expert), chance_frame=dist(native, native[perm]),
+                           chance_z=[sens.mean().item(), sens[top].mean().item()],
+                           noise_floor=dist(native, denoise(agents[u], zu, state, seed=2)))
             with torch.no_grad():
                 ds = [dist(denoise(agents[v], T(zu), state, seed=1), native) for T in Ts]
                 resid = [(((T(zu[:, -1]) - zv_cur) ** 2).sum() / ((zv_cur - zv_cur.mean(0)) ** 2).sum()).item() for T in Ts]
@@ -312,5 +349,5 @@ if __name__ == "__main__":
     json.dump(dict(row=ROW, domain=DOMAIN, runs={D[c]: RUNS[c] for c in (0, 1)}, labels=LABELS,
                    env={D[c]: ENV[D[c]] for c in (0, 1)}, h5={D[c]: H5[D[c]] for c in (0, 1)},
                    fit_demos=[FIT_DEMOS.start, FIT_DEMOS.stop], heldout_demos=[HELDOUT_DEMOS.start, HELDOUT_DEMOS.stop],
-                   maps=MAPS, n_off=N_OFF, top_sensitive=TOP_SENSITIVE, n_draws=N_DRAWS, n_episodes=N_EPISODES, seed=SEED, closed_loop=not OFFLINE_ONLY),
+                   maps=MAPS, only_dir=ONLY_DIR, src_demos=SRC_DEMOS, n_pre_src=len(src_pre), n_pre_tgt=len(tgt_pre), n_off=N_OFF, top_sensitive=TOP_SENSITIVE, n_draws=N_DRAWS, n_episodes=N_EPISODES, seed=SEED, closed_loop=not OFFLINE_ONLY),
               open(OUT / "config.json", "w"), indent=1)
