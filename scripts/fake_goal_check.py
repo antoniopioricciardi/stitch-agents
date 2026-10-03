@@ -35,9 +35,11 @@ ENV = {"cam0": "StitchPickCubeLollipopNoGrasp-v1", "cam1": "StitchPickCubeLollip
        "look2": "StitchPickCubeLollipopNoGraspLook2-v1",
        "light1": "StitchPickCubeLollipopNoGraspLight1-v1",
        "look2light1": "StitchPickCubeLollipopNoGraspLook2Light1-v1",
-       "cam3": "StitchPickCubeLollipopNoGraspCam3-v1"}
+       "cam3": "StitchPickCubeLollipopNoGraspCam3-v1", "xarm_cam0": "StitchPickCubeLollipopNoGraspXarm-v1",
+       "xarm_look2": "StitchPickCubeLollipopNoGraspLook2Xarm-v1", "goal_cam0": "StitchPickCubeLollipopNoGraspGoal-v1",
+       "goal_look2": "StitchPickCubeLollipopNoGraspLook2Goal-v1"}
 N = 50
-GOAL = slice(25, 28)  # state = qpos 9, qvel 9, tcp_pose 7, goal_pos 3
+GOAL = slice(-3, None)  # state = qpos, qvel, tcp_pose 7, goal_pos 3 (Panda 28-d, xArm6 + Robotiq 34-d)
 DEV = "cuda"
 
 
@@ -88,9 +90,10 @@ if __name__ == "__main__":
     env = FlattenRGBDObservationWrapper(gym.make(ENV_ID, **kw))
     goal_env = gym.make(ENV_ID, **{**kw, "obs_mode": "state"})
 
-    # Agent only needs the spaces: state (2, 28), rgb (2, 128, 128, 3), action in [-1, 1]^4
+    # Agent only needs the spaces: state (2, S) with S from the env, rgb (2, 128, 128, 3), action in [-1, 1]^4
+    S = env.observation_space["state"].shape[-1]
     fake_vec = type("E", (), dict(
-        single_observation_space=spaces.Dict(state=spaces.Box(-np.inf, np.inf, (2, 28)), rgb=spaces.Box(0, 255, (2, 128, 128, 3), np.uint8)),
+        single_observation_space=spaces.Dict(state=spaces.Box(-np.inf, np.inf, (2, S)), rgb=spaces.Box(0, 255, (2, 128, 128, 3), np.uint8)),
         single_action_space=spaces.Box(-1, 1, (4,))))()
     agent = train_rgbd.Agent(fake_vec, train_rgbd.Args()).to(DEV)
     ckpt = max(glob.glob(f"{RUN_DIR}/runs/*/checkpoints/[0-9]*.pt"), key=lambda p: int(Path(p).stem))

@@ -194,6 +194,11 @@ register_env("StitchPickCubeLollipopNoGraspLook2-v1", max_episode_steps=160, goa
 register_env("StitchPickCubeLollipopNoGraspLight1-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, light=1)(StitchPickCubeEnv)
 register_env("StitchPickCubeLollipopNoGraspLook2Light1-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, look=2, light=1)(StitchPickCubeEnv)
 register_env("StitchPickCubeLollipopNoGraspCam3-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, cam=3)(StitchPickCubeEnv)
+# embodiment (xArm6 + Robotiq) and goal-variant agents for the Step 1b eval batch: cam0 and look 2
+register_env("StitchPickCubeLollipopNoGraspXarm-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, robot_uids="xarm6_robotiq")(StitchPickCubeEnv)
+register_env("StitchPickCubeLollipopNoGraspLook2Xarm-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, look=2, robot_uids="xarm6_robotiq")(StitchPickCubeEnv)
+register_env("StitchPickCubeLollipopNoGraspGoal-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, task="goal")(StitchPickCubeEnv)
+register_env("StitchPickCubeLollipopNoGraspLook2Goal-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, look=2, task="goal")(StitchPickCubeEnv)
 # cam2 with the goal variant (goal y in GOAL_Y, disjoint from the cube area): "go to goal_pos" cannot find the cube
 register_env("StitchPickCubeLollipopNoGraspCam2Goal-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, cam=2, task="goal")(StitchPickCubeEnv)
 

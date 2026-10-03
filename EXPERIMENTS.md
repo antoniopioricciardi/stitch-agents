@@ -547,6 +547,41 @@ the natives are at blind level and stitching is undefined. Figure: `results/2026
 (`scripts/step1b_supcon_tradeoff_plot.py`; two panels sharing x, no dual axis). No more SupCon runs; the main line
 uses plain-DP encoders with label-only maps.
 
+**Next (2026-10-03): training queue, then one eval batch (hypotheses before running).**
+- **Training, one at a time** (plain DP, seed 2, demos 0–99 of each set, 50k; three checks each for the four oracles):
+  xArm6 + Robotiq in cam0 and in look 2 (the stored xArm demos, `20260930_step1_demos_default_xarm6_pos`, rendered
+  in each domain; env ids `…NoGraspXarm-v1`, `…NoGraspLook2Xarm-v1`; state 34-d); goal variant (Panda) in cam0 and in
+  look 2 (`20260930_step1_demos_goal_panda_pos`, 496 demos; `…NoGraspGoal-v1`, `…NoGraspLook2Goal-v1`); DP from scratch
+  in look 2 on N = 5, 10, 25 demos (seed 2; reference for the data-efficiency curve; no checks). The look 2 xArm and
+  goal oracles are yardsticks only.
+  - Hypotheses: xArm cam0 and look 2 oracles work (≥ .5 last-3; the xArm demos reach the same planner success); goal
+    cam0 / look 2 work like default (≥ .6; goal_pos in the state, cube visible); all pass the three checks. From-scratch
+    look 2: N = 5 ≈ blind (≤ .1), N = 10 ≲ .2, N = 25 ≈ .3–.5.
+- **Eval batch (no training running):**
+  - (a) **Main matrix:** 4 shifts × 3 seed pairs (cam0 s → domain s+1: 1→2, 2→3, 3→1), both directions; identity,
+    affine paired, SAPS, k16_half, nn_orth, nn_affine; closed loop 250 episodes + z residual. Seed pair 1 is the item 1
+    pilot (reused). Report per pair and mean ± std of % of the affine ceiling; then the fixed default-aligner rule:
+    higher 3-pair mean, nn_orth if within .03 of nn_affine. Hypothesis: nn_affine ≥ nn_orth + .03 on the mean
+    (pilot: 70% vs 55%), so nn_affine becomes the default; % of ceiling noisier on the weaker cam0 seeds.
+  - (b) **Data-efficiency curve** (cam0 s1 ↔ look 2 s2; the stitched agent plays look 2: look 2 encoder → nn_affine →
+    cam0 controller): the map fitted with only N look 2 demos (N ∈ {1, 2, 5, 10, 25, 50}, from source demos 0–49; the
+    cam0 side keeps demos 50–99), closed loop. Reference: DP from scratch on N look 2 demos (N = 5, 10, 25). "N target
+    demos" read as N demos of the deployment domain (look 2). Hypothesis: the stitched agent stays ≥ .4 from N = 5 on
+    (each demo gives ~75 frames; nearest-chunk pairing needs only coverage of the action space), above from-scratch at
+    N = 5–25.
+  - (c) **Embodiment:** look 2 Panda encoder (s2) → aligner → cam0 xArm controller (s2), on the xArm in look 2. Paired
+    frames = the xArm demos rendered in look 2 (encoded by the Panda encoder: it never saw the xArm) and in cam0
+    (xArm encoder); label pairs on the shared EE actions (same z-scored chunk statistics). Same aligners, one direction.
+    Reference: the xArm look 2 oracle. Hypothesis: harder than a visual shift (robot appearance and arm motion change
+    at once): affine ceiling ≥ 50% of the reference, nn_affine ≥ 50% of the ceiling.
+  - (d) **Goal shift:** look 2 default-task encoder (s2) → aligner → cam0 goal-variant controller (s2), on the goal
+    variant in look 2. Paired frames = the goal demos in look 2 (default encoder) and cam0 (goal encoder). Label maps
+    with two pairings: (i) nearest chunk on all frames; (ii) nearest chunk only on frames before the grasp closes
+    (reach/grasp, where both tasks act the same; source and target both restricted). Reference: the goal look 2 oracle.
+    Hypothesis: the encoder side is a pure visual shift (same scenes, goal elsewhere), so the ceiling stays high
+    (≥ 70%); pre-grasp pairing ≥ all-frame pairing for nn_affine (after the grasp the two tasks' chunks differ: the
+    default encoder saw transport to default goals only).
+
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two
   rescaled variants: orthogonal + per-dimension scale, affine + rescale to the target's per-dimension variance
