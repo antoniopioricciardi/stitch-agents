@@ -1,0 +1,258 @@
+{
+ "20261002_step1b_dp_ref_look1_s1:look1": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_look1_s1/runs/step1b_dp_ref_look1_s1/checkpoints/49999.pt",
+  "domain": "look1",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.691,
+    0.605,
+    0.656
+   ],
+   "r2_xyz_on_table": [
+    0.763,
+    0.635,
+    -2664.823
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    0.012,
+    -0.053,
+    0.041
+   ],
+   "r2_xyz_on_table": [
+    0.007,
+    -0.061,
+    -0.001
+   ]
+  }
+ },
+ "20261003_step1b_dp_ref_look1_s3:look1": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_look1_s3/runs/step1b_dp_ref_look1_s3/checkpoints/49999.pt",
+  "domain": "look1",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.726,
+    0.528,
+    0.657
+   ],
+   "r2_xyz_on_table": [
+    0.8,
+    0.56,
+    -2316.693
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    0.004,
+    -0.041,
+    0.042
+   ],
+   "r2_xyz_on_table": [
+    -0.007,
+    -0.05,
+    -0.012
+   ]
+  }
+ },
+ "20261003_step1b_dp_ref_look2_s1:look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_look2_s1/runs/step1b_dp_ref_look2_s1/checkpoints/49999.pt",
+  "domain": "look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.784,
+    0.737,
+    0.532
+   ],
+   "r2_xyz_on_table": [
+    0.873,
+    0.79,
+    -3651.484
+   ]
+  },
+  "goal": {
+   "alpha": 1000,
+   "r2_xyz_all": [
+    -0.003,
+    -0.047,
+    -0.003
+   ],
+   "r2_xyz_on_table": [
+    -0.004,
+    -0.045,
+    -0.021
+   ]
+  }
+ },
+ "20261003_step1b_dp_ref_look2_s3:look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_look2_s3/runs/step1b_dp_ref_look2_s3/checkpoints/49999.pt",
+  "domain": "look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.832,
+    0.728,
+    0.471
+   ],
+   "r2_xyz_on_table": [
+    0.906,
+    0.823,
+    -4034.085
+   ]
+  },
+  "goal": {
+   "alpha": 1000,
+   "r2_xyz_all": [
+    -0.003,
+    -0.047,
+    -0.003
+   ],
+   "r2_xyz_on_table": [
+    -0.004,
+    -0.045,
+    -0.021
+   ]
+  }
+ },
+ "20261003_step1b_dp_ref_look2light1_s1:look2light1": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_look2light1_s1/runs/step1b_dp_ref_look2light1_s1/checkpoints/49999.pt",
+  "domain": "look2light1",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.815,
+    0.807,
+    0.627
+   ],
+   "r2_xyz_on_table": [
+    0.89,
+    0.848,
+    -2836.63
+   ]
+  },
+  "goal": {
+   "alpha": 10,
+   "r2_xyz_all": [
+    -0.003,
+    -0.048,
+    0.003
+   ],
+   "r2_xyz_on_table": [
+    -0.005,
+    -0.049,
+    -0.021
+   ]
+  }
+ },
+ "20261003_step1b_dp_ref_look2light1_s3:look2light1": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_look2light1_s3/runs/step1b_dp_ref_look2light1_s3/checkpoints/49999.pt",
+  "domain": "look2light1",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.827,
+    0.804,
+    0.66
+   ],
+   "r2_xyz_on_table": [
+    0.892,
+    0.867,
+    -2767.927
+   ]
+  },
+  "goal": {
+   "alpha": 1000,
+   "r2_xyz_all": [
+    -0.003,
+    -0.047,
+    -0.003
+   ],
+   "r2_xyz_on_table": [
+    -0.004,
+    -0.045,
+    -0.021
+   ]
+  }
+ },
+ "20261003_step1b_dp_ref_cam3_s1:cam3": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_cam3_s1/runs/step1b_dp_ref_cam3_s1/checkpoints/49999.pt",
+  "domain": "cam3",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.772,
+    0.569,
+    0.682
+   ],
+   "r2_xyz_on_table": [
+    0.82,
+    0.609,
+    -2369.322
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    -0.001,
+    -0.04,
+    0.035
+   ],
+   "r2_xyz_on_table": [
+    -0.006,
+    -0.045,
+    -0.015
+   ]
+  }
+ },
+ "20261003_step1b_dp_ref_cam3_s3:cam3": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_cam3_s3/runs/step1b_dp_ref_cam3_s3/checkpoints/49999.pt",
+  "domain": "cam3",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.804,
+    0.63,
+    0.649
+   ],
+   "r2_xyz_on_table": [
+    0.857,
+    0.661,
+    -2561.916
+   ]
+  },
+  "goal": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.021,
+    0.017,
+    0.059
+   ],
+   "r2_xyz_on_table": [
+    0.005,
+    0.003,
+    -0.004
+   ]
+  }
+ }
+}

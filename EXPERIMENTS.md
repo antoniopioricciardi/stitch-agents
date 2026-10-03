@@ -505,6 +505,39 @@ term's at iteration 0 and 100–250× by iterations 100–190 at λ = 1, so at �
 - **Then (3), unattended, queued right after (2):** plain-DP oracles cam0 s2, s3 and look 1 / look 2 / look 2 +
   light 1 / cam3 at seeds 1 and 3 (10 runs, one at a time, three checks each; no stitching evals yet).
 
+**(3) Seed oracles for the main matrix (plain DP, demos 0–99, 50k; `results/2026100?_step1b_dp_ref_<domain>_s<seed>/`
++ their `…_blind_…`, `…_fake_goal_…`, probe in `results/2026100?_step1b_probe_cube_goal/`).** All 40 steps exited 0.
+
+| oracle | success_once final (last-3) | success_at_end final (last-3) | blind full / zeroed / shuffled | fake goal: grasped true → fake; placed at state goal; closest to cube | probe cube x / y |
+|---|---|---|---|---|---|
+| cam0 s2 | .404 (.427) | .240 (.285) | .48 / .04 / .05 | .80 → .72; .42 → .40; 2.6 cm | .78 / .63 |
+| cam0 s3 | .492 (.491) | .356 (.372) | .46 / .05 / .04 | .76 → .60; .58 → .46; 2.7 cm | .83 / .64 |
+| look 1 s1 | .568 (.569) | .388 (.403) | .60 / .03 / .03 | .80 → .74; .64 → .58; 1.9 cm | .76 / .64 |
+| look 1 s3 | .548 (.536) | .380 (.387) | .53 / .02 / .04 | .72 → .76; .54 → .56; 2.3 cm | .80 / .56 |
+| look 2 s1 | .748 (.696) | .568 (.545) | .76 / .06 / .07 | .84 → .86; .76 → .74; 1.3 cm | .87 / .79 |
+| look 2 s3 | .768 (.779) | .592 (.587) | .78 / .04 / .03 | .88 → .88; .78 → .78; 1.4 cm | .91 / .82 |
+| look 2 + light 1 s1 | .680 (.641) | .504 (.483) | .66 / .05 / .05 | .86 → .86; .72 → .76; 1.6 cm | .89 / .85 |
+| look 2 + light 1 s3 | .700 (.747) | .516 (.565) | .74 / .04 / .05 | .88 → .88; .80 → .74; 1.5 cm | .89 / .87 |
+| cam3 s1 | .728 (.732) | .524 (.556) | .76 / .03 / .03 | .96 → .94; .90 → .88; 1.0 cm | .82 / .61 |
+| cam3 s3 | .552 (.543) | .400 (.404) | .47 / .04 / .05 | .72 → .76; .58 → .54; 2.1 cm | .86 / .66 |
+
+success_once curves (every 5k from 0): cam0 s2 .00, .02, .03, .10, .30, .31, .32, .43, .39, .49, .40; cam0 s3 .00, .03,
+.03, .10, .34, .40, .46, .46, .53, .45, .49; look 1 s1 .00, .05, .21, .45, .47, .54, .64, .57, .59, .55, .57; look 1 s3
+.00, .04, .14, .29, .46, .46, .51, .54, .54, .52, .55; look 2 s1 .00, .06, .53, .69, .71, .69, .72, .72, .68, .66, .75;
+look 2 s3 .00, .03, .49, .66, .71, .72, .78, .76, .78, .79, .77; look 2 + light 1 s1 .00, .04, .12, .41, .56, .54, .59,
+.63, .68, .57, .68; s3 .00, .06, .16, .53, .62, .72, .68, .69, .76, .78, .70; cam3 s1 .00, .06, .34, .63, .67, .75,
+.74, .76, .74, .72, .73; cam3 s3 .00, .03, .02, .19, .39, .40, .42, .52, .52, .56, .55.
+
+Per domain over 3 seeds (success_once last-3, mean ± std): cam0 .569 ± .19 (s1 .788, s2 .427, s3 .491); look 1 .600
+± .08 (.569, .695, .536); look 2 .724 ± .05 (.696, .697, .779); look 2 + light 1 .703 ± .05 (.641, .720, .747); cam3
+.637 ± .09 (.732, .635, .543).
+- **Takeaway:** all 10 oracles pass the blind and probe checks and none follows goal_pos (closest approach to the
+  cube 1.0–2.7 cm under a fake goal). One borderline fake-goal grasp ratio: cam0 s3 .76 → .60 (.79×, just under the
+  .8× bar). **Seed variance is large:** cam0 s2 / s3 reach only .43 / .49 (s1: .79), and their curves rise late
+  (from 15–20k) and are still climbing at 50k; look 1 s1 / s3 .57 / .54 (s2 .70). So the single-seed cam0 oracle
+  (Step 2g) was a lucky seed: the 3-seed cam0 mean is .57. look 2 and look 2 + light 1 are the most stable (std .05).
+  For the matrix, stitched numbers must be read against the native of the same seed.
+
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two
   rescaled variants: orthogonal + per-dimension scale, affine + rescale to the target's per-dimension variance
