@@ -1,0 +1,6 @@
+{
+ "demos": "/home/ricc/projects/labelstitch-step1/results/20260930_step1_demos_default_xarm6_pos/demos.npz",
+ "control_mode": "pd_ee_delta_pos",
+ "goal_marker": "lollipop",
+ "env": "StitchPickCube-v1 cam0 look0 light0 default xarm6"
+}

@@ -590,6 +590,94 @@ uses plain-DP encoders with label-only maps.
     Hypothesis: the encoder side is a pure visual shift (same scenes, goal elsewhere), so the ceiling stays high
     (≥ 70%); pre-grasp pairing ≥ all-frame pairing for nn_affine (after the grasp the two tasks' chunks differ: the
     default encoder saw transport to default goals only).
+- **Training results** (plain DP, seed 2; success_once final (last-3); checks: blind full / zeroed, fake-goal grasp
+  true → fake and closest approach to the cube, probe cube x / y):
+
+  | agent | success_once | curve (every 5k) | blind | fake goal | probe |
+  |---|---|---|---|---|---|
+  | xArm cam0 | **.332 (.321)** | .00 .06 .04 .03 .07 .14 .22 .26 .30 .33 .33 | .37 / .00 | .42 → .44; 3.9 cm | .75 / .52 |
+  | xArm look 2 (yardstick) | **.896 (.881)** | .00 .06 .54 .76 .84 .88 .89 .88 .88 .87 .90 | .86 / .02 | .94 → .96; 1.2 cm | .84 / .73 |
+  | goal cam0 | **.540 (.528)** | .00 .03 .05 .19 .36 .45 .49 .55 .51 .54 .54 | .59 / .04 | .82 → .74; 2.1 cm | .78 / .57 |
+  | goal look 2 (yardstick) | **.684 (.685)** | .00 .10 .46 .54 .62 .70 .68 .70 .67 .70 .68 | .66 / .04 | .92 → .88; 1.3 cm | .78 / .28 |
+  | DP from scratch, look 2, N = 5 / 10 / 25 | **.008 / .004 / .100 (last-3 .008 / .004 / .104)** | — | — | — | — |
+
+  All four oracles use vision (blind → ≤ .04) and none follows goal_pos. The xArm cam0 oracle is weak (.32, still
+  rising at 50k; imprecise grasps, 3.9 cm), while the xArm look 2 oracle is the strongest agent so far (.88). Training
+  hypotheses: xArm cam0 rejected (< .5), xArm look 2 and both goal oracles confirmed (goal cam0 .53 slightly under .6);
+  from scratch N = 5 / 10 confirmed (≈ blind), N = 25 lower than predicted (.10 vs .3–.5).
+
+- **(a) Main matrix** (`results/20261003_step1b_matrix/table.md`, `scripts/step1b_matrix_table.py`; 4 shifts × 3 seed
+  pairs × 2 directions; % of the affine paired ceiling; p1 = the item 1 pilot):
+
+  | aligner | mean ± std over 24 cells | per shift (fwd / bwd, mean of 3 pairs) |
+  |---|---|---|
+  | identity | 10% ± 4% | — |
+  | SAPS | 64% ± 15% | look 1 67 / 83, look 2 51 / 64, look 2 + light 1 58 / 57, cam3 64 / 69 |
+  | k16_half | 58% ± 18% | 51 / 89, 42 / 58, 61 / 50, 54 / 58 |
+  | nn_orth | 61% ± 18% | 65 / 91, 50 / 52, 61 / 47, 62 / 61 |
+  | **nn_affine** | **77% ± 10%** | **84 / 79, 78 / 75, 75 / 79, 78 / 70** |
+
+  (fwd = cam0 enc → domain ctrl, bwd = domain enc → cam0 ctrl.) The affine ceiling itself: 80–104% of the played
+  domain's native on p1; on p2 / p3 the ceilings are lower in absolute terms (.34–.64) because the cam0 s2 / s3 and
+  some domain seeds are weaker. **Default-aligner rule: nn_affine 77.4% vs nn_orth 61.2% → nn_affine** (decided on
+  3-pair means). nn_affine is also the most stable (std 10% vs 15–18%) and the best in 7 of 8 shift × direction rows
+  (look 1 bwd: nn_orth 91% vs 79%). Matrix hypothesis confirmed.
+
+- **(b) Data-efficiency curve** (look 2 s2 encoder → cam0 s1 controller, plays look 2; label maps fitted on N look 2
+  source demos; success_once, 250 episodes; z residual in brackets):
+
+  | N look 2 demos | nn_affine | nn_orth | nn_affine_pca16 | DP from scratch on N look 2 demos |
+  |---|---|---|---|---|
+  | 1 | .000 (2e5) | .052 (1.93) | .064 (1.19) | — |
+  | 2 | .000 (1.5e7) | .124 (1.11) | **.228** (.61) | — |
+  | 5 | .144 (1.82) | .204 (.98) | **.244** (.56) | .008 |
+  | 10 | .244 (.88) | .188 (.83) | **.344** (.45) | .004 |
+  | 25 | .304 (.57) | .308 (.75) | — | .100 |
+  | 50 | **.400** (.43) | .312 (.69) | — | — |
+
+  References: look 2 native (s2, 100 demos) .697 last-3; affine paired ceiling for this pair .612.
+  - nn_affine is degenerate below ~5 demos (underdetermined, as predicted); **nn_affine_pca16 is the best map at
+    every N ≤ 10** (pca16 hypothesis confirmed; at N = 1 within noise). With 2 demos it reaches .23 and with 10 demos
+    .34 (≈ 49% of the look 2 native, 56% of the ceiling); plain nn_affine needs all 50 demos for .40.
+  - Every stitched variant beats DP from scratch at N = 5–25 (e.g. N = 10: .34 vs .004).
+  - **Caveat (important):** only the map is fitted on N look 2 demos; the look 2 *encoder* was trained on 100 look 2
+    demos (as part of its own oracle). So this curve measures the map's label budget, not the data needed to deploy
+    in a new domain from scratch. A fair data-efficiency comparison needs an encoder trained on N target demos (the
+    Step 6b design).
+
+- **(c) Embodiment** (`results/20261003_step1b_stitch_embodiment_xarm_look2/`): look 2 Panda encoder (s2) → cam0 xArm
+  controller (s2), on the xArm in look 2. Reference: xArm look 2 oracle .896; the xArm cam0 controller's own native
+  (cam0) .332.
+
+  | identity | affine (ceiling) | SAPS | k16_half | nn_orth | nn_affine |
+  |---|---|---|---|---|---|
+  | .028 | .264 | .264 | .236 | **.352** | .192 |
+  | 3% of ref. | 29% of ref. (80% of the controller's native) | 100% of ceiling | 89% | 133% | 73% |
+
+  z residual: affine .43, nn_affine .69, SAPS 1.59, nn_orth 1.82, k16 2.14, identity 47. Panda encoder on xArm look 2
+  frames: NC1 4.50, effective rank 8.0 (the xArm cam0 encoder: 2.23, 3.1).
+  - Stitching across robots works at the level of the controller: every map except identity reaches .19–.35, i.e.
+    58–106% of what the xArm cam0 controller achieves natively (.33). The weak xArm cam0 controller caps it: 29% of
+    the xArm look 2 reference for the ceiling. Hypotheses: ceiling ≥ 50% of the reference rejected (29%, controller-
+    bound); nn_affine ≥ 50% of the ceiling confirmed (73%). nn_orth exceeds the affine ceiling here (one seed, ±.06).
+
+- **(d) Goal shift** (`results/20261003_step1b_stitch_goalshift_goal_look2/`): look 2 default-task encoder (s2) → cam0
+  goal-variant controller (s2), on the goal variant in look 2. Reference: goal look 2 oracle .684; the goal cam0
+  controller's own native .540. Pre-grasp frames: 2022 source / 2150 target.
+
+  | identity | affine (ceiling) | SAPS | k16_half | nn_orth | nn_affine | k16_half_pre | nn_orth_pre | nn_affine_pre |
+  |---|---|---|---|---|---|---|---|---|
+  | .104 | **.556** | .196 | .180 | .160 | .336 | .124 | .164 | **.356** |
+  | 15% of ref. | 81% of ref. | 35% of ceiling | 32% | 29% | 60% | 22% | 29% | 64% |
+
+  z residual: affine .47, nn_affine .66, nn_affine_pre .87, SAPS 1.49, nn_orth 1.72, k16 2.08 / 2.22 (pre).
+  - The paired ceiling stitches a default-task encoder to a goal-task controller at 81% of the goal look 2 oracle
+    (103% of the controller's own native): the encoder side of a goal shift is a visual problem. Ceiling hypothesis
+    confirmed (≥ 70%).
+  - **Orthogonal maps fail here** (SAPS, nn_orth, k16: 29–35% of the ceiling), much worse than under visual shift
+    alone (~60%): encoders trained on different tasks have more differently shaped latent spaces. Only affine maps
+    work: nn_affine 60%, nn_affine_pre 64%. Pre-grasp pairing ≥ all frames for nn_affine (.356 vs .336, within
+    noise): hypothesis weakly supported, not established.
 
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two

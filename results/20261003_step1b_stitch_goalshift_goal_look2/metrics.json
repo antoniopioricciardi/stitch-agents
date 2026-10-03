@@ -1,0 +1,133 @@
+{
+ "checkpoints": {
+  "goal_cam0": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_goal_cam0_s2/runs/step1b_dp_ref_goal_cam0_s2/checkpoints/49999.pt",
+  "goal_look2": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_look2_s2/runs/step1b_dp_ref_look2_s2/checkpoints/49999.pt"
+ },
+ "label_sizes": [
+  933,
+  0,
+  14,
+  1521,
+  0,
+  500,
+  583,
+  1277,
+  295,
+  1044,
+  0,
+  52,
+  438,
+  231,
+  599,
+  398
+ ],
+ "geometry": {
+  "goal_cam0": {
+   "nc1": 1.9849177598953247,
+   "eff_rank": 9.593716584093405,
+   "var_top4": 0.5869223671461372,
+   "var_top16": 0.8378287497542283
+  },
+  "goal_look2": {
+   "nc1": 1.3196396827697754,
+   "eff_rank": 6.111743569582081,
+   "var_top4": 0.6780316623474839,
+   "var_top16": 0.8682323656064787
+  }
+ },
+ "stitch": {
+  "goal_look2_enc_to_goal_cam0_ctrl": {
+   "aligners": {
+    "identity": {
+     "z_residual": 6.1741414070129395,
+     "z_residual_draws": [
+      6.1741414070129395
+     ],
+     "success_once": 0.104,
+     "success_at_end": 0.104,
+     "episodes": 250
+    },
+    "affine": {
+     "z_residual": 0.4685196280479431,
+     "z_residual_draws": [
+      0.4685196280479431
+     ],
+     "success_once": 0.556,
+     "success_at_end": 0.54,
+     "episodes": 250
+    },
+    "saps": {
+     "z_residual": 1.488438367843628,
+     "z_residual_draws": [
+      1.488438367843628
+     ],
+     "success_once": 0.196,
+     "success_at_end": 0.188,
+     "episodes": 250
+    },
+    "k16_half": {
+     "z_residual": 2.0753772258758545,
+     "z_residual_draws": [
+      2.123490571975708,
+      2.069802761077881,
+      2.043278217315674,
+      2.0875003337860107,
+      2.052814245223999
+     ],
+     "success_once": 0.18,
+     "success_at_end": 0.18,
+     "episodes": 250
+    },
+    "nn_orth": {
+     "z_residual": 1.7157717943191528,
+     "z_residual_draws": [
+      1.7157717943191528
+     ],
+     "success_once": 0.16,
+     "success_at_end": 0.156,
+     "episodes": 250
+    },
+    "nn_affine": {
+     "z_residual": 0.6578942537307739,
+     "z_residual_draws": [
+      0.6578942537307739
+     ],
+     "success_once": 0.336,
+     "success_at_end": 0.336,
+     "episodes": 250
+    },
+    "k16_half_pre": {
+     "z_residual": 2.221523904800415,
+     "z_residual_draws": [
+      2.2409584522247314,
+      2.225367546081543,
+      2.2248780727386475,
+      2.2007992267608643,
+      2.215616226196289
+     ],
+     "success_once": 0.124,
+     "success_at_end": 0.112,
+     "episodes": 250
+    },
+    "nn_orth_pre": {
+     "z_residual": 2.0360875129699707,
+     "z_residual_draws": [
+      2.0360875129699707
+     ],
+     "success_once": 0.164,
+     "success_at_end": 0.164,
+     "episodes": 250
+    },
+    "nn_affine_pre": {
+     "z_residual": 0.8741002082824707,
+     "z_residual_draws": [
+      0.8741002082824707
+     ],
+     "success_once": 0.356,
+     "success_at_end": 0.352,
+     "episodes": 250
+    }
+   }
+  }
+ }
+}

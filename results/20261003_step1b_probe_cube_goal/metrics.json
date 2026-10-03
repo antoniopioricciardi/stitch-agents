@@ -254,5 +254,133 @@
     -0.004
    ]
   }
+ },
+ "20261003_step1b_dp_ref_xarm_cam0_s2:xarm_cam0": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_xarm_cam0_s2/runs/step1b_dp_ref_xarm_cam0_s2/checkpoints/49999.pt",
+  "domain": "xarm_cam0",
+  "n_fit": 8294,
+  "n_test": 7827,
+  "cube": {
+   "alpha": 1e-05,
+   "r2_xyz_all": [
+    0.661,
+    0.464,
+    0.792
+   ],
+   "r2_xyz_on_table": [
+    0.748,
+    0.517,
+    -1769.655
+   ]
+  },
+  "goal": {
+   "alpha": 0.01,
+   "r2_xyz_all": [
+    0.092,
+    0.049,
+    0.198
+   ],
+   "r2_xyz_on_table": [
+    0.079,
+    0.051,
+    0.128
+   ]
+  }
+ },
+ "20261003_step1b_dp_ref_xarm_look2_s2:xarm_look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_xarm_look2_s2/runs/step1b_dp_ref_xarm_look2_s2/checkpoints/49999.pt",
+  "domain": "xarm_look2",
+  "n_fit": 8294,
+  "n_test": 7827,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.762,
+    0.687,
+    0.722
+   ],
+   "r2_xyz_on_table": [
+    0.844,
+    0.728,
+    -2502.21
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    0.024,
+    0.035,
+    0.1
+   ],
+   "r2_xyz_on_table": [
+    0.013,
+    0.009,
+    0.024
+   ]
+  }
+ },
+ "20261003_step1b_dp_ref_goal_cam0_s2:goal_cam0": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_goal_cam0_s2/runs/step1b_dp_ref_goal_cam0_s2/checkpoints/49999.pt",
+  "domain": "goal_cam0",
+  "n_fit": 8085,
+  "n_test": 7853,
+  "cube": {
+   "alpha": 0.0001,
+   "r2_xyz_all": [
+    0.73,
+    0.758,
+    0.736
+   ],
+   "r2_xyz_on_table": [
+    0.784,
+    0.572,
+    -1989.055
+   ]
+  },
+  "goal": {
+   "alpha": 0.01,
+   "r2_xyz_all": [
+    0.03,
+    -0.01,
+    0.1
+   ],
+   "r2_xyz_on_table": [
+    -0.04,
+    -0.029,
+    0.014
+   ]
+  }
+ },
+ "20261003_step1b_dp_ref_goal_look2_s2:goal_look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_goal_look2_s2/runs/step1b_dp_ref_goal_look2_s2/checkpoints/49999.pt",
+  "domain": "goal_look2",
+  "n_fit": 8085,
+  "n_test": 7853,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.681,
+    0.62,
+    0.59
+   ],
+   "r2_xyz_on_table": [
+    0.78,
+    0.278,
+    -3210.783
+   ]
+  },
+  "goal": {
+   "alpha": 1000,
+   "r2_xyz_all": [
+    -0.0,
+    -0.0,
+    -0.0
+   ],
+   "r2_xyz_on_table": [
+    -0.003,
+    -0.0,
+    -0.005
+   ]
+  }
  }
 }

@@ -1,0 +1,9 @@
+{
+ "run_dir": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_goal_look2_s2",
+ "domain": "goal_look2",
+ "env_id": "StitchPickCubeLollipopNoGraspLook2Goal-v1",
+ "n": 50,
+ "eval_seeds": "10000+i",
+ "fake_goal_seeds": "20000+i",
+ "grid": "first 3 failed true-goal episodes, every 10th step"
+}

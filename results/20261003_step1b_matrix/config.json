@@ -1,0 +1,8 @@
+{
+ "pairs": {
+  "p1": "cam0 s1 <-> s2",
+  "p2": "cam0 s2 <-> s3",
+  "p3": "cam0 s3 <-> s1"
+ },
+ "sources": "see the script docstring"
+}

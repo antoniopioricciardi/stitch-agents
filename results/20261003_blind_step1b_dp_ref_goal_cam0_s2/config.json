@@ -1,0 +1,8 @@
+{
+ "run_dir": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_goal_cam0_s2",
+ "env_id": "stitch.envs:StitchPickCubeLollipopNoGraspGoal-v1",
+ "demos": "/home/ricc/projects/labelstitch-1b/results/20261003_dp_ours_demos_goal_panda_cam0_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+ "n_episodes": 250,
+ "n_bank": 2048,
+ "seed": 0
+}

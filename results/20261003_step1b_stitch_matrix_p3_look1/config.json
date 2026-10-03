@@ -1,0 +1,43 @@
+{
+ "row": "matrix_p3",
+ "domain": "look1",
+ "runs": {
+  "cam0": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_cam0_s3",
+  "look1": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_look1_s1"
+ },
+ "labels": "/home/ricc/projects/labelstitch-1b/results/20261001_step1b_labels/labels.pt",
+ "env": {
+  "cam0": "stitch.envs:StitchPickCubeLollipopNoGrasp-v1",
+  "look1": "stitch.envs:StitchPickCubeLollipopNoGraspLook1-v1"
+ },
+ "h5": {
+  "cam0": "/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_demos_default_panda_cam0_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+  "look1": "results/20261001_dp_ours_demos_default_panda_cam0_look1_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
+ },
+ "fit_demos": [
+  0,
+  100
+ ],
+ "heldout_demos": [
+  400,
+  498
+ ],
+ "maps": [
+  "identity",
+  "affine",
+  "saps",
+  "k16_half",
+  "nn_orth",
+  "nn_affine"
+ ],
+ "only_dir": false,
+ "src_demos": 50,
+ "n_pre_src": 2022,
+ "n_pre_tgt": 2159,
+ "n_off": 2000,
+ "top_sensitive": 0.3,
+ "n_draws": 5,
+ "n_episodes": 250,
+ "seed": 0,
+ "closed_loop": true
+}
