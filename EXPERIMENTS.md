@@ -679,6 +679,18 @@ uses plain-DP encoders with label-only maps.
     work: nn_affine 60%, nn_affine_pre 64%. Pre-grasp pairing ≥ all frames for nn_affine (.356 vs .336, within
     noise): hypothesis weakly supported, not established.
 
+**Decisions (2026-10-04):** nn_affine is the default aligner; nn_affine_pca16 for N ≤ 10 demos.
+
+**(1) Fair data efficiency (evals only):** does a controller trained elsewhere rescue a domain with too few demos to
+learn a policy? Encoders of the DP-from-scratch look 2 agents (N = 5, 10, 25; seed 2; trained on look 2 demos 0..N-1)
+→ cam0 s1 controller, with nn_affine_pca16 and nn_orth fitted only on that agent's own N look 2 demos (source side;
+cam0 target side as usual, demos 50–99). Closed loop in look 2, 250 episodes. Compared with the agents' own native
+success (.008 / .004 / .100). Also the cube probe on the three scratch encoders (offline), to see what they learned.
+- **Hypothesis:** the scratch encoders still encode the cube partly (probe x R² ≥ .4 at N = 25, lower at 5 / 10:
+  their failure is mostly the controller overfitting few demos), so stitching to a well-trained controller rescues
+  them: stitched > native at every N, about .1–.2 at N = 5 / 10 and .2–.35 at N = 25 (below the 100-demo-encoder
+  curve: .24 / .34 / .31). nn_affine_pca16 ≥ nn_orth.
+
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two
   rescaled variants: orthogonal + per-dimension scale, affine + rescale to the target's per-dimension variance
