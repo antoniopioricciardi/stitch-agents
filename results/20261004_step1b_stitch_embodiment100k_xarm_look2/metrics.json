@@ -1,0 +1,111 @@
+{
+ "checkpoints": {
+  "xarm_cam0": "/home/ricc/projects/labelstitch-1b/results/20261004_step1b_dp_ref_xarm_cam0_100k_s2/runs/step1b_dp_ref_xarm_cam0_100k_s2/checkpoints/99999.pt",
+  "xarm_look2": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_look2_s2/runs/step1b_dp_ref_look2_s2/checkpoints/49999.pt"
+ },
+ "label_sizes": [
+  919,
+  308,
+  180,
+  0,
+  65,
+  1613,
+  117,
+  2748,
+  392,
+  67,
+  131,
+  179,
+  456,
+  295,
+  178,
+  446
+ ],
+ "geometry": {
+  "xarm_cam0": {
+   "nc1": 2.4039998054504395,
+   "eff_rank": 5.038772311899905,
+   "var_top4": 0.7460584668370461,
+   "var_top16": 0.9275913532391497
+  },
+  "xarm_look2": {
+   "nc1": 4.500503063201904,
+   "eff_rank": 8.041732583121291,
+   "var_top4": 0.6409969872861837,
+   "var_top16": 0.8680872770975201
+  }
+ },
+ "stitch": {
+  "xarm_look2_enc_to_xarm_cam0_ctrl": {
+   "aligners": {
+    "identity": {
+     "z_residual": 5.713290214538574,
+     "z_residual_draws": [
+      5.713290214538574
+     ],
+     "success_once": 0.052,
+     "success_at_end": 0.048,
+     "episodes": 250
+    },
+    "affine": {
+     "z_residual": 0.41164740920066833,
+     "z_residual_draws": [
+      0.41164740920066833
+     ],
+     "success_once": 0.532,
+     "success_at_end": 0.508,
+     "episodes": 250
+    },
+    "saps": {
+     "z_residual": 0.851923406124115,
+     "z_residual_draws": [
+      0.851923406124115
+     ],
+     "success_once": 0.384,
+     "success_at_end": 0.348,
+     "episodes": 250
+    },
+    "k16_half": {
+     "z_residual": 1.3315351009368896,
+     "z_residual_draws": [
+      1.3791282176971436,
+      1.3164308071136475,
+      1.3358714580535889,
+      1.298251748085022,
+      1.3279932737350464
+     ],
+     "success_once": 0.252,
+     "success_at_end": 0.236,
+     "episodes": 250
+    },
+    "nn_orth": {
+     "z_residual": 1.0492795705795288,
+     "z_residual_draws": [
+      1.0492795705795288
+     ],
+     "success_once": 0.296,
+     "success_at_end": 0.284,
+     "episodes": 250
+    },
+    "nn_affine": {
+     "z_residual": 0.6962865591049194,
+     "z_residual_draws": [
+      0.6962865591049194
+     ],
+     "success_once": 0.444,
+     "success_at_end": 0.436,
+     "episodes": 250
+    },
+    "nn_affine_pca16": {
+     "z_residual": 0.6107710003852844,
+     "z_residual_draws": [
+      0.6107710003852844
+     ],
+     "success_once": 0.344,
+     "success_at_end": 0.324,
+     "episodes": 250
+    }
+   }
+  }
+ }
+}

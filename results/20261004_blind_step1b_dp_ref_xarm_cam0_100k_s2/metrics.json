@@ -1,0 +1,18 @@
+{
+ "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261004_step1b_dp_ref_xarm_cam0_100k_s2/runs/step1b_dp_ref_xarm_cam0_100k_s2/checkpoints/99999.pt",
+ "full": {
+  "success_once": 0.684,
+  "success_at_end": 0.66,
+  "episodes": 250
+ },
+ "zeroed": {
+  "success_once": 0.064,
+  "success_at_end": 0.052,
+  "episodes": 250
+ },
+ "shuffled": {
+  "success_once": 0.044,
+  "success_at_end": 0.032,
+  "episodes": 250
+ }
+}

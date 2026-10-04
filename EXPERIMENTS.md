@@ -781,6 +781,27 @@ Step 7).
     the encoder): end-to-end updates with 10–25 demos wreck what the stitched start already does. This is the first
     low-data entry result that works: a stitched start + map-only fine-tuning at 77% of the target oracle with 25
     demos, where training from scratch reaches 8% after 50k iterations.
+- **Result (3)** (`results/2026100?_step1b_dp_ref_xarm_cam0_100k_s2/`, `…_stitch_embodiment100k_xarm_look2/`):
+  xArm cam0 controller, seed 2, 100k: success_once every 5k .00 .04 .03 .04 .08 .32 .51 .54 .63 .69 .67 .66 .65 .74 .77
+  .74 .72 .66 .73 .72 **.684 (last-3 .713)**; blind .68 → .06; fake goal grasped .82 → .84, cube placed at the state
+  goal .64 → .70, closest to cube 1.9–2.0 cm; probe cube x / y .58 / .52. Passes all three checks. (With the same seed,
+  the 50k run was at .33 at 50k; the 100k run is at .69 by 50k: the slower cosine schedule matters for this robot.)
+
+  Embodiment again (look 2 Panda encoder → cam0 xArm 100k controller, on the xArm in look 2; reference xArm look 2
+  oracle .896, last-3 .881; the controller's own native .684):
+
+  | identity | affine (ceiling) | SAPS | k16_half | nn_orth | nn_affine | nn_affine_pca16 |
+  |---|---|---|---|---|---|---|
+  | .052 | **.532** (60% of ref., 78% of the controller's native) | .384 (72%) | .252 (47%) | .296 (56%) | **.444 (83%)** | .344 (65%) |
+
+  (% of the affine ceiling unless noted.) z residual: affine .41, pca16 .61, nn_affine .70, SAPS .85, nn_orth 1.05,
+  k16 1.33, identity 5.71. Geometry: xArm cam0 100k encoder NC1 2.40, eff. rank 5.0; the Panda look 2 encoder on xArm
+  look 2 frames 4.50, 8.0.
+- **Takeaway (3):** with a competent xArm controller the embodiment stitch works: the paired ceiling reaches 60% of
+  the xArm look 2 oracle and **label-only nn_affine 83% of the ceiling** (50% of the reference), although the Panda
+  encoder never saw the xArm. Hypotheses confirmed (100k controller ≥ .5: .71; ceiling ≥ 50% of the reference: 60%;
+  nn_affine ≥ 60% of the ceiling: 83%). nn_affine_pca16 is worse than nn_affine with all demos (65%), as expected
+  (PCA16 is the small-N variant). The 50k result (29% of the reference) was controller-bound.
 
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two

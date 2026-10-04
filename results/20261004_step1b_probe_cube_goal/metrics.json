@@ -94,5 +94,37 @@
     0.011
    ]
   }
+ },
+ "20261004_step1b_dp_ref_xarm_cam0_100k_s2:xarm_cam0": {
+  "checkpoint": "/home/ricc/projects/labelstitch-1b/results/20261004_step1b_dp_ref_xarm_cam0_100k_s2/runs/step1b_dp_ref_xarm_cam0_100k_s2/checkpoints/99999.pt",
+  "domain": "xarm_cam0",
+  "n_fit": 8294,
+  "n_test": 7827,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.517,
+    0.451,
+    0.774
+   ],
+   "r2_xyz_on_table": [
+    0.581,
+    0.524,
+    -2108.636
+   ]
+  },
+  "goal": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.075,
+    0.014,
+    0.138
+   ],
+   "r2_xyz_on_table": [
+    0.066,
+    0.008,
+    0.046
+   ]
+  }
  }
 }
