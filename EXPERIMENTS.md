@@ -708,6 +708,30 @@ success (.008 / .004 / .100). Also the cube probe on the three scratch encoders 
   same N). So the item (b) curve was carried by the 100-demo encoder: **the bottleneck in the low-data regime is the
   encoder, not the map's label budget.** The adaptation baselines in (2) test whether reusing a trained encoder
   (fine-tuning) fixes this.
+  **In short: stitching reuses competent modules; it does not rescue a domain from scratch with a few demos. Low-data
+  entry is tested by the fine-tuning arms (item 2).**
+
+**(2)–(3) Adaptation baselines, fine-tuning from a stitched start, xArm retrain (2026-10-04; hypotheses before running).**
+Budget for every fine-tuning arm: 5k iterations (lr 1e-4, 500 warm-up, cosine, batch 256, seed 2), eval every 1k with
+100 episodes and a final 250-episode point at 5k. Why 5k: with N ≤ 25 demos, 5k iterations are already 130–680 passes
+over the data; from-scratch DP on 100 demos goes from ~.05 to ~.5 between 5k and 10k; fine-tuning starts from working
+modules. From now on every evaluated encoder also gets its NC1, effective rank and held-out map residual logged (for
+Step 7).
+- (2a) cam0 s1 policy fine-tuned end-to-end on N look 2 demos (N = 5, 10, 25; look 2 demos 0..N-1), closed loop in
+  look 2. (2b) same, encoder only (controller frozen; DP loss through the frozen denoiser).
+  Hypotheses: both start near blind (cam0 s1 unchanged in look 2 ≈ identity stitch, ~.05) and recover within 5k:
+  N = 25 ≥ .4, N = 5 ≈ .2; at small N, encoder-only ≥ end-to-end (fewer free parameters, controller already
+  competent). Both far above DP from scratch (.01 / .00 / .10).
+- (2c) Goal-shift fine-tuning (look 2 default encoder s2 → cam0 goal controller s2, on the goal variant in look 2;
+  N = 10, 25 goal-look-2 demos 0..N-1; the nn_affine_pca16 map fitted on the same N demos (source) vs goal-cam0 demos
+  50–99): (i) map only; (ii) stitched start, all; (iii) identity map, all; (iv) DP from scratch, 5k and 50k.
+  Reference: goal look 2 oracle .69. Hypotheses (yours): (ii) ≥ .6 within 5k; (ii) > (iii) > (iv) at every eval
+  point. Mine on top: (i) starts at the stitched level (~.3, item (d)) and gains little (the map class is the limit;
+  the ceiling was .56).
+- (3) xArm cam0 controller, seed 2, retrained for 100k (eval every 5k, 250 episodes), three checks; then the
+  embodiment stitch again (look 2 Panda encoder → cam0 xArm controller, on the xArm in look 2) with identity / affine
+  / SAPS / k16_half / nn_orth / nn_affine / nn_affine_pca16. Hypotheses: the 100k controller ≥ .5 (the 50k curve was
+  still rising); the affine ceiling ≥ 50% of the xArm look 2 reference (.88) and nn_affine ≥ 60% of the ceiling.
 
 **Label-based maps, round 2 (offline, CPU, row 1 agents; source demos 0–49, target demos 50–99, equal frame budget).**
 - (a) **Shrinkage:** per-dimension variance of mapped z vs target z (held-out), for nn_orth and nn_affine; plus two
