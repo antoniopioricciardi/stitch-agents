@@ -4,7 +4,7 @@ Newest entries go on top, one entry per run or group of runs. Write the hypothes
 
 ## Key finding so far
 
-**Setting.** To play an environment we use *its own* encoder (the one that can read its images) and a
+**Mario (Step 0).** To play an environment we use *its own* encoder (the one that can read its images) and a
 controller from *another* environment, through a map fitted with SAPS. SAPS needs anchors; without paired
 frames, we pair random frames that share the same action. This only works if the latent space is organised
 by action, which is what SCIL provides.
@@ -17,9 +17,59 @@ SCIL + prototypes reaches 88% of native distance, the same as SCIL + SAPS, again
 Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the other level's controller play
 (Nature CNN: 74% of native on 1-1, flags included) where BC + prototypes reaches 28–39%.
 
+**ManiSkill (Step 1b, continuous control with Diffusion Policy).** The Mario mechanism does not carry over, but
+label-only stitching does. SupCon on action-chunk clusters makes DP encoders more alignable but erases the cube position
+and destroys native control (a measured tradeoff; branch closed). Instead, plain DP encoders are already low-dimensional
+(effective rank 3–6), and a map fitted from **continuous action pairs** (nearest action chunks, no paired frames)
+stitches them: **nn_affine reaches 77% ± 10% of the paired ceiling** over 4 visual shifts × 3 seed pairs × 2 directions,
+where the paired ceiling must be **affine** (it recovers 80–104% of native; the orthogonal SAPS map only ~60%). The same
+maps work across a goal shift (label-only 60–64% of the ceiling) and across robots (Panda encoder → xArm controller:
+83% of the ceiling). Limits: label alignment needs competent, structured encoders (encoders trained on 5–25 demos cannot
+be stitched); with few target demos, the best entry is a stitched start with only the map fine-tuned (77% of the target
+oracle with 25 demos, vs 8% from scratch). Strong viewpoint changes give no working DP oracle at all.
+
 ---
 
-## 2026-10-01 — Step 1b (rows 1–2): does action collapse make DP encoders alignable from labels? (branch `step1b-labels`)
+## 2026-10-01 → 10-04 — Step 1b (closed): action labels for continuous control, label-only stitching of DP agents (branch `step1b-labels`)
+
+### Summary
+
+- **Setup.** ManiSkill3 PickCube, Panda, `pd_ee_delta_pos`; ManiSkill's Diffusion Policy baseline (vendored loop
+  copied into `scripts/train_dp_supcon.py`, identical losses at λ = 0), 100 demos, 50k iterations; state includes
+  goal_pos. z = the 256-d PlainConv feature per frame; maps act on z only. Oracle acceptance = success + three checks:
+  blind (z zeroed / shuffled), fake goal (goal_pos replaced: does it still find the cube?), cube/goal probe from z.
+  Label fits use source demos 0–49 vs target demos 50–99 (never the same frame). Closed loop 250 episodes; % of the
+  affine paired ceiling per seed pair.
+- **Domains.** Working oracles: cam0, look 1, look 2, look 2 + light 1, cam3 (cam0 orbited 15°); goal variant and xArm6
+  + Robotiq in cam0 / look 2. No working oracle: cam1, cam2 (the controller ignores the image and follows goal_pos,
+  also with the goal away from the cube) and light 1 (low cube contrast): a stated limitation. Large seed variance
+  (cam0 .79 / .43 / .49 over seeds 1–3).
+- **Results that matter.**
+  1. SupCon on 16 action-chunk clusters (λ = 1, .1, .01): relative alignability up, native control down (cam0 .79 →
+     .30 → .05); the cube position is erased from z. Figure `results/20261003_step1b_supcon_tradeoff/tradeoff.png`.
+     Branch closed.
+  2. Paired ceiling: affine least squares recovers 80–104% of native; orthogonal SAPS ~60%; an MLP adds nothing.
+  3. **Main matrix** (4 shifts × 3 seed pairs × 2 directions, % of the affine ceiling): **nn_affine 77% ± 10%**, SAPS
+     64%, nn_orth 61%, K = 16 pairs 58%, identity 10% (`results/20261003_step1b_matrix/table.md`).
+  4. Small N: nn_affine-PCA16 is the best map at N ≤ 10 demos (.34 with 10 demos for the map). But encoders trained on
+     5–25 demos are unstructured (NC1 ≈ 9) and cannot be stitched: stitching reuses competent modules, it does not
+     rescue a domain from scratch.
+  5. Adaptation with N demos: end-to-end fine-tuning fails (.04–.06; NC1 ~1 → ~10), encoder-only weak (.08–.18);
+     **map-only fine-tuning from a stitched start** (goal shift): 66% / 77% of the reference oracle with 10 / 25 demos
+     (from scratch .01 / .08 after 50k).
+  6. Visual × task: goal shift (affine ceiling 81% of the reference; label-only 60–64% of the ceiling; orthogonal maps
+     ~30%) and embodiment Panda → xArm (with the 100k xArm controller: ceiling 60% of the xArm reference, nn_affine 83%
+     of the ceiling).
+  7. Offline metrics: chunk distance on demo frames is a weak proxy (the state predicts most of the chunk); the
+     held-out z residual ranks map types across domains like closed loop, but not maps within one pair.
+- **Decisions** (also in PROJECT.md): default aligner nn_affine, PCA16 for N ≤ 10; paired ceiling = affine; SupCon
+  branch closed; low-data entry = freeze competent modules, fine-tune the map; early stopping for future fine-tuning on
+  held-out demos (validation action loss), never on evaluation success; report % of the affine ceiling per seed pair.
+- **Open for later steps:** seeds for items 2c and 3 (one seed each); cam1 / cam2 / light 1 oracles (parked to-dos);
+  the stitchability score (Step 7) can use the logged NC1, effective rank and held-out residual of every encoder.
+
+### Details (chronological, as logged)
+
 
 - **Question:** does the Mario mechanism (SupCon on the latent → action collapse → label-only alignment ≈ paired SAPS)
   carry over to continuous control with Diffusion Policy?
