@@ -1,6 +1,6 @@
 # Label-aligned model stitching for autonomous agents — project brief
 
-_Last updated: 1 Oct 2026. Owner: Antonio._
+_Last updated: 4 Oct 2026. Owner: Antonio._
 
 ## Thesis (one line)
 
@@ -29,6 +29,8 @@ Reuse encoders and controllers that were trained separately: recombine them zero
   - *How we differ:* they coordinate the trainings (every model shares the same fixed prototypes). Ours are trained independently, share only the label set, and the map is found afterwards. They work on retrieval; we work on closed-loop control.
   - *Tool we can borrow:* a fixed simplex (ETF) head would enforce the equal-angle geometry (NC2) that our encoders lack. Test it as a recipe, and as a "coordinated training" upper bound.
 - **Action Collapse** (arXiv 2509.02737): in policy-gradient networks, last-layer features of states sharing the same optimal action collapse to that action's mean, and the means form a simplex ETF. They use it to improve training, not for stitching. **Must cite; we do not claim to have discovered action collapse.** It supports our mechanism.
+- **Neural Regression Collapse** (Andriopoulos et al., NeurIPS 2024, arXiv 2409.04180): multivariate regression, including imitation learning, has its own collapse: last-layer features collapse onto a subspace whose dimension equals the target (action) dimension. Relevance: plain continuous BC/DP encoders may already have a low-dimensional, action-aligned structure, a possible route to aligning continuous actions without discretising. Measured in Step 1b (variance in the top-n principal components of z).
+- **Regression collapse hurts generalisation** (arXiv 2510.01105): unlike in classification, collapse in multivariate regression consistently degrades performance and correlates with higher test error. Literature support for our "collapse vs fine control" risk, and for why the SCIL+TACO hybrid (which restored native performance in Mario) matters.
 - **Neural collapse under class imbalance** (Dang et al., arXiv 2401.02058): with imbalanced classes, class means move away from the simplex ETF. This is the textbook explanation for the missing NC2 in our Mario encoders.
 - **TACO** (Zheng et al., NeurIPS 2023, arXiv 2306.13229): temporal contrastive loss that learns state and action representations together (current state + action sequence ↔ future state); theoretically sufficient for Q*; its action encoder groups actions by effect.
   - Its positives are temporal, not "same action", so on its own it does **not** produce action collapse and does not give label-only alignability (confirmed in Mario, Step 0c). Combined with SupCon (SCIL + TACO, K=3) it keeps alignability and recovers native performance (see Decisions).
@@ -41,7 +43,7 @@ Reuse encoders and controllers that were trained separately: recombine them zero
 
 ## Working claim
 
-Independently trained visuomotor agents can be recombined without paired frames. Training encoders with action-supervised contrastive learning collapses each action onto its centroid, so the map between two encoders can be fitted **post hoc and in closed form from action labels alone** (**frame-free, label-aligned**). We study why this works, how to keep it working in continuous control, where collapse discards fine within-action information, and how to predict whether a stitch will work before deployment.
+Independently trained visuomotor agents can be recombined without paired frames. The map between two agents' encoders is fitted **post hoc and in closed form from action correspondences alone** (**frame-free, label-aligned**): frames whose action chunks are nearest neighbours are paired across domains, then an affine map is fitted. This works because imitation-trained encoders are organised by action: in discrete control this has to be induced (SupCon → action collapse, Mario); in continuous control standard Diffusion Policy training already produces it (regression collapse). Pushing collapse further with SupCon costs control (measured tradeoff). Stitching reuses **competent** modules: encoders trained on too few demos are unstructured and can't be stitched. With few target demos, the best adaptation is to keep the modules frozen and fine-tune only the map.
 
 Scope of the variations between the two agents:
 
@@ -52,12 +54,12 @@ Where action labels do not share a meaning across domains, correspondences come 
 
 ## Regimes
 
-| Regime | What the two domains share | Correspondence source |
-|---|---|---|
-| Visual shift, same task | Action semantics | Random same-action frame pairs (≈ action-class prototypes) |
-| Goal / reward shift (main task-shift result) | Dynamics (same physics), not action meaning | Latent dynamics consistency (TACO-style forward model); else foundation-mined anchors; else K demos |
-| Actuation / dynamics shift (EE-delta bounds ×0.5) | Neither exactly | Foundation-mined anchors (mutual NN in DINO space + cycle filter), approximate dynamics consistency; else K demos |
-| Embodiment shift | — | The controller gets proprioception (Policy-Stitching style); only perception is stitched |
+| Regime | What the two domains share | Correspondence source | Status |
+|---|---|---|---|
+| Visual shift, same task | Action semantics | Nearest action-chunk pairs, affine map (`nn_affine`) | 77% ± 10% of the affine paired ceiling, 4 shifts × 3 seed pairs |
+| Goal / reward shift (main task-shift result) | Reach/grasp behaviour; dynamics | Nearest action-chunk pairs (all frames or pre-grasp only) | 60–64% of the ceiling (one seed); map-only fine-tuning: 66% / 77% of the reference with 10 / 25 demos |
+| Embodiment shift (Panda ↔ xArm, shared EE-delta actions) | Action semantics (same EE control) | Nearest action-chunk pairs | 83% of the ceiling (one seed) |
+| Actuation / dynamics shift (EE-delta bounds ×0.5) | The robot's motion, not the commands | Planned: motion-chunk pairs (change in TCP position from proprio); fallbacks: latent dynamics consistency, foundation-mined anchors, K demos | Step 5b |
 
 Note: a friction/mass variant was dropped. It did not change the expert's actions, because the motion planner is open-loop and ignores physics, so from the controller's point of view there was no task shift.
 
@@ -65,20 +67,11 @@ Note: a friction/mass variant was dropped. It did not change the expert's action
 
 **Setting.** We have an encoder E_u trained on domain u and a controller C_v trained on domain v. The goal is a map T such that C_v(T(E_u(o))) acts well.
 
-0. **Encoder training (part of the method).** Encoders are trained with an action-supervised contrastive loss (SCIL: SupCon directly on the latent the controller reads). Plain BC encoders do not align from labels alone, and neither does SupCon on a projection head (Mario Step 0).
-   - **Open for continuous control:** how to define the action labels, and how to keep within-action information. Candidates: per-dimension bins, k-means on actions or action chunks, clusters in TACO's action space, Rank-N-Contrast, fixed simplex (ETF) head, SupCon + TACO hybrid.
-1. **Correspondences.**
-   - Visual shift: random pairs of frames that share the same action (≤100 per action), equivalent to action-class prototypes.
-   - Goal/reward shift: latent dynamics consistency.
-   - Actuation / dynamics shift: foundation-mined pseudo-anchors.
-2. **Map.** Orthogonal Procrustes by default, affine as an ablation. Refine with fused Gromov–Wasserstein, combining latent geometry, action agreement and optionally DINO similarity. An MLP map is used only in the few-shot setting.
-3. **Few-shot.** Fit T (or a low-rank correction to it) with BC through the frozen C_v on K target demos, K ∈ {0, 1, 5, 20}.
-4. **Stitchability score** (computed without rollouts). It combines:
-   - anchor residual
-   - cycle-consistency error
-   - GW distortion
-   - CKA
-   - action agreement (Mario pilot: offline agreement vs in-game ρ ≈ 0.69 for well-trained agents, ≈ 0 for weak ones)
+0. **Encoders.** No special training in continuous control: plain imitation-trained encoders (Diffusion Policy) are already compressed onto a few action-relevant directions. In discrete control (Mario), SupCon on actions is needed to induce this structure. SupCon on chunk clusters in ManiSkill was tested and closed (it erases the cube position: collapse-vs-control tradeoff).
+1. **Correspondences.** Pair each source frame with the target frame whose z-scored 8-step action chunk is nearest (label fits on disjoint demo halves). Planned for actuation shift: pairs on the robot's actual motion instead of commanded actions.
+2. **Map.** Affine least squares (`nn_affine`, the default); affine in the top-16 principal directions of z when only a few demos are available (`nn_affine-PCA16`). Orthogonal maps (SAPS, `nn_orth`) are systematically worse, especially across tasks and viewpoints.
+3. **Few-shot.** Fine-tune only the map with BC through the frozen controller on N target demos, encoder and controller frozen (best arm in Step 1b; end-to-end fine-tuning destroys encoder structure). Early stopping on held-out demos.
+4. **Stitchability score** (computed without rollouts). Candidates: held-out z residual (ranks map types correctly across domains), encoder structure (NC1, effective rank: separates stitchable from unstitchable encoders), cycle error, CKA, offline chunk agreement on vision-sensitive frames (overrates label maps). The GW objective is not a failure signal.
 
    It is validated by Spearman correlation against closed-loop success over all encoder × controller pairs.
 
@@ -113,12 +106,12 @@ Note: a friction/mass variant was dropped. It did not change the expert's action
 
 - Success rate.
 - % of oracle recovered = stitched / oracle on the target combination.
-- % of paired ceiling = stitched / SAPS-paired.
+- % of paired ceiling = stitched / affine map fitted on paired frames (the headline metric, per seed pair).
 - Compute saved versus retraining.
 
 ## Risks and falsifiers
 
-- **Collapse vs fine control.** Collapse is what makes label-only alignment work, but it discards within-action information that continuous control needs. If no labelling/objective keeps both alignability and native performance in ManiSkill, the method is limited to coarse/discrete control. Even if within-action information is kept, label anchors do not align it; stitched performance can lag native performance for this reason.
+- **Collapse vs fine control** (observed and measured: SupCon on chunk clusters erases the cube position; plain DP avoids it). Collapse is what makes label-only alignment work, but it discards within-action information that continuous control needs. If no labelling/objective keeps both alignability and native performance in ManiSkill, the method is limited to coarse/discrete control. Even if within-action information is kept, label anchors do not align it; stitched performance can lag native performance for this reason.
 - **Frozen DINO + adapter matches our method on most axes.** Then we reposition the paper around task/embodiment shift and reuse of legacy encoders. Published evidence (OpenVLA; DINOv3 diffusion policy on PushT, 0.39 frozen vs 0.84 fine-tuned) and our Mario frozen-backbone runs suggest frozen backbones aren't free performance.
 - **Unpaired alignment stays well below the paired ceiling** (under ~70%) under visual shift.
 - **The stitchability score doesn't correlate** with closed-loop success.
@@ -144,21 +137,24 @@ Novelty check (29 Sep 2026, ~10 targeted searches): no paper found that aligns i
 
 ## Application (if Step 6b holds)
 
-- **Privileged-to-deployable transfer, as a sim-to-sim proxy for sim-to-real:** reuse a controller trained with privileged information (entering through its encoder), by stitching an encoder that must read that information from pixels in a harder domain. Measured as a data-efficiency curve (success vs number of target demos) against training from scratch and fine-tuning. No real robot yet, so never call it sim-to-real.
+- **Privileged-to-deployable transfer, as a sim-to-sim proxy for sim-to-real:** reuse a controller trained with privileged information (entering through its encoder), with an encoder that must read that information from pixels in a harder domain. Measured as a data-efficiency curve (success vs number of target demos) against training from scratch and fine-tuning. No real robot yet, so never call it sim-to-real.
+- **Redesign after Step 1b:** an encoder trained from scratch on N target demos is unstructured and can't be stitched, so the target encoder must come from an existing competent (or pretrained) encoder, adapted with map-only fine-tuning. Depends on goal-from-pixels working; the most at-risk step.
 
 ## Out of scope for now
 
 - Offline-RL trajectory stitching: follow-up paper.
 - Online RL: appendix at most.
 - Swapping controllers mid-episode: a single demo experiment.
+- CARLA: moved to the NeurIPS/CoRL version.
+- Genre-level transfer across games (e.g. platformers, arcade driving): new encoder per game + reused controller via alignment + short fine-tune. Separate follow-up paper, after ICML.
 
 ## Open questions
 
 1. Does prototype alignment work post hoc on plain BC encoders, or is SupCon training required? *(Answered 2026-09-29 in Mario: SupCon on the latent is required; see Decisions.)*
 2. How many samples per action class are needed? *(Partly answered in Mario: 5 per class gives 73% of native in-game vs 88% with all; ≤100 random pairs per action is the adopted recipe.)*
-3. Does frozen DINO + adapter close the gap on its own? *(Mario: no, but upscaled NES frames are a weak test; redo in ManiSkill, Step 3.)*
-4. Are foundation-mined anchors reliable under task shift, or do we need few-shot?
-5. Is an orthogonal map enough, or do we need affine/MLP?
+3. Does frozen DINO + adapter close the gap on its own? *(Mario: no, but upscaled NES frames are a weak test; redo in ManiSkill, Step 3.)* Also: does a pretrained encoder fine-tuned on a few demos provide the structure that 5–25 demos alone can't?
+4. Are foundation-mined anchors reliable under task shift, or do we need few-shot? *(Partly superseded: goal shift and embodiment work with action-chunk pairs; actuation will test motion pairs first.)*
+5. Is an orthogonal map enough, or do we need affine/MLP? *(Answered 2026-10-04: affine. The affine paired ceiling reaches ~89% of native vs ~58% for orthogonal SAPS; an MLP adds nothing over affine.)*
 6. **How should continuous actions be labelled so that encoders stay alignable without losing within-action information?** (Step 1b.) *(Answered 2026-10-04 in ManiSkill: no encoder-side labels; plain DP encoders + label-only maps on continuous action pairs. See Decisions.)*
 7. Does a TACO-style temporal term preserve or destroy label-only alignability when combined with SupCon? (Step 0c.) *(Answered 2026-09-29 in Mario: the temporal term preserves alignability; see Decisions.)*
 8. Is latent dynamics consistency a reliable correspondence signal under goal/reward shift? (Step 5.)
