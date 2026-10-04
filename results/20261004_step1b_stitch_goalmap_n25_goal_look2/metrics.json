@@ -1,0 +1,50 @@
+{
+ "checkpoints": {
+  "goal_cam0": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_goal_cam0_s2/runs/step1b_dp_ref_goal_cam0_s2/checkpoints/49999.pt",
+  "goal_look2": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_look2_s2/runs/step1b_dp_ref_look2_s2/checkpoints/49999.pt"
+ },
+ "label_sizes": [
+  933,
+  0,
+  14,
+  1521,
+  0,
+  500,
+  583,
+  1277,
+  295,
+  1044,
+  0,
+  52,
+  438,
+  231,
+  599,
+  398
+ ],
+ "geometry": {
+  "goal_cam0": {
+   "nc1": 1.9849177598953247,
+   "eff_rank": 9.593716584093405,
+   "var_top4": 0.5869223671461372,
+   "var_top16": 0.8378287497542283
+  },
+  "goal_look2": {
+   "nc1": 1.3196396827697754,
+   "eff_rank": 6.111743569582081,
+   "var_top4": 0.6780316623474839,
+   "var_top16": 0.8682323656064787
+  }
+ },
+ "stitch": {
+  "goal_look2_enc_to_goal_cam0_ctrl": {
+   "aligners": {
+    "nn_affine_pca16": {
+     "z_residual": 0.6692095994949341,
+     "z_residual_draws": [
+      0.6692095994949341
+     ]
+    }
+   }
+  }
+ }
+}

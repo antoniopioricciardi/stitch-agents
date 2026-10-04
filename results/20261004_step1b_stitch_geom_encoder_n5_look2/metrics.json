@@ -1,0 +1,62 @@
+{
+ "checkpoints": {
+  "cam0": "/home/ricc/projects/labelstitch-step1/results/20261001_step2g_dp_core_nograsp_50k_s1/runs/step2g_dp_core_nograsp_50k_s1/checkpoints/49999.pt",
+  "look2": "/home/ricc/projects/labelstitch-1b/results/20261004_step1b_ft_encoder_cam0s1_look2_n5/runs/step1b_ft_encoder_cam0s1_look2_n5/checkpoints/4999.pt"
+ },
+ "label_sizes": [
+  946,
+  408,
+  310,
+  1772,
+  114,
+  500,
+  178,
+  1287,
+  297,
+  88,
+  184,
+  309,
+  438,
+  215,
+  199,
+  398
+ ],
+ "geometry": {
+  "cam0": {
+   "nc1": 0.9204210042953491,
+   "eff_rank": 3.1027952070127602,
+   "var_top4": 0.7709375104545121,
+   "var_top16": 0.9033908955930577
+  },
+  "look2": {
+   "nc1": 3.3025104999542236,
+   "eff_rank": 4.9542477772210765,
+   "var_top4": 0.6420553411350771,
+   "var_top16": 0.8492295970113334
+  }
+ },
+ "stitch": {
+  "look2_enc_to_cam0_ctrl": {
+   "aligners": {
+    "identity": {
+     "z_residual": 1.4020273685455322,
+     "z_residual_draws": [
+      1.4020273685455322
+     ]
+    },
+    "affine": {
+     "z_residual": 0.5460373759269714,
+     "z_residual_draws": [
+      0.5460373759269714
+     ]
+    },
+    "nn_affine_pca16": {
+     "z_residual": 0.7925711274147034,
+     "z_residual_draws": [
+      0.7925711274147034
+     ]
+    }
+   }
+  }
+ }
+}

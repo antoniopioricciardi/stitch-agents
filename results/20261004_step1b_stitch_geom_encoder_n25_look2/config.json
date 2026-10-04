@@ -1,0 +1,40 @@
+{
+ "row": "geom_encoder_n25",
+ "domain": "look2",
+ "runs": {
+  "cam0": "/home/ricc/projects/labelstitch-step1/results/20261001_step2g_dp_core_nograsp_50k_s1",
+  "look2": "/home/ricc/projects/labelstitch-1b/results/20261004_step1b_ft_encoder_cam0s1_look2_n25"
+ },
+ "labels": "/home/ricc/projects/labelstitch-1b/results/20261001_step1b_labels/labels.pt",
+ "env": {
+  "cam0": "stitch.envs:StitchPickCubeLollipopNoGrasp-v1",
+  "look2": "stitch.envs:StitchPickCubeLollipopNoGraspLook2-v1"
+ },
+ "h5": {
+  "cam0": "/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_demos_default_panda_cam0_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+  "look2": "results/20261002_dp_ours_demos_default_panda_cam0_look2_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
+ },
+ "fit_demos": [
+  0,
+  100
+ ],
+ "heldout_demos": [
+  400,
+  498
+ ],
+ "maps": [
+  "identity",
+  "affine",
+  "nn_affine_pca16"
+ ],
+ "only_dir": true,
+ "src_demos": 25,
+ "n_pre_src": 981,
+ "n_pre_tgt": 2159,
+ "n_off": 2000,
+ "top_sensitive": 0.3,
+ "n_draws": 5,
+ "n_episodes": 250,
+ "seed": 0,
+ "closed_loop": false
+}
