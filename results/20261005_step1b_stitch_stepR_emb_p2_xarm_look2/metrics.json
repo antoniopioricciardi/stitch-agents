@@ -1,0 +1,98 @@
+{
+ "checkpoints": {
+  "xarm_cam0": "/home/ricc/projects/labelstitch-r/results/20261004_stepR_dp_ref_xarm_cam0_s3/runs/stepR_dp_ref_xarm_cam0_s3/checkpoints/99999.pt",
+  "xarm_look2": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_look2_s2/runs/step1b_dp_ref_look2_s2/checkpoints/49999.pt"
+ },
+ "label_sizes": [
+  919,
+  308,
+  180,
+  0,
+  65,
+  1613,
+  117,
+  2748,
+  392,
+  67,
+  131,
+  179,
+  456,
+  295,
+  178,
+  446
+ ],
+ "geometry": {
+  "xarm_cam0": {
+   "nc1": 3.861201047897339,
+   "eff_rank": 7.020836063687766,
+   "var_top4": 0.619645374084581,
+   "var_top16": 0.8626779199629829
+  },
+  "xarm_look2": {
+   "nc1": 4.500503063201904,
+   "eff_rank": 8.041732583121291,
+   "var_top4": 0.6409969872861837,
+   "var_top16": 0.8680872770975201
+  }
+ },
+ "stitch": {
+  "xarm_look2_enc_to_xarm_cam0_ctrl": {
+   "aligners": {
+    "identity": {
+     "z_residual": 8.918956756591797,
+     "z_residual_draws": [
+      8.918956756591797
+     ],
+     "success_once": 0.052,
+     "success_at_end": 0.052,
+     "episodes": 250
+    },
+    "affine": {
+     "z_residual": 0.648471474647522,
+     "z_residual_draws": [
+      0.648471474647522
+     ],
+     "success_once": 0.464,
+     "success_at_end": 0.42,
+     "episodes": 250
+    },
+    "saps": {
+     "z_residual": 1.3488167524337769,
+     "z_residual_draws": [
+      1.3488167524337769
+     ],
+     "success_once": 0.484,
+     "success_at_end": 0.456,
+     "episodes": 250
+    },
+    "nn_orth": {
+     "z_residual": 1.6165143251419067,
+     "z_residual_draws": [
+      1.6165143251419067
+     ],
+     "success_once": 0.528,
+     "success_at_end": 0.512,
+     "episodes": 250
+    },
+    "nn_affine": {
+     "z_residual": 0.9150986671447754,
+     "z_residual_draws": [
+      0.9150986671447754
+     ],
+     "success_once": 0.252,
+     "success_at_end": 0.232,
+     "episodes": 250
+    },
+    "nn_affine_pca16": {
+     "z_residual": 0.7715669274330139,
+     "z_residual_draws": [
+      0.7715669274330139
+     ],
+     "success_once": 0.26,
+     "success_at_end": 0.236,
+     "episodes": 250
+    }
+   }
+  }
+ }
+}

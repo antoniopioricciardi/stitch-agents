@@ -1,0 +1,9 @@
+{
+ "run_dir": "/home/ricc/projects/labelstitch-r/results/20261005_stepR_dp_ref_xarm_look2_s3",
+ "domain": "xarm_look2",
+ "env_id": "StitchPickCubeLollipopNoGraspLook2Xarm-v1",
+ "n": 50,
+ "eval_seeds": "10000+i",
+ "fake_goal_seeds": "20000+i",
+ "grid": "first 3 failed true-goal episodes, every 10th step"
+}

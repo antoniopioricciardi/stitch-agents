@@ -1,0 +1,38 @@
+{
+ "row": "stepR_map_goal_p1_n25",
+ "domain": "goal_look2",
+ "runs": {
+  "goal_cam0": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_goal_cam0_s2",
+  "goal_look2": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_look2_s1"
+ },
+ "labels": "/home/ricc/projects/labelstitch-r/results/20261001_step1b_labels/labels.pt",
+ "env": {
+  "goal_cam0": "stitch.envs:StitchPickCubeLollipopNoGraspGoal-v1",
+  "goal_look2": "stitch.envs:StitchPickCubeLollipopNoGraspLook2Goal-v1"
+ },
+ "h5": {
+  "goal_cam0": "results/20261003_dp_ours_demos_goal_panda_cam0_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+  "goal_look2": "results/20261003_dp_ours_demos_goal_panda_cam0_look2_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
+ },
+ "fit_demos": [
+  0,
+  100
+ ],
+ "heldout_demos": [
+  400,
+  498
+ ],
+ "maps": [
+  "nn_affine_pca16"
+ ],
+ "only_dir": true,
+ "src_demos": 25,
+ "n_pre_src": 981,
+ "n_pre_tgt": 2150,
+ "n_off": 2000,
+ "top_sensitive": 0.3,
+ "n_draws": 5,
+ "n_episodes": 250,
+ "seed": 0,
+ "closed_loop": false
+}

@@ -1,0 +1,1035 @@
+{
+ "checkpoint": "/home/ricc/projects/labelstitch-r/results/20261005_stepR_dp_ref_xarm_look2_s3/runs/stepR_dp_ref_xarm_look2_s3/checkpoints/49999.pt",
+ "true": {
+  "summary": {
+   "success": 0.9,
+   "grasped": 0.94,
+   "placed_fake": 0.9,
+   "cube": 0.011946774469688535,
+   "goal": 0.012850906371604652,
+   "fake_goal": 0.012850906371604652,
+   "cube_to_fake_goal": 0.0347212845319882,
+   "fake_goal_to_goal": 0.0,
+   "closer_to_fake_goal_than_cube": 0.54,
+   "closer_to_fake_goal_than_goal": 0.0
+  },
+  "episodes": [
+   {
+    "cube": 0.005650588311254978,
+    "goal": 0.00453960569575429,
+    "fake_goal": 0.00453960569575429,
+    "cube_to_fake_goal": 0.009819340892136097,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.002830644603818655,
+    "goal": 0.01128644123673439,
+    "fake_goal": 0.01128644123673439,
+    "cube_to_fake_goal": 0.014316984452307224,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.0367082878947258,
+    "goal": 0.08713499456644058,
+    "fake_goal": 0.08713499456644058,
+    "cube_to_fake_goal": 0.3143375515937805,
+    "success": false,
+    "grasped": false,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": false
+   },
+   {
+    "cube": 0.03197254240512848,
+    "goal": 0.06464406102895737,
+    "fake_goal": 0.06464406102895737,
+    "cube_to_fake_goal": 0.22237010300159454,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": false
+   },
+   {
+    "cube": 0.005832098424434662,
+    "goal": 0.005332480650395155,
+    "fake_goal": 0.005332480650395155,
+    "cube_to_fake_goal": 0.011950872838497162,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.012981061823666096,
+    "goal": 0.014809179119765759,
+    "fake_goal": 0.014809179119765759,
+    "cube_to_fake_goal": 0.01945836842060089,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.01984361931681633,
+    "goal": 0.0017746194498613477,
+    "fake_goal": 0.0017746194498613477,
+    "cube_to_fake_goal": 0.020324546843767166,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.010263386182487011,
+    "goal": 0.0060089570470154285,
+    "fake_goal": 0.0060089570470154285,
+    "cube_to_fake_goal": 0.013849925249814987,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.01034685131162405,
+    "goal": 0.00888596661388874,
+    "fake_goal": 0.00888596661388874,
+    "cube_to_fake_goal": 0.014630459249019623,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.022794513031840324,
+    "goal": 0.010031444951891899,
+    "fake_goal": 0.010031444951891899,
+    "cube_to_fake_goal": 0.016228782013058662,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.010138554498553276,
+    "goal": 0.0033493638038635254,
+    "fake_goal": 0.0033493638038635254,
+    "cube_to_fake_goal": 0.012167190201580524,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.015327476896345615,
+    "goal": 0.00807866919785738,
+    "fake_goal": 0.00807866919785738,
+    "cube_to_fake_goal": 0.01150437630712986,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.003198728198185563,
+    "goal": 0.011751989834010601,
+    "fake_goal": 0.011751989834010601,
+    "cube_to_fake_goal": 0.014326350763440132,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.010271395556628704,
+    "goal": 0.011173767037689686,
+    "fake_goal": 0.011173767037689686,
+    "cube_to_fake_goal": 0.018115391954779625,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.009939691051840782,
+    "goal": 0.00828079879283905,
+    "fake_goal": 0.00828079879283905,
+    "cube_to_fake_goal": 0.013930988498032093,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.003852142719551921,
+    "goal": 0.0077735260128974915,
+    "fake_goal": 0.0077735260128974915,
+    "cube_to_fake_goal": 0.011802277527749538,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.013735335320234299,
+    "goal": 0.009940083138644695,
+    "fake_goal": 0.009940083138644695,
+    "cube_to_fake_goal": 0.021160859614610672,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.005643513519316912,
+    "goal": 0.01256044115871191,
+    "fake_goal": 0.01256044115871191,
+    "cube_to_fake_goal": 0.0164048969745636,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.020726975053548813,
+    "goal": 0.023555535823106766,
+    "fake_goal": 0.023555535823106766,
+    "cube_to_fake_goal": 0.018666235730051994,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.004243014380335808,
+    "goal": 0.0036873880308121443,
+    "fake_goal": 0.0036873880308121443,
+    "cube_to_fake_goal": 0.004428391344845295,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.003944331780076027,
+    "goal": 0.01621820218861103,
+    "fake_goal": 0.01621820218861103,
+    "cube_to_fake_goal": 0.016052071005105972,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.004606187809258699,
+    "goal": 0.0014913692139089108,
+    "fake_goal": 0.0014913692139089108,
+    "cube_to_fake_goal": 0.005897958297282457,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.0064905122853815556,
+    "goal": 0.007175394333899021,
+    "fake_goal": 0.007175394333899021,
+    "cube_to_fake_goal": 0.0056808991357684135,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.006387217435985804,
+    "goal": 0.003802251536399126,
+    "fake_goal": 0.003802251536399126,
+    "cube_to_fake_goal": 0.010659740306437016,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.004239758476614952,
+    "goal": 0.003984258510172367,
+    "fake_goal": 0.003984258510172367,
+    "cube_to_fake_goal": 0.006418901029974222,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.005801335442811251,
+    "goal": 0.010171906091272831,
+    "fake_goal": 0.010171906091272831,
+    "cube_to_fake_goal": 0.015172157436609268,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.03304672613739967,
+    "goal": 0.08021799474954605,
+    "fake_goal": 0.08021799474954605,
+    "cube_to_fake_goal": 0.22118866443634033,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": false
+   },
+   {
+    "cube": 0.004209091886878014,
+    "goal": 0.008429249748587608,
+    "fake_goal": 0.008429249748587608,
+    "cube_to_fake_goal": 0.01121524814516306,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.0038446104153990746,
+    "goal": 0.005802307743579149,
+    "fake_goal": 0.005802307743579149,
+    "cube_to_fake_goal": 0.0034349721390753984,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.00737207755446434,
+    "goal": 0.008415563963353634,
+    "fake_goal": 0.008415563963353634,
+    "cube_to_fake_goal": 0.0034841042943298817,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.0033212550915777683,
+    "goal": 0.006297312211245298,
+    "fake_goal": 0.006297312211245298,
+    "cube_to_fake_goal": 0.003405629890039563,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.013315580785274506,
+    "goal": 0.0025754692032933235,
+    "fake_goal": 0.0025754692032933235,
+    "cube_to_fake_goal": 0.014671106822788715,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.009719781577587128,
+    "goal": 0.006871460471302271,
+    "fake_goal": 0.006871460471302271,
+    "cube_to_fake_goal": 0.009853236377239227,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.01702115312218666,
+    "goal": 0.013691502623260021,
+    "fake_goal": 0.013691502623260021,
+    "cube_to_fake_goal": 0.00797876063734293,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.0038073814939707518,
+    "goal": 0.006714615970849991,
+    "fake_goal": 0.006714615970849991,
+    "cube_to_fake_goal": 0.010470006614923477,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.017910540103912354,
+    "goal": 0.004508267622441053,
+    "fake_goal": 0.004508267622441053,
+    "cube_to_fake_goal": 0.01985565386712551,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.01548468042165041,
+    "goal": 0.003912410233169794,
+    "fake_goal": 0.003912410233169794,
+    "cube_to_fake_goal": 0.013352412730455399,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.03264202922582626,
+    "goal": 0.03137034550309181,
+    "fake_goal": 0.03137034550309181,
+    "cube_to_fake_goal": 0.21720212697982788,
+    "success": false,
+    "grasped": false,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": false
+   },
+   {
+    "cube": 0.004241799470037222,
+    "goal": 0.0065965428948402405,
+    "fake_goal": 0.0065965428948402405,
+    "cube_to_fake_goal": 0.008856936357915401,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.010007227770984173,
+    "goal": 0.006409709341824055,
+    "fake_goal": 0.006409709341824055,
+    "cube_to_fake_goal": 0.006820511072874069,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.014108791947364807,
+    "goal": 0.011726615950465202,
+    "fake_goal": 0.011726615950465202,
+    "cube_to_fake_goal": 0.0140251275151968,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.011838309466838837,
+    "goal": 0.004556751810014248,
+    "fake_goal": 0.004556751810014248,
+    "cube_to_fake_goal": 0.01333102397620678,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.003124269424006343,
+    "goal": 0.005114391911774874,
+    "fake_goal": 0.005114391911774874,
+    "cube_to_fake_goal": 0.007774029392749071,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.010056672617793083,
+    "goal": 0.012617525644600391,
+    "fake_goal": 0.012617525644600391,
+    "cube_to_fake_goal": 0.01615101285278797,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.00608737301081419,
+    "goal": 0.004742027726024389,
+    "fake_goal": 0.004742027726024389,
+    "cube_to_fake_goal": 0.007936939597129822,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.010766404680907726,
+    "goal": 0.018737781792879105,
+    "fake_goal": 0.018737781792879105,
+    "cube_to_fake_goal": 0.022645598277449608,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.0074442303739488125,
+    "goal": 0.004619401413947344,
+    "fake_goal": 0.004619401413947344,
+    "cube_to_fake_goal": 0.003326286328956485,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.003210225608199835,
+    "goal": 0.0082819489762187,
+    "fake_goal": 0.0082819489762187,
+    "cube_to_fake_goal": 0.011381853371858597,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.02584729716181755,
+    "goal": 0.011867307126522064,
+    "fake_goal": 0.011867307126522064,
+    "cube_to_fake_goal": 0.013487255200743675,
+    "success": true,
+    "grasped": true,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.04114145040512085,
+    "goal": 0.011026118882000446,
+    "fake_goal": 0.011026118882000446,
+    "cube_to_fake_goal": 0.21454010903835297,
+    "success": false,
+    "grasped": false,
+    "fake_goal_to_goal": 0.0,
+    "placed_fake": false
+   }
+  ]
+ },
+ "fake": {
+  "summary": {
+   "success": 0.0,
+   "grasped": 0.9,
+   "placed_fake": 0.82,
+   "cube": 0.011553402254357935,
+   "goal": 0.08618402935564518,
+   "fake_goal": 0.01542642421554774,
+   "cube_to_fake_goal": 0.03725625623948872,
+   "fake_goal_to_goal": 0.1614065896719694,
+   "closer_to_fake_goal_than_cube": 0.36,
+   "closer_to_fake_goal_than_goal": 0.94
+  },
+  "episodes": [
+   {
+    "cube": 0.0056639802642166615,
+    "goal": 0.03929157182574272,
+    "fake_goal": 0.010132991708815098,
+    "cube_to_fake_goal": 0.012600157409906387,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.08841266483068466,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.003427488962188363,
+    "goal": 0.1711447387933731,
+    "fake_goal": 0.0033856744412332773,
+    "cube_to_fake_goal": 0.004934406373649836,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.20842432975769043,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.029677964746952057,
+    "goal": 0.12890954315662384,
+    "fake_goal": 0.08337376266717911,
+    "cube_to_fake_goal": 0.2714584171772003,
+    "success": false,
+    "grasped": false,
+    "fake_goal_to_goal": 0.05122033506631851,
+    "placed_fake": false
+   },
+   {
+    "cube": 0.03283887356519699,
+    "goal": 0.10746357589960098,
+    "fake_goal": 0.030274104326963425,
+    "cube_to_fake_goal": 0.17870506644248962,
+    "success": false,
+    "grasped": false,
+    "fake_goal_to_goal": 0.2412707507610321,
+    "placed_fake": false
+   },
+   {
+    "cube": 0.003632714506238699,
+    "goal": 0.10820625722408295,
+    "fake_goal": 0.007531387731432915,
+    "cube_to_fake_goal": 0.004587736912071705,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.11738698929548264,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.0058496268466115,
+    "goal": 0.14499615132808685,
+    "fake_goal": 0.006759388837963343,
+    "cube_to_fake_goal": 0.011361093260347843,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.24795649945735931,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.017081905156373978,
+    "goal": 0.08397743850946426,
+    "fake_goal": 0.017738275229930878,
+    "cube_to_fake_goal": 0.032711151987314224,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.25596415996551514,
+    "placed_fake": false
+   },
+   {
+    "cube": 0.0059157549403607845,
+    "goal": 0.09578161686658859,
+    "fake_goal": 0.0072896783240139484,
+    "cube_to_fake_goal": 0.009709070436656475,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.10201267153024673,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.0036994346883147955,
+    "goal": 0.10059788823127747,
+    "fake_goal": 0.007746124640107155,
+    "cube_to_fake_goal": 0.010250598192214966,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.22828008234500885,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.025696462020277977,
+    "goal": 0.060943569988012314,
+    "fake_goal": 0.005794145166873932,
+    "cube_to_fake_goal": 0.024407021701335907,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.12973015010356903,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.006058442872017622,
+    "goal": 0.13735738396644592,
+    "fake_goal": 0.014581969939172268,
+    "cube_to_fake_goal": 0.013462667353451252,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.22788462042808533,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.015713224187493324,
+    "goal": 0.08612081408500671,
+    "fake_goal": 0.003830898320302367,
+    "cube_to_fake_goal": 0.01249469630420208,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.11875792592763901,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.007071079220622778,
+    "goal": 0.08674029260873795,
+    "fake_goal": 0.006549911107867956,
+    "cube_to_fake_goal": 0.006342599634081125,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.14217334985733032,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.01262254174798727,
+    "goal": 0.1400100737810135,
+    "fake_goal": 0.01020714920014143,
+    "cube_to_fake_goal": 0.016856348142027855,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.19318188726902008,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.004892261233180761,
+    "goal": 0.05793442204594612,
+    "fake_goal": 0.007445847149938345,
+    "cube_to_fake_goal": 0.010698752477765083,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.20184405148029327,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.011682731099426746,
+    "goal": 0.10480155050754547,
+    "fake_goal": 0.005319042131304741,
+    "cube_to_fake_goal": 0.018297383561730385,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.21190954744815826,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.029319724068045616,
+    "goal": 0.1017264798283577,
+    "fake_goal": 0.00995767954736948,
+    "cube_to_fake_goal": 0.043781206011772156,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.24695074558258057,
+    "placed_fake": false
+   },
+   {
+    "cube": 0.003046274185180664,
+    "goal": 0.09865941852331161,
+    "fake_goal": 0.009677748195827007,
+    "cube_to_fake_goal": 0.00675792945548892,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.12245338410139084,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.005445096641778946,
+    "goal": 0.16151785850524902,
+    "fake_goal": 0.01096060685813427,
+    "cube_to_fake_goal": 0.01576448790729046,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.21697181463241577,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.015783287584781647,
+    "goal": 0.012229327112436295,
+    "fake_goal": 0.016935158520936966,
+    "cube_to_fake_goal": 0.01774410717189312,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.19652345776557922,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.008892524987459183,
+    "goal": 0.09425214678049088,
+    "fake_goal": 0.017214026302099228,
+    "cube_to_fake_goal": 0.015609560534358025,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.08856325596570969,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.004617398139089346,
+    "goal": 0.04892813414335251,
+    "fake_goal": 0.006903331261128187,
+    "cube_to_fake_goal": 0.009000508114695549,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.17268040776252747,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.009664890356361866,
+    "goal": 0.04752146080136299,
+    "fake_goal": 0.009119021706283092,
+    "cube_to_fake_goal": 0.0051185572519898415,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.06993304193019867,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.006918828468769789,
+    "goal": 0.04334432631731033,
+    "fake_goal": 0.004035392310470343,
+    "cube_to_fake_goal": 0.008839361369609833,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.041712161153554916,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.005094446241855621,
+    "goal": 0.02866094373166561,
+    "fake_goal": 0.012805256061255932,
+    "cube_to_fake_goal": 0.016140997409820557,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.1433364897966385,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.003576175542548299,
+    "goal": 0.030016982927918434,
+    "fake_goal": 0.019738204777240753,
+    "cube_to_fake_goal": 0.02419215627014637,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.13636982440948486,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.022073986008763313,
+    "goal": 0.1405952125787735,
+    "fake_goal": 0.05764924734830856,
+    "cube_to_fake_goal": 0.10555072873830795,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.22180014848709106,
+    "placed_fake": false
+   },
+   {
+    "cube": 0.008896692655980587,
+    "goal": 0.02648279257118702,
+    "fake_goal": 0.00974984560161829,
+    "cube_to_fake_goal": 0.016335267573595047,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.10678807646036148,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.007809084840118885,
+    "goal": 0.12863658368587494,
+    "fake_goal": 0.012417841702699661,
+    "cube_to_fake_goal": 0.018378863111138344,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.19976535439491272,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.006857735570520163,
+    "goal": 0.10422921925783157,
+    "fake_goal": 0.012113218195736408,
+    "cube_to_fake_goal": 0.005347170867025852,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.11653052270412445,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.005366927944123745,
+    "goal": 0.05238179489970207,
+    "fake_goal": 0.007381939794868231,
+    "cube_to_fake_goal": 0.008434811607003212,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.12524373829364777,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.013156037777662277,
+    "goal": 0.026759756729006767,
+    "fake_goal": 0.005146886222064495,
+    "cube_to_fake_goal": 0.014943985268473625,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.036010175943374634,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.003803943982347846,
+    "goal": 0.08668727427721024,
+    "fake_goal": 0.005885609425604343,
+    "cube_to_fake_goal": 0.005075403954833746,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.10701104253530502,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.005933272186666727,
+    "goal": 0.13614927232265472,
+    "fake_goal": 0.004944710060954094,
+    "cube_to_fake_goal": 0.011285461485385895,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.24839958548545837,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.007144260220229626,
+    "goal": 0.13071244955062866,
+    "fake_goal": 0.007138824090361595,
+    "cube_to_fake_goal": 0.008180063217878342,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.23388543725013733,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.014972271397709846,
+    "goal": 0.03755618631839752,
+    "fake_goal": 0.006710628047585487,
+    "cube_to_fake_goal": 0.0257890522480011,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.15517348051071167,
+    "placed_fake": false
+   },
+   {
+    "cube": 0.0052133966237306595,
+    "goal": 0.04853495955467224,
+    "fake_goal": 0.003187270136550069,
+    "cube_to_fake_goal": 0.0032887794077396393,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.08466920256614685,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.03925880417227745,
+    "goal": 0.07619553804397583,
+    "fake_goal": 0.04593190923333168,
+    "cube_to_fake_goal": 0.2457575649023056,
+    "success": false,
+    "grasped": false,
+    "fake_goal_to_goal": 0.21179324388504028,
+    "placed_fake": false
+   },
+   {
+    "cube": 0.003580577904358506,
+    "goal": 0.029421603307127953,
+    "fake_goal": 0.008417126722633839,
+    "cube_to_fake_goal": 0.0059792050160467625,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.13874328136444092,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.010084880515933037,
+    "goal": 0.14688479900360107,
+    "fake_goal": 0.010621292516589165,
+    "cube_to_fake_goal": 0.011802991852164268,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.20386730134487152,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.007187428418546915,
+    "goal": 0.12547051906585693,
+    "fake_goal": 0.012026658281683922,
+    "cube_to_fake_goal": 0.01899011619389057,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.19029071927070618,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.010665950365364552,
+    "goal": 0.035431377589702606,
+    "fake_goal": 0.007054338231682777,
+    "cube_to_fake_goal": 0.014502396807074547,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.042664140462875366,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.007574292365461588,
+    "goal": 0.0991518571972847,
+    "fake_goal": 0.00956656038761139,
+    "cube_to_fake_goal": 0.016119547188282013,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.25828853249549866,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.006289544980973005,
+    "goal": 0.06888046860694885,
+    "fake_goal": 0.006843694485723972,
+    "cube_to_fake_goal": 0.003395332023501396,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.20513039827346802,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.006896149832755327,
+    "goal": 0.024117404595017433,
+    "fake_goal": 0.0048826164565980434,
+    "cube_to_fake_goal": 0.011941344477236271,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.10653489083051682,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.003144476329907775,
+    "goal": 0.1282110959291458,
+    "fake_goal": 0.007276781369000673,
+    "cube_to_fake_goal": 0.010900723747909069,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.12850117683410645,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.014995984733104706,
+    "goal": 0.10813400149345398,
+    "fake_goal": 0.01003438513725996,
+    "cube_to_fake_goal": 0.024313678964972496,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.17642681300640106,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.007425027433782816,
+    "goal": 0.09677513688802719,
+    "fake_goal": 0.013594284653663635,
+    "cube_to_fake_goal": 0.013529971241950989,
+    "success": false,
+    "grasped": true,
+    "fake_goal_to_goal": 0.18973132967948914,
+    "placed_fake": true
+   },
+   {
+    "cube": 0.03208891302347183,
+    "goal": 0.059373948723077774,
+    "fake_goal": 0.061351578682661057,
+    "cube_to_fake_goal": 0.15320928394794464,
+    "success": false,
+    "grasped": false,
+    "fake_goal_to_goal": 0.21341806650161743,
+    "placed_fake": false
+   },
+   {
+    "cube": 0.04336734116077423,
+    "goal": 0.07129424810409546,
+    "fake_goal": 0.09608718752861023,
+    "cube_to_fake_goal": 0.30793502926826477,
+    "success": false,
+    "grasped": false,
+    "fake_goal_to_goal": 0.16775822639465332,
+    "placed_fake": false
+   }
+  ]
+ }
+}

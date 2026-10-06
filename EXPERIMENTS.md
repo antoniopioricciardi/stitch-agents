@@ -30,6 +30,250 @@ oracle with 25 demos, vs 8% from scratch). Strong viewpoint changes give no work
 
 ---
 
+## 2026-10-06 — Map-class selection by held-out residual on label pairs (offline, CPU; first piece of Step 7)
+
+- **Question:** can the map class (nn_affine vs nn_orth) be chosen per stitch without paired frames and without
+  closed-loop success, from the z residual on **held-out label pairs**?
+- **Motivation:** across robots (Step R embodiment) the orthogonal maps beat nn_affine (SAPS 89%, nn_orth 93% vs
+  nn_affine 70% of the ceiling), while under visual and goal shift nn_affine wins. Proposed explanation: cross-robot
+  "same action chunk" pairs are noisier, least squares on noisy pairs shrinks the mapped latents (Step 1b: nn_affine
+  kept 65–69% of the target variance), and an orthogonal map cannot shrink.
+- **Setup:** every stitch already evaluated in closed loop with both maps: the main matrix (4 shifts × 3 seed pairs ×
+  2 directions = 24) and the Step R goal shift and embodiment (3 pairs each, look 2 encoder → cam0-side controller):
+  30 stitches. Agents from the checkpoints recorded in each run's metrics.json. Fit as in the closed-loop runs:
+  source demos 0–49, each frame paired with the target frame of demos 50–99 whose z-scored 8-step chunk is nearest;
+  nn_affine = affine least squares, nn_orth = orthogonal Procrustes. **Held-out label pairs:** the same nearest-chunk
+  pairing on held-out demos, source 400–448 vs target 449–497 (no paired frames anywhere). Residual = ‖T(z_s) − z_t‖² /
+  ‖z_t − mean‖² over the held-out pairs. Rule: pick the map with the lower residual. Also the variance kept by each
+  map: total variance of T(z_s) / total variance of z_t (held-out frames).
+- **Reported:** agreement of the residual pick with the closed-loop winner (higher success_once of the two), and the
+  mean % of the affine ceiling of the residual-selected map vs always nn_affine vs always nn_orth; per group (matrix,
+  goal, embodiment) and pooled.
+- **Hypotheses (yours):** the residual picks nn_orth for embodiment and nn_affine for the visual and goal shifts, and
+  the selected map beats either fixed choice on average. Variance kept by nn_affine is lower on the embodiment pairs
+  than on the visual shifts.
+- **Risk, stated before running:** least squares minimises the squared error on its own pairs, and shrinkage towards
+  the mean lowers that error when the pairs are noisy. So the residual on held-out *label* pairs may favour affine
+  most strongly exactly where the pairs are noisiest, i.e. point the wrong way for embodiment. If the pick is affine
+  everywhere, the label-pair residual cannot choose the map class, and a shrinkage-aware criterion would be the next
+  idea (proposed, not run).
+- **Added before running (2026-10-06): two shrinkage-aware criteria, computed in the same CPU pass on the same held-out
+  label pairs.** Three criteria in all, each picking one map per stitch:
+  1. raw held-out z residual (lower wins; as above);
+  2. **variance-matched residual** (lower wins): each map's output rescaled per dimension to the target z's variance
+     on the fit pairs (mapped fit-source z standardised per dimension, then given the paired target z's per-dimension
+     mean and std), then the held-out residual as in 1;
+  3. **mean cosine similarity** between mapped and paired target latents on the held-out pairs, each side centred by
+     its own held-out mean (higher wins). A uniform shrink cannot improve it.
+  Reported per criterion: agreement with the closed-loop winner (30 stitches), and the mean % of the affine ceiling of
+  the map it selects vs always nn_affine and always nn_orth; per group and pooled.
+- **Hypotheses (revised):** criterion 1 favours nn_affine everywhere (the shrinkage risk above); criteria 2 and 3 pick
+  nn_orth for embodiment and nn_affine for the visual and goal shifts. If one of them picks the right class, it is a
+  label-only rule for choosing the map class and a first component of the Step 7 score; if none does, both maps are
+  reported and nn_affine stays the default, with the embodiment exception stated.
+
+## 2026-10-04 — Step R: combinations and low-data adaptation over 3 seed pairs (branch `step-r`)
+
+### Summary (closed 2026-10-06)
+
+- **Question:** do the one-seed Step 1b results (goal shift, embodiment, map-only fine-tuning) hold over 3 seed pairs
+  (encoder seed s → controller seed s+1)? **Yes for goal shift and low-data adaptation; across robots the stitch works
+  but the best map class changes.** Tables and figure: `results/20261006_stepR_summary/` (`scripts/stepR_summary.py`).
+- **Zero-shot combinations** (% of the affine paired ceiling, mean ± std over 3 pairs; ceiling as % of the reference):
+
+  | combination | ceiling (% of ref.) | identity | SAPS | nn_orth | nn_affine | nn_affine-PCA16 |
+  |---|---|---|---|---|---|---|
+  | goal shift (look 2 enc → cam0 goal ctrl) | 73 ± 8% | 7% | 51 ± 3% | 45 ± 5% | **69 ± 5%** | 63 ± 10% |
+  | embodiment (look 2 Panda enc → cam0 xArm ctrl) | 56 ± 3% | 10% | 89 ± 17% | **93 ± 19%** | 70 ± 15% | 58 ± 4% |
+  | same task (look 2 enc → cam0 ctrl) | 68 ± 1% | 7% | — | — | 71 ± 9% | **79 ± 0%** |
+
+- **Low-data adaptation** (% of the target oracle; map-only fine-tuning at the fixed 5k budget from the PCA16 stitched
+  start; DP from scratch final at 50k; every arm N training demos + the same 10 validation demos):
+
+  | N | goal: stitched start | goal: map-only 5k | goal: scratch 50k | same: map-only 5k | same: scratch 50k |
+  |---|---|---|---|---|---|
+  | 5 | 26 ± 11% | **40 ± 16%** | 0% | **41 ± 3%** | 1% |
+  | 10 | 50 ± 8% | **60 ± 2%** | 2% | **62 ± 8%** | 2% |
+  | 25 | 40 ± 8% | **74 ± 8%** | 11 ± 4% | **73 ± 5%** | 16 ± 6% |
+
+  Figure: `results/20261006_stepR_summary/data_efficiency.png`.
+- **Findings:**
+  1. Goal shift replicates (nn_affine 69% of the ceiling vs the s2 → s2 pilot's 60%); identity is at blind level once
+     seeds differ (7% vs the pilot's 15%: the same-seed pairing inflated it).
+  2. Map-only fine-tuning replicates: 60% / 74% of the target oracle with 10 / 25 demos, while DP from scratch stays at
+     0–16% at every N and seed. Goal shift and same task are equal within noise once the map is fine-tuned.
+  3. Embodiment works (ceiling 56% of the xArm reference) but **the map ranking flips**: orthogonal maps 89–93% of the
+     ceiling vs nn_affine 70%. Tested next (offline, map-class selection entry above).
+  4. **Diffusion Policy's denoising loss on held-out demos is not a proxy for closed-loop success** (it rises while
+     success rises), and sampled-chunk error is a weak selector (picks iteration 0 in 11 of 18 runs). Everything is
+     judged in closed loop; fine-tuning uses a fixed budget chosen in advance (5k, informed by the s2 → s2 pilot).
+- **Hypotheses:** confirmed: controllers (except xArm s3 .485 vs ≥ .5, accepted under the oracle rule), goal ceiling
+  ≥ 70%, goal nn_affine ≥ 55%, identity ≤ 15%, embodiment ceiling ≥ 45%, embodiment nn_affine ≥ 65%, fine-tuning
+  ≥ 55% / 65% at N = 10 / 25, above the start in ≥ 2 / 3 pairs, goal-shift scratch ≤ .1 at every N. Rejected:
+  nn_affine above SAPS for embodiment; fine-tuning ≥ 45% at N = 5 (40%); same task above goal shift.
+- **Proposed main vs appendix split (for the decision):**
+  - Main paper: the goal-shift row of the combination table (nn_affine vs orthogonal maps vs identity) and the
+    data-efficiency figure (map-only fine-tuning vs DP from scratch, goal shift and same task).
+  - Main paper, short: the embodiment row with both map classes and the flip stated (with the map-selection result
+    if it holds); otherwise appendix.
+  - Appendix: per-pair tables, the stitched-start column, the chunk-error early-stopping numbers, the DP-loss /
+    success mismatch curve, the phase A / E oracle checks, the s2 → s2 pilots.
+
+- **Question:** do the one-seed results (goal shift, embodiment, map-only fine-tuning) hold over seeds?
+- **Caveat on the pilots:** the Step 1b goal-shift, embodiment and map-only fine-tuning pilots all stitched a **seed 2
+  encoder to a seed 2 controller** (same initialisation), against the s → s+1 convention. They are reported as pilots
+  only, not as one of the three seed pairs. **Cross-seed numbers may come out lower**, identity in particular (.104 in
+  the goal pilot, the highest identity stitch seen so far).
+- **Seed pairs** (encoder seed s → controller seed s+1: 1 → 2, 2 → 3, 3 → 1), the same encoders in every arm:
+  - goal shift: look 2 default encoder s → cam0 goal-variant controller s+1, on the goal variant in look 2;
+  - embodiment: look 2 Panda encoder s → cam0 xArm (100k) controller s+1, on the xArm in look 2;
+  - same task: look 2 encoder s → cam0 default controller s+1, on look 2.
+- **Reused (read-only, `labelstitch-1b/results/`):** look 2 s1–s3, cam0 s1 (`labelstitch-step1`) – s3, goal cam0 s2,
+  xArm cam0 100k s2, the goal / xArm look 2 references at s2, labels, all DP demos.
+- **Phases (one GPU job at a time):** A: goal cam0 s1 / s3 (50k) and xArm cam0 s1 / s3 (100k), three checks each →
+  gate (read the checks before going on) → B: zero-shot stitches, 2 combinations × 3 pairs × {identity, affine
+  ceiling, SAPS, nn_orth, nn_affine, nn_affine-PCA16}, closed loop 250 episodes → C: map-only fine-tuning from the
+  stitched start (nn_affine-PCA16 fitted on the same N demos, as in the pilot), N ∈ {5, 10, 25}, 3 pairs, goal shift
+  and same task (18 runs) → D: DP from scratch on goal look 2, N ∈ {5, 10, 25} × seeds 1–3, 50k → E: goal look 2 and
+  xArm look 2 references at s1 / s3 (50k, three checks) → (optional, cut first) DP from scratch on look 2 at s1–s3.
+- **Data budget for every low-data arm (fine-tuning and DP from scratch alike): N training demos (deployment-domain
+  demos 0..N-1) + the same 10 held-out validation demos (400–409).** The validation demos are used only for early
+  stopping: the EMA agent's DP loss on them, with fixed noise and timesteps, every 250 iterations; the lowest one is
+  the early-stopped checkpoint. Reported: the early-stopped checkpoint and the end of the budget (5k for fine-tuning;
+  final / last-3 at 50k for scratch), 250 episodes each. The s2 scratch runs from Step 1b had no validation set, so
+  they are rerun under this protocol. Fine-tuning budget as in the pilot: 5k iterations, lr 1e-4, 500 warm-up,
+  cosine, batch 256, eval every 1k (100 episodes).
+- **Metrics:** % of the affine paired ceiling per seed pair (headline), % of the reference oracle (goal / xArm look 2,
+  same seed as the encoder once E exists), mean ± std over 3 pairs.
+- **Hypotheses:**
+  - Controllers: goal cam0 s1 / s3 ≥ .45 (last-3); xArm cam0 100k s1 / s3 ≥ .5; all pass the three checks.
+  - Goal shift: affine ceiling ≥ 70% of the reference (pilot 81%); nn_affine ≥ 55% of the ceiling (pilot 60%);
+    orthogonal maps (SAPS, nn_orth) ≤ 45%; identity ≤ 15%.
+  - Embodiment: ceiling ≥ 45% of the reference (pilot 60%); nn_affine ≥ 65% of the ceiling (pilot 83%), above SAPS on
+    the mean.
+  - Map-only fine-tuning, goal shift: ≥ 45% / 55% / 65% of the reference at N = 5 / 10 / 25 (pilot 66% / 77% at
+    10 / 25); above the stitched start at every N in ≥ 2 of 3 pairs; DP from scratch ≤ .1 at every N.
+  - Same task: above goal shift at every N, as % of its own reference (the look 2 native of the encoder's seed).
+- **Code:** `train_dp_supcon.py --val_demo_path` (early stopping; writes `best_val.json`), `scripts/stepR_val_demos.py`
+  (demos 400–409 → `results/20261004_stepR_val_demos_{goal_look2,look2}/`). Code test (300 iterations, s2 pilot start):
+  validation loss logged, best checkpoint saved and evaluated.
+- **Code test, full 5k (s2 pilot start, map only, N = 10; `results/20261004_stepR_codetest5k_map_n10/`): the
+  validation DP loss does not track closed-loop success.** success_once 0 → 5k: .36 (250 ep.), .37, .35, .42, .46, .50
+  (100 ep.), **.452** (250 ep.; the pilot gave .452). The validation DP loss rises steadily (.00454 at 0 → .0054), so
+  early stopping on it returns the stitched start (.356). Sampled 8-step chunk L2 against the demo chunk on the same
+  10 demos (scratchpad diagnostic): .0540 / .0533 / .0532 at 0 / 4k / 5k, the right sign but a ~1.5% spread (as in
+  Step 1b, the state predicts most of the chunk). Phase A launched (`stepR-A.service`).
+- **Finding: Diffusion Policy's denoising loss on held-out demos is not a proxy for closed-loop success** (it rises
+  while success rises). Consistent with DP training loss being a poor proxy for task success in general, and with
+  the offline chunk metrics overrating label maps in Step 1b. This is why every result here is judged in closed loop.
+- **Protocol for phases C / D (decided 2026-10-04, replaces the early-stopping rule above):**
+  - **Headline = a fixed budget chosen in advance:** 5k iterations for map-only fine-tuning, the final 50k checkpoint
+    (and last-3) for DP from scratch. It never looks at evaluation success, and every arm gets the same rule. The 5k
+    budget was informed by the Step 1b pilot (s2 → s2 pairing); it is now fixed for all seeds and arms.
+  - **Secondary number:** the checkpoint with the lowest sampled-chunk error on the 10 validation demos (every 500
+    iterations, fixed sampling seed), evaluated at 250 episodes. The validation DP loss is logged next to it, only as
+    evidence for the finding above.
+  - Data budget unchanged: **N training demos + the same 10 validation demos (400–409) for every arm.**
+  - The 1k-step evaluations during fine-tuning (100 episodes) are descriptive learning curves only, never used for
+    selection.
+- **Phase A (controllers; success_once every 5k, final (last-3); checks: blind full / zeroed, fake goal grasped
+  true → fake and closest approach to the cube, probe cube x / y on table):**
+
+  | controller | success_once | blind | fake goal | probe |
+  |---|---|---|---|---|
+  | goal cam0 s1 | **.804 (.795)** | .77 / .03 | .92 → .90; 1.2 / 1.3 cm | .80 / .45 |
+  | goal cam0 s3 | **.480 (.467)** | .48 / .03 | .70 → .72; 2.3 cm | .83 / .50 |
+  | xArm cam0 100k s1 | **.744 (.787)** | .85 / .03 | .90 → .94; 1.6 / 1.4 cm | .70 / .61 |
+  | xArm cam0 100k s3 | **.456 (.485)** | .49 / .05 | .64 → .56; 3.1 / 3.3 cm | .66 / .54 |
+
+  Curves: goal s1 .00 .01 .17 .51 .72 .72 .76 .72 .80 .78 .80; goal s3 .00 .03 .02 .13 .32 .39 .38 .50 .46 .46 .48;
+  xArm s1 (every 5k to 100k) .00 .02 .06 .06 .06 .30 .53 .64 .67 .74 .78 .76 .71 .80 .83 .83 .74 .80 .82 .79 .74.
+  These three were read by hand and **accepted** (vision used, no goal_pos shortcut). Controller hypotheses confirmed so
+  far (goal s3 only just: .467 vs ≥ .45). Seed spread as for default cam0 (goal cam0 .80 / .53 / .47 over s1–s3).
+- **Gate for xArm s3, fixed before it finished** (`results/20261004_stepR_gate_then_BE.sh`, queued as `stepR-BE`): the
+  Step 1b acceptance as a rule (success_once last-3 ≥ .5, blind zeroed ≤ .1, fake-goal grasp ratio ≥ .8, probe cube x
+  ≥ .5); phases B–E start only if all pass, otherwise nothing runs.
+- **Gate result (2026-10-04, ~17:00):** xArm s3 curve (every 5k to 100k) .01 .02 .03 .03 .04 .08 .22 .30 .35 .38 .38
+  .43 .45 .46 .48 .48 .42 .41 .51 .49 .46; the gate failed on success alone (last-3 .485 < .5; zeroed .05, grasp ratio
+  .88, probe x .66 all pass), so nothing ran overnight. **xArm cam0 ≥ .5 hypothesis rejected for s3 (.485); accepted
+  under the oracle rule (vision used, no goal shortcut).** B→E launched 2026-10-05 00:15 (`stepR-BE`).
+- **Rules from now on (2026-10-05):**
+  1. **Oracle acceptance = last-3 success_once ≥ .3** (clearly above blind ≈ .05) **plus the three checks.**
+     Hypothesis levels are reported, not used as gates.
+  2. **A failed gate blocks only the jobs that depend on that model; independent jobs keep running.** Chains are
+     ordered so that independent phases come first whenever a gate is pending.
+- **Phase B, zero-shot** (`results/20261005_step1b_stitch_stepR_{goal,emb,same}_p{1,2,3}_*/`; success_once, 250
+  episodes; in brackets % of the pair's affine ceiling; pair s = look 2 encoder s → controller s+1):
+
+  | combination | pair | identity | affine (ceiling) | SAPS | nn_orth | nn_affine | nn_affine-PCA16 |
+  |---|---|---|---|---|---|---|---|
+  | goal shift | 1 | .036 (7%) | .524 | .252 (48%) | .220 (42%) | .332 (63%) | .316 (60%) |
+  | goal shift | 2 | .032 (7%) | .472 | .256 (54%) | .240 (51%) | .348 (74%) | .260 (55%) |
+  | goal shift | 3 | .040 (6%) | .636 | .320 (50%) | .268 (42%) | .436 (69%) | .476 (75%) |
+  | **goal shift, mean ± std** | | 7 ± 0% | | 51 ± 3% | 45 ± 5% | **69 ± 5%** | 63 ± 10% |
+  | embodiment | 1 | .036 (7%) | .552 | .388 (70%) | .420 (76%) | .392 (71%) | .312 (57%) |
+  | embodiment | 2 | .052 (11%) | .464 | .484 (104%) | .528 (114%) | .252 (54%) | .260 (56%) |
+  | embodiment | 3 | .056 (11%) | .500 | .468 (94%) | .452 (90%) | .416 (83%) | .312 (62%) |
+  | **embodiment, mean ± std** | | 10 ± 3% | | **89 ± 17%** | **93 ± 19%** | 70 ± 15% | 58 ± 4% |
+  | same task | 1 / 2 / 3 | .048 / .020 / .036 | .472 / .468 / .532 | — | — | .356 / .284 / .408 | .372 / .368 / .416 |
+  | **same task, mean ± std** | | 7 ± 3% | | | | 71 ± 9% | 79 ± 0% |
+
+  Goal-shift ceiling as % of the goal look 2 reference: 76% / 69% / 93% against the s2 reference (.685), provisional
+  until the s1 / s3 references (phase E).
+- **Takeaway B (3 seed pairs):**
+  - **Goal shift replicates, slightly above the pilot:** nn_affine 69% ± 5% of the ceiling (pilot 60%, s2 → s2);
+    orthogonal maps clearly lower (45–51%); identity at blind level (7%, vs the same-seed pilot's 15%). Hypotheses
+    confirmed (nn_affine ≥ 55%, identity ≤ 15%); "orthogonal ≤ 45%" holds for nn_orth only (SAPS 51%).
+  - **Embodiment: the map-class ranking flips.** The orthogonal maps (SAPS 89%, nn_orth 93%, above the ceiling on
+    pair 2) beat nn_affine (70% ± 15%; pilot 83%). "nn_affine ≥ 65%" confirmed on the mean; "nn_affine above SAPS"
+    **rejected**. Across robots the orthogonal constraint does not hurt as it does under goal shift; whether it helps
+    is not settled (±.06 eval noise, pair 2 drives it). Not interpreted further for now.
+- **Phase C, map-only fine-tuning from the stitched start** (`results/2026100?_stepR_ft_map_{goal,same}_p*_n*/`;
+  % of the reference: goal = goal look 2 s2 oracle .685, provisional; same = the look 2 native of the encoder's seed,
+  .696 / .697 / .779; start = the 100-episode eval after the first step; 5k = the fixed budget, 250 episodes, the
+  headline; chunk-ES = the secondary early-stopped checkpoint, 250 episodes):
+
+  | combination | N | start | **5k (headline)** | chunk-ES | 5k > start |
+  |---|---|---|---|---|---|
+  | goal shift | 5 | 28 ± 12% | **42 ± 14%** (.22 / .40 / .26) | 37 ± 9% | 2 / 3 |
+  | goal shift | 10 | 54 ± 10% | **65 ± 4%** (.44 / .41 / .47) | 46 ± 2% | 3 / 3 |
+  | goal shift | 25 | 43 ± 11% | **79 ± 8%** (.49 / .54 / .60) | 55 ± 19% | 3 / 3 |
+  | same task | 5 | 32 ± 4% | **41 ± 3%** (.31 / .26 / .31) | 33 ± 4% | 3 / 3 |
+  | same task | 10 | 57 ± 12% | **62 ± 8%** (.49 / .44 / .42) | 59 ± 8% | 2 / 3 |
+  | same task | 25 | 54 ± 11% | **73 ± 5%** (.50 / .48 / .61) | 67 ± 20% | 3 / 3 |
+
+- **Takeaway C (3 seed pairs; goal-shift % provisional):**
+  - **Map-only fine-tuning replicates:** 65% / 79% of the reference with 10 / 25 demos (pilot 66% / 77%), above the
+    stitched start in 8 / 9 goal runs. Goal hypotheses: N = 10 ≥ 55% and N = 25 ≥ 65% confirmed; N = 5 ≥ 45% just
+    missed (42%).
+  - **Same task ≈ goal shift, not above it** (41 / 62 / 73% vs 42 / 65 / 79%): hypothesis rejected (within noise).
+    Once the map is fine-tuned, the task shift costs nothing measurable on top of the visual shift.
+  - **The chunk-error selection is also a poor selector:** it picks iteration 0 in 11 of 18 runs and is below the 5k
+    budget at every N (e.g. goal N = 25: 55% vs 79%). The fixed-budget headline was the right choice.
+- **Goal shift with per-seed references** (phase E: goal look 2 s1 .800 (.763), s3 .760 (.768); reference seed = the
+  encoder's seed; replaces the provisional s2-only figures above): affine ceiling 69 / 69 / 83% of the reference
+  (73% ± 8%; hypothesis ≥ 70% confirmed on the mean). Map-only fine-tuning, 5k: **40% ± 16% / 60% ± 2% / 74% ± 8%** at
+  N = 5 / 10 / 25 (start 26 / 50 / 40%). Hypotheses: N = 10 ≥ 55% and N = 25 ≥ 65% confirmed, N = 5 ≥ 45% missed.
+  Same task (41 / 62 / 73%) and goal shift are now equal within noise at every N.
+- **Phase D (DP from scratch, goal look 2, 50k):** blind level at every N and seed. Final success_once ≤ .02 at
+  N = 5 / 10; .05 / .10 / .10 at N = 25 (s1 / s2 / s3); early-stopped ≤ .12. Hypothesis (≤ .1) confirmed.
+- **Phase E (references, 50k; all pass the oracle rule and the three checks):**
+
+  | reference | success_once final (last-3) | blind full / zeroed | fake goal grasped true → fake | probe cube x / y |
+  |---|---|---|---|---|
+  | goal look 2 s1 | .800 (.763) | .84 / .03 | .88 → .88 | .84 / .47 |
+  | goal look 2 s3 | .760 (.768) | .81 / .03 | .86 → .92 | .90 / .48 |
+  | xArm look 2 s1 | .944 (.929) | .94 / .03 | .96 → .98 | .86 / .80 |
+  | xArm look 2 s3 | .924 (.893) | .89 / .00 | .94 → .90 | .84 / .73 |
+
+- **Embodiment against the per-seed xArm references** (s1 .929, s2 .881, s3 .893): affine ceiling 59 / 53 / 56%
+  (**56% ± 3%**; hypothesis ≥ 45% confirmed; pilot 60%). SAPS 50% ± 7%, nn_orth 52% ± 7%, nn_affine 39% ± 9% of the
+  reference.
+- **Phase F (optional; DP from scratch on look 2, same protocol):** blind level (final ≤ .016 at N = 5 / 10; .088 /
+  .084 / .172 at N = 25 for s1 / s2 / s3).
+
+---
+
 ## 2026-10-01 → 10-04 — Step 1b (closed): action labels for continuous control, label-only stitching of DP agents (branch `step1b-labels`)
 
 ### Summary

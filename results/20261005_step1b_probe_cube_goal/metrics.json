@@ -1,0 +1,130 @@
+{
+ "20261005_stepR_dp_ref_goal_look2_s1:goal_look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-r/results/20261005_stepR_dp_ref_goal_look2_s1/runs/stepR_dp_ref_goal_look2_s1/checkpoints/49999.pt",
+  "domain": "goal_look2",
+  "n_fit": 8085,
+  "n_test": 7853,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.77,
+    0.706,
+    0.622
+   ],
+   "r2_xyz_on_table": [
+    0.841,
+    0.469,
+    -3099.265
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    -0.015,
+    0.011,
+    0.03
+   ],
+   "r2_xyz_on_table": [
+    -0.039,
+    0.011,
+    0.006
+   ]
+  }
+ },
+ "20261005_stepR_dp_ref_goal_look2_s3:goal_look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-r/results/20261005_stepR_dp_ref_goal_look2_s3/runs/stepR_dp_ref_goal_look2_s3/checkpoints/49999.pt",
+  "domain": "goal_look2",
+  "n_fit": 8085,
+  "n_test": 7853,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.831,
+    0.694,
+    0.595
+   ],
+   "r2_xyz_on_table": [
+    0.902,
+    0.477,
+    -2826.561
+   ]
+  },
+  "goal": {
+   "alpha": 1000,
+   "r2_xyz_all": [
+    -0.0,
+    -0.0,
+    -0.0
+   ],
+   "r2_xyz_on_table": [
+    -0.003,
+    -0.0,
+    -0.005
+   ]
+  }
+ },
+ "20261005_stepR_dp_ref_xarm_look2_s1:xarm_look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-r/results/20261005_stepR_dp_ref_xarm_look2_s1/runs/stepR_dp_ref_xarm_look2_s1/checkpoints/49999.pt",
+  "domain": "xarm_look2",
+  "n_fit": 8294,
+  "n_test": 7827,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.794,
+    0.707,
+    0.682
+   ],
+   "r2_xyz_on_table": [
+    0.858,
+    0.795,
+    -2768.355
+   ]
+  },
+  "goal": {
+   "alpha": 1000,
+   "r2_xyz_all": [
+    -0.007,
+    -0.032,
+    -0.007
+   ],
+   "r2_xyz_on_table": [
+    -0.011,
+    -0.027,
+    -0.038
+   ]
+  }
+ },
+ "20261005_stepR_dp_ref_xarm_look2_s3:xarm_look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-r/results/20261005_stepR_dp_ref_xarm_look2_s3/runs/stepR_dp_ref_xarm_look2_s3/checkpoints/49999.pt",
+  "domain": "xarm_look2",
+  "n_fit": 8294,
+  "n_test": 7827,
+  "cube": {
+   "alpha": 0.01,
+   "r2_xyz_all": [
+    0.753,
+    0.636,
+    0.661
+   ],
+   "r2_xyz_on_table": [
+    0.842,
+    0.725,
+    -2956.284
+   ]
+  },
+  "goal": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.022,
+    0.014,
+    0.138
+   ],
+   "r2_xyz_on_table": [
+    -0.0,
+    -0.033,
+    0.048
+   ]
+  }
+ }
+}

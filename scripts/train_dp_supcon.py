@@ -14,9 +14,15 @@ The training loop is a copy of the `__main__` block of third_party/maniskill_dif
     step1b_stitch.py --save-maps (z -> z @ R.T + b) or "identity", another agent's controller). --train_part: all | encoder (controller frozen:
     the DP loss trains the encoder through the frozen denoiser) | map (only the affine map). --final_eval_episodes:
     episodes of the evaluation at total_iters (default: num_eval_episodes).
+  - early stopping (Step R, secondary number; the headline is the fixed budget total_iters): --val_demo_path (held-out
+    demos, from scripts/stepR_val_demos.py) -> every val_freq iterations, on the EMA agent: L2 between the sampled
+    executed chunk (fixed seed) and the demo chunk (the selection criterion), and the DP loss with fixed noise and
+    timesteps (logged only: it rises while closed-loop success rises, so it is no proxy). The lowest chunk error is
+    saved as checkpoints/best_val.pt and evaluated at the end (final_eval_episodes). Writes runs/<name>/best_val.json.
 Usage: as run_dp.sh, via scripts/run_dp_supcon.sh.
 """
 import copy
+import json
 import os
 import random
 import time
@@ -58,6 +64,8 @@ class Args(train_rgbd.Args):
     init_map: str = ""
     train_part: str = "all"
     final_eval_episodes: int = 0
+    val_demo_path: str = ""
+    val_freq: int = 500
 
 
 def supcon(e, y, tau=0.07):
@@ -196,6 +204,39 @@ if __name__ == "__main__":
     agent.visual_encoder.register_forward_hook(lambda m, inp, out: feats.__setitem__("z", out))
     enc_params = [p for p in agent.visual_encoder.parameters() if p.requires_grad]
 
+    # validation set for early stopping: fixed noise and timesteps per sample, so successive losses are comparable
+    val_batches = []
+    if args.val_demo_path:
+        val_set = train_rgbd.SmallDemoDataset_DiffusionPolicy(args.val_demo_path, obs_process_fn, orignal_obs_space,
+                                                              include_rgb, include_depth, device, num_traj=None)
+        g = torch.Generator(device=device).manual_seed(0)
+        for batch in DataLoader(val_set, batch_size=args.batch_size, shuffle=False):
+            act = batch["actions"]  # (B, pred_horizon, A)
+            noise = torch.randn(act.shape, device=device, generator=g)
+            t = torch.randint(0, ema_agent.noise_scheduler.config.num_train_timesteps, (len(act),), device=device, generator=g)
+            val_batches.append((batch["observations"], act, noise, t))
+
+    @torch.no_grad()
+    def val_loss(model):
+        # DP loss: the vendored compute_loss with the stored noise / timesteps, no augmentation.
+        # chunk: mean L2 between the sampled executed chunk (B, act_horizon, A) and the demo's, fixed sampling seed
+        # (forked RNG, so the training stream is untouched). get_action wants the env's (B, T, H, W, C) rgb.
+        tot, n, ch, m = 0.0, 0, 0.0, 0
+        with torch.random.fork_rng(devices=[device]):
+            torch.manual_seed(0)
+            for obs, act, noise, t in val_batches:
+                cond = model.encode_obs(obs, eval_mode=True)
+                pred = model.noise_pred_net(model.noise_scheduler.add_noise(act, noise, t), t, global_cond=cond)
+                tot += F.mse_loss(pred, noise, reduction="sum").item()
+                n += noise.numel()
+                a = model.get_action(dict(obs, rgb=obs["rgb"].permute(0, 1, 3, 4, 2)))
+                s = args.obs_horizon - 1
+                ch += (a - act[:, s:s + a.shape[1]]).norm(dim=(1, 2)).sum().item()
+                m += len(a)
+        return ch / m, tot / n
+
+    val_curve, best_val = [], (float("inf"), -1)
+
     best_eval_metrics = defaultdict(float)
     timings = defaultdict(float)
     save_iters = {args.total_iters - 10000, args.total_iters - 5000, args.total_iters - 1}
@@ -268,6 +309,18 @@ if __name__ == "__main__":
         ema.step(agent.parameters())
         timings["ema"] += time.time() - last_tick
 
+        if val_batches and (iteration % args.val_freq == 0 or iteration == args.total_iters - 1):
+            ema.copy_to(ema_agent.parameters())
+            v, v_dp = val_loss(ema_agent)
+            val_curve.append((iteration, v, v_dp))
+            writer.add_scalar("losses/val_chunk", v, iteration)
+            writer.add_scalar("losses/val_dp", v_dp, iteration)
+            if v < best_val[0]:
+                best_val = (v, iteration)
+                os.makedirs(f"runs/{run_name}/checkpoints", exist_ok=True)
+                torch.save({"ema_agent": ema_agent.state_dict(), "iteration": iteration, "val_chunk": v},
+                           f"runs/{run_name}/checkpoints/best_val.pt")
+
         evaluate_and_save_best(iteration)
         log_metrics(iteration)
 
@@ -279,6 +332,14 @@ if __name__ == "__main__":
 
     evaluate_and_save_best(args.total_iters, args.final_eval_episodes or args.num_eval_episodes)
     log_metrics(args.total_iters)
+
+    if val_batches:  # evaluate the early-stopped checkpoint
+        ema_agent.load_state_dict(torch.load(f"runs/{run_name}/checkpoints/best_val.pt", map_location=device)["ema_agent"])
+        m = evaluate(args.final_eval_episodes or args.num_eval_episodes, ema_agent, envs, device, args.sim_backend)
+        m = {k: float(np.mean(v)) for k, v in m.items()}
+        print(f"best_val (iteration {best_val[1]}, chunk error {best_val[0]:.5f}): " + " ".join(f"{k} {v:.4f}" for k, v in m.items()))
+        with open(f"runs/{run_name}/best_val.json", "w") as f:
+            json.dump(dict(iteration=best_val[1], val_chunk=best_val[0], eval=m, val_curve_iter_chunk_dp=val_curve), f, indent=1)
 
     envs.close()
     writer.close()
