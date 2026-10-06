@@ -22,7 +22,7 @@ Each remaining step answers **one question**, with a **prompt** for Claude Code,
 - **Step 1b / Step 4 — Labels and the main matrix:**
   - SupCon on chunk clusters is a measured tradeoff (branch closed).
   - Plain DP is already compressed (regression collapse); `nn_affine` is the default aligner: **77% ± 10% of the paired ceiling** over 4 shifts × 3 seed pairs × 2 directions, above paired SAPS (64%). The affine paired ceiling reaches ~89% of native.
-- **First combinations and low-data adaptation (one seed):**
+- **First combinations and low-data adaptation (one-seed pilots, superseded by Step R below):**
   - goal shift: label-only 60–64% of the ceiling;
   - embodiment Panda → xArm: 83% of the ceiling;
   - map-only fine-tuning from a stitched start: 66% / 77% of the reference oracle with 10 / 25 demos (scratch: 0.01 / 0.08);
@@ -35,7 +35,7 @@ Each remaining step answers **one question**, with a **prompt** for Claude Code,
   - no label-only criterion selects the map class; nn_affine stays the default.
 
 **Rough timeline for what remains (about 16 weeks):**
-- Weeks 1–2 (to ~18 Oct): Steps R and 3
+- Weeks 1–2 (to ~18 Oct): Step R (done), Step F, Step 3
 - Weeks 3–4 (to ~1 Nov): Steps 5b and B
 - Weeks 5–6 (to ~15 Nov): Steps 7 and RL
 - Weeks 7–8 (to ~29 Nov): Step 6b, plus Step 8 if time allows
@@ -49,7 +49,7 @@ CARLA moves to the NeurIPS/CoRL version. Genre-level transfer across games is a 
 
 ## Step R — Replicate the combinations and the low-data adaptation (3 seeds) — done 6 Oct
 
-_Done: see "Where we are" and the Step R entry in EXPERIMENTS.md. Proposed split (to confirm): main paper = the goal-shift row and the data-efficiency figure (map-only fine-tuning vs DP from scratch); the embodiment row briefly, with both map classes; per-pair tables, early-stopping numbers and oracle checks in the appendix._
+_Done: see "Where we are" and the Step R entry in EXPERIMENTS.md. **Split confirmed (6 Oct):** main paper = the goal-shift row, a short embodiment row with both map classes ("both work, no consistent winner"), and the data-efficiency figure (map-only fine-tuning vs DP from scratch, goal shift and same task); appendix = per-pair tables, early-stopping numbers, oracle checks, the s2 → s2 pilots, the map-selection test._
 
 
 **Question:** do the one-seed results (goal shift, embodiment, map-only fine-tuning) hold over seeds?
@@ -64,6 +64,21 @@ _Done: see "Where we are" and the Step R entry in EXPERIMENTS.md. Proposed split
 
 - **Exit:** combination table and data-efficiency curves with 3 seeds.
 - **Decision:** which combination results go into the main paper and which into the appendix.
+
+## Step F — Which part to adapt with few demos (small ablation)
+
+**Question:** given what changed (visuals vs task), is fine-tuning only the map always best, or does adapting the encoder or (lightly) the controller as well help?
+
+Known so far: from a stitched start, map-only fine-tuning is the best arm; end-to-end fine-tuning destroys encoder structure; adapting a non-matching encoder alone (cam0 encoder → look 2) is weak.
+
+> From the stitched start (nn_affine-PCA16, as in Step R), N ∈ {10, 25}, fixed 5k budget, seed pair 1 first:
+> (a) map + encoder (controller frozen);
+> (b) map + a light controller adaptation (last denoiser layers only, or a LoRA adapter; propose which, keeping the vendored change minimal);
+> compared with map-only (Step R numbers, same pair).
+> On two combinations: same task (look 2 enc → cam0 ctrl, a visual change) and goal shift (look 2 enc → cam0 goal ctrl, a task change). Log NC1 / effective rank of the encoder after fine-tuning. Hypotheses first: (a) ≤ map-only on both; (b) > map-only on the goal shift only. If a variant beats map-only by more than the eval noise, replicate on all 3 seed pairs.
+
+- **Exit:** a small table: {map only, map + encoder, map + light controller} × {visual change, task change} × N.
+- **Decision:** a rule for the paper ("what to adapt, given what changed"), or confirmation that map-only is the right default everywhere. Ablation-sized: runs in a gap before Step 3's trainings.
 
 ## Step 3 — "Why stitch?" and pretrained encoders
 
