@@ -6,9 +6,10 @@ Each remaining step answers **one question**, with a **prompt** for Claude Code,
 
 **Protocols (all ManiSkill steps):**
 - Evaluation: final checkpoint (mean of the last 3 in brackets), never the best checkpoint; 250 episodes; success at any step and at the end.
-- Oracles: accepted only if they pass success plus the three checks (blind, fake goal, cube/goal probe).
+- Oracles: accepted if last-3 success_once ≥ 0.3 (clearly above blind ≈ 0.05) plus the three checks (blind, fake goal, cube/goal probe). Hypothesis levels are reported, never used as gates.
+- Job chains: a failed gate blocks only the jobs that depend on that model; independent jobs keep running (order chains so independent phases come first).
 - Stitching: encoder seed s with controller seed s+1; label fits on disjoint demo halves (source 0–49, target 50–99); headline metric = % of the affine paired ceiling, per seed pair.
-- Fine-tuning: early stopping chosen on held-out demos (validation action loss), never on evaluation success.
+- Fine-tuning: a fixed iteration budget chosen in advance is the headline (5k for map-only fine-tuning; final checkpoint for DP from scratch); early-stopped checkpoints (sampled-chunk error on 10 held-out validation demos) are secondary numbers only. Never select on evaluation success. Every low-data arm gets N training demos + the same 10 validation demos. (DP's held-out denoising loss is not a proxy for success: it rises while success rises.)
 - Pilots (one seed) are never conclusions; paper numbers use 3 seeds.
 
 ---
@@ -27,6 +28,12 @@ Each remaining step answers **one question**, with a **prompt** for Claude Code,
   - map-only fine-tuning from a stitched start: 66% / 77% of the reference oracle with 10 / 25 demos (scratch: 0.01 / 0.08);
   - encoders trained on 5–25 demos are unstructured and can't be stitched.
 
+- **Step R — Combinations and low-data adaptation, 3 seed pairs (done, 6 Oct):**
+  - goal shift: nn_affine 69% ± 5% of the affine ceiling (orthogonal maps 45–51%, identity 7%);
+  - embodiment Panda → xArm: ceiling 56% of the xArm reference; nn_affine and nn_orth both work, no consistent winner (1000 episodes);
+  - map-only fine-tuning: 60% / 74% of the target oracle with 10 / 25 demos (DP from scratch 0–16%), goal shift = same task;
+  - no label-only criterion selects the map class; nn_affine stays the default.
+
 **Rough timeline for what remains (about 16 weeks):**
 - Weeks 1–2 (to ~18 Oct): Steps R and 3
 - Weeks 3–4 (to ~1 Nov): Steps 5b and B
@@ -40,7 +47,10 @@ CARLA moves to the NeurIPS/CoRL version. Genre-level transfer across games is a 
 
 ---
 
-## Step R — Replicate the combinations and the low-data adaptation (3 seeds)
+## Step R — Replicate the combinations and the low-data adaptation (3 seeds) — done 6 Oct
+
+_Done: see "Where we are" and the Step R entry in EXPERIMENTS.md. Proposed split (to confirm): main paper = the goal-shift row and the data-efficiency figure (map-only fine-tuning vs DP from scratch); the embodiment row briefly, with both map classes; per-pair tables, early-stopping numbers and oracle checks in the appendix._
+
 
 **Question:** do the one-seed results (goal shift, embodiment, map-only fine-tuning) hold over seeds?
 

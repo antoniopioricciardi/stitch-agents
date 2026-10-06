@@ -33,6 +33,7 @@ agent_v with its visual_encoder replaced by [E_u, z -> z @ R.T + b], T applied p
     run's own agent cannot play domain 1's robot or task there). --src-demos=N: label fits use source demos 0..N-1
     only (data-efficiency curve; target side unchanged, demos 50-99). --save-maps: also writes each direction's affine maps (R, b; first
     draw) to OUT/maps_<u>_to_<v>.npz as <map>_R, <map>_b.
+  --episodes=N: closed-loop episodes per map (default 250).
   Held-out z-space residual per map: ||T(z_s) - z_t||^2 / ||z_t - mean||^2 on the paired held-out frames.
   Offline (held-out demos 400-497, N_OFF frames of domain u): ||stitched chunk - native chunk|| (L2 over the
     8 executed steps x 4 dims), native = agent_u, both denoised from the same DDPM noise. References:
@@ -243,6 +244,7 @@ if __name__ == "__main__":
     D = {0: opt("domain0", "cam0"), 1: DOMAIN}  # domain index -> name
     ONLY_DIR = opt("only-dir", "") == "10"
     SRC_DEMOS = int(opt("src-demos", "50"))
+    N_EPISODES = int(opt("episodes", N_EPISODES))  # closed-loop episodes per map (default 250)
     RUNS = {0: sys.argv[3], 1: sys.argv[4]}
     OFFLINE_ONLY = "--offline-only" in sys.argv
     MAPS = next((a.split("=")[1] for a in sys.argv if a.startswith("--maps=")), "identity,saps,action_pairs").split(",")

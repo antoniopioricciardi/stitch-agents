@@ -17,18 +17,50 @@ SCIL + prototypes reaches 88% of native distance, the same as SCIL + SAPS, again
 Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the other level's controller play
 (Nature CNN: 74% of native on 1-1, flags included) where BC + prototypes reaches 28–39%.
 
-**ManiSkill (Step 1b, continuous control with Diffusion Policy).** The Mario mechanism does not carry over, but
+**ManiSkill (Steps 1b and R, continuous control with Diffusion Policy).** The Mario mechanism does not carry over, but
 label-only stitching does. SupCon on action-chunk clusters makes DP encoders more alignable but erases the cube position
 and destroys native control (a measured tradeoff; branch closed). Instead, plain DP encoders are already low-dimensional
 (effective rank 3–6), and a map fitted from **continuous action pairs** (nearest action chunks, no paired frames)
 stitches them: **nn_affine reaches 77% ± 10% of the paired ceiling** over 4 visual shifts × 3 seed pairs × 2 directions,
-where the paired ceiling must be **affine** (it recovers 80–104% of native; the orthogonal SAPS map only ~60%). The same
-maps work across a goal shift (label-only 60–64% of the ceiling) and across robots (Panda encoder → xArm controller:
-83% of the ceiling). Limits: label alignment needs competent, structured encoders (encoders trained on 5–25 demos cannot
-be stitched); with few target demos, the best entry is a stitched start with only the map fine-tuned (77% of the target
-oracle with 25 demos, vs 8% from scratch). Strong viewpoint changes give no working DP oracle at all.
+where the paired ceiling must be **affine** (it recovers 80–104% of native; the orthogonal SAPS map only ~60%). Over 3
+seed pairs the same maps work across a goal shift (**nn_affine 69% ± 5% of the ceiling**; orthogonal maps 45–51%) and
+across robots (Panda encoder → xArm controller: ceiling 56% of the xArm oracle; **both nn_affine and nn_orth work, no
+consistent winner**, 77% vs 82% of the ceiling at 1000 episodes). No label-only criterion picks the map class, so
+nn_affine stays the default. Limits: label alignment needs competent, structured encoders (encoders trained on 5–25
+demos cannot be stitched); with few target demos, the best entry is a stitched start with only the map fine-tuned:
+**60% / 74% of the target oracle with 10 / 25 demos, against 0–16% for DP from scratch** (3 seed pairs; goal shift and
+same task alike). DP's denoising loss on held-out demos is no proxy for success, so everything is judged in closed
+loop. Strong viewpoint changes give no working DP oracle at all.
 
 ---
+
+## 2026-10-06 — Embodiment: nn_affine vs nn_orth at 1000 episodes (is the map-class flip real?)
+
+- **Question:** across robots, does nn_orth really beat nn_affine, or is the Step R flip pair 2 plus eval noise?
+  (At 250 episodes: pair 1 .392 vs .420, pair 2 .252 vs .528, pair 3 .416 vs .452, nn_affine vs nn_orth.)
+- **Setup:** the three Step R embodiment stitches (look 2 Panda encoder s → cam0 xArm 100k controller s+1, on the xArm
+  in look 2), same fits (`step1b_stitch.py ... --maps=nn_orth,nn_affine --episodes=1000`), closed loop 1000 episodes
+  per map. Maps are deterministic, so the fits are identical to Step R's; only the evaluation changes.
+- **Decision rule (fixed before running):** noise = 2 × the binomial standard error of the difference,
+  2·√(p_orth(1−p_orth)/1000 + p_aff(1−p_aff)/1000) (≈ .043 at p ≈ .4). If nn_orth − nn_affine exceeds it on at least 2
+  of 3 pairs: report **"orthogonal maps win across robots"**. Otherwise: **"both maps work across robots; no
+  consistent winner"**.
+- **Hypothesis:** pair 2 keeps a clear nn_orth win; pairs 1 and 3 are within noise, so the rule gives "both maps
+  work, no consistent winner".
+- **Result** (`results/2026100?_step1b_stitch_stepR_emb1000_p{1,2,3}_xarm_look2/`; success_once, 1000 episodes;
+  threshold = 2 SE of the difference; % of the Step R affine ceiling .552 / .464 / .500 in brackets):
+
+  | pair | nn_orth | nn_affine | nn_orth − nn_affine | threshold | verdict |
+  |---|---|---|---|---|---|
+  | 1 | .384 (70%) | .436 (79%) | −.052 | .044 | nn_affine wins |
+  | 2 | .439 (95%) | .342 (74%) | **+.097** | .043 | nn_orth wins |
+  | 3 | .407 (81%) | .396 (79%) | +.011 | .044 | within noise |
+  | mean | 82% | 77% | | | |
+
+- **Takeaway: hypothesis confirmed; per the fixed rule, "both maps work across robots; no consistent winner".**
+  nn_orth wins beyond noise on 1 of 3 pairs (pair 2), nn_affine on 1 (pair 1), one tie. The 250-episode pair-2 gap
+  (.528 vs .252) shrank to .439 vs .342 at 1000 episodes. The Step R "flip" was mostly pair 2 plus eval noise; nn_affine
+  stays the default for every shift, and for embodiment both maps are reported (77% vs 82% of the ceiling on average).
 
 ## 2026-10-06 — Map-class selection by held-out residual on label pairs (offline, CPU; first piece of Step 7)
 
@@ -87,7 +119,7 @@ oracle with 25 demos, vs 8% from scratch). Strong viewpoint changes give no work
 - **Takeaway: hypotheses 2 and 3 rejected, 1 confirmed; no label-only criterion selects the map class.**
   - All three criteria favour nn_affine on 29–30 of 30 stitches; their 22–23 / 30 agreement is just the base rate of
     nn_affine winning. The variance-matched residual and the cosine still prefer nn_affine for embodiment.
-  - **The shrinkage explanation is not supported:** nn_affine keeps a similar share of the target variance in every
+  - **The shrinkage explanation is refuted:** nn_affine keeps a similar share of the target variance in every
     group (.64 embodiment vs .57 matrix, .61 goal); it does not shrink more across robots.
   - **The embodiment flip rests mostly on pair 2** (.528 vs .252); pairs 1 and 3 differ by .03–.04, inside the ±.06
     eval noise at 250 episodes. In label-pair geometry nothing distinguishes embodiment from the other shifts.
@@ -126,8 +158,10 @@ oracle with 25 demos, vs 8% from scratch). Strong viewpoint changes give no work
      seeds differ (7% vs the pilot's 15%: the same-seed pairing inflated it).
   2. Map-only fine-tuning replicates: 60% / 74% of the target oracle with 10 / 25 demos, while DP from scratch stays at
      0–16% at every N and seed. Goal shift and same task are equal within noise once the map is fine-tuned.
-  3. Embodiment works (ceiling 56% of the xArm reference) but **the map ranking flips**: orthogonal maps 89–93% of the
-     ceiling vs nn_affine 70%. Tested next (offline, map-class selection entry above).
+  3. Embodiment works (ceiling 56% of the xArm reference). At 250 episodes the orthogonal maps looked better (89–93% of
+     the ceiling vs nn_affine 70%), but at 1000 episodes **both maps work across robots with no consistent winner**
+     (nn_orth 82%, nn_affine 77% of the ceiling; one pair each way, one tie). No label-only criterion selects the map
+     class (entries above); nn_affine stays the default.
   4. **Diffusion Policy's denoising loss on held-out demos is not a proxy for closed-loop success** (it rises while
      success rises), and sampled-chunk error is a weak selector (picks iteration 0 in 11 of 18 runs). Everything is
      judged in closed loop; fine-tuning uses a fixed budget chosen in advance (5k, informed by the s2 → s2 pilot).
@@ -138,8 +172,7 @@ oracle with 25 demos, vs 8% from scratch). Strong viewpoint changes give no work
 - **Proposed main vs appendix split (for the decision):**
   - Main paper: the goal-shift row of the combination table (nn_affine vs orthogonal maps vs identity) and the
     data-efficiency figure (map-only fine-tuning vs DP from scratch, goal shift and same task).
-  - Main paper, short: the embodiment row with both map classes and the flip stated (with the map-selection result
-    if it holds); otherwise appendix.
+  - Main paper, short: the embodiment row with both map classes ("both work, no consistent winner", 1000 episodes).
   - Appendix: per-pair tables, the stitched-start column, the chunk-error early-stopping numbers, the DP-loss /
     success mismatch curve, the phase A / E oracle checks, the s2 → s2 pilots.
 
