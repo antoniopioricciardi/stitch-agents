@@ -71,6 +71,30 @@ oracle with 25 demos, vs 8% from scratch). Strong viewpoint changes give no work
   nn_orth for embodiment and nn_affine for the visual and goal shifts. If one of them picks the right class, it is a
   label-only rule for choosing the map class and a first component of the Step 7 score; if none does, both maps are
   reported and nn_affine stays the default, with the embodiment exception stated.
+- **Result** (`results/20261006_stepR_map_select/`, `scripts/stepR_map_select.py`; torch on CPU; agreement = pick equals
+  the closed-loop winner; selected = mean % of the affine ceiling of the picked map):
+
+  | group | closed-loop winner aff / orth | always nn_affine | always nn_orth | var kept aff / orth | resid: agrees; picks aff / orth | resid_vm | cos |
+  |---|---|---|---|---|---|---|---|
+  | matrix (24) | 20 / 4 | 77 ± 10% | 61 ± 18% | .57 / 1.13 | 20 / 24; 24 / 0 | 19 / 24; 23 / 1 | 20 / 24; 24 / 0 |
+  | goal (3) | 3 / 0 | 69 ± 5% | 45 ± 5% | .61 / 1.72 | 3 / 3; 3 / 0 | 3 / 3; 3 / 0 | 3 / 3; 3 / 0 |
+  | embodiment (3) | 0 / 3 | 70 ± 15% | 93 ± 19% | .64 / 1.27 | 0 / 3; 3 / 0 | 0 / 3; 3 / 0 | 0 / 3; 3 / 0 |
+  | all (30) | 23 / 7 | 76 ± 10% | 63 ± 20% | .58 / 1.20 | 23 / 30; 30 / 0 | 22 / 30; 29 / 1 | 23 / 30; 30 / 0 |
+
+  Selected map: 76% / 75% / 76% of the ceiling (= always nn_affine); picking the closed-loop winner each time would
+  give 80%. Embodiment margins (nn_affine vs nn_orth, success_once): pair 1 .392 vs .420, pair 2 .252 vs .528, pair 3
+  .416 vs .452.
+- **Takeaway: hypotheses 2 and 3 rejected, 1 confirmed; no label-only criterion selects the map class.**
+  - All three criteria favour nn_affine on 29–30 of 30 stitches; their 22–23 / 30 agreement is just the base rate of
+    nn_affine winning. The variance-matched residual and the cosine still prefer nn_affine for embodiment.
+  - **The shrinkage explanation is not supported:** nn_affine keeps a similar share of the target variance in every
+    group (.64 embodiment vs .57 matrix, .61 goal); it does not shrink more across robots.
+  - **The embodiment flip rests mostly on pair 2** (.528 vs .252); pairs 1 and 3 differ by .03–.04, inside the ±.06
+    eval noise at 250 episodes. In label-pair geometry nothing distinguishes embodiment from the other shifts.
+  - Decision as agreed: **nn_affine stays the default; both maps are reported for embodiment**, with the exception
+    stated as "orthogonal maps match or beat nn_affine across robots (decisively on one of three pairs)".
+  - Not run (proposal): re-evaluate the embodiment nn_affine / nn_orth stitches at 1000 episodes (3 pairs × 2 maps,
+    ~1 h GPU) to tell whether the flip is real or pair 2 plus noise, before any further mechanism work.
 
 ## 2026-10-04 — Step R: combinations and low-data adaptation over 3 seed pairs (branch `step-r`)
 
