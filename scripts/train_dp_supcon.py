@@ -12,7 +12,8 @@ The training loop is a copy of the `__main__` block of third_party/maniskill_dif
   - fine-tuning (Step 1b adaptation baselines): --init_ckpt (start from a trained agent), or --init_encoder_ckpt +
     --init_controller_ckpt + --init_map (stitched start: one agent's encoder, an affine map "<maps.npz>:<map name>" from
     step1b_stitch.py --save-maps (z -> z @ R.T + b) or "identity", another agent's controller). --train_part: all | encoder (controller frozen:
-    the DP loss trains the encoder through the frozen denoiser) | map (only the affine map). --final_eval_episodes:
+    the DP loss trains the encoder through the frozen denoiser) | map (only the affine map) | map_ctrl_last (Step F: the
+    map + the denoiser's output side, i.e. its last up block and output conv, 360k parameters). --final_eval_episodes:
     episodes of the evaluation at total_iters (default: num_eval_episodes).
   - early stopping (Step R, secondary number; the headline is the fixed budget total_iters): --val_demo_path (held-out
     demos, from scripts/stepR_val_demos.py) -> every val_freq iterations, on the EMA agent: L2 between the sampled
@@ -192,6 +193,11 @@ if __name__ == "__main__":
     if args.train_part == "map":  # only the affine map
         agent.requires_grad_(False)
         agent.visual_encoder[1].requires_grad_(True)
+    if args.train_part == "map_ctrl_last":  # Step F (b): the map + the denoiser's output side
+        agent.requires_grad_(False)
+        agent.visual_encoder[1].requires_grad_(True)
+        agent.noise_pred_net.up_modules[-1].requires_grad_(True)
+        agent.noise_pred_net.final_conv.requires_grad_(True)
 
     optimizer = optim.AdamW(params=[p for p in agent.parameters() if p.requires_grad], lr=args.lr, betas=(0.95, 0.999), weight_decay=1e-6)
     lr_scheduler = get_scheduler(name="cosine", optimizer=optimizer, num_warmup_steps=500, num_training_steps=args.total_iters)

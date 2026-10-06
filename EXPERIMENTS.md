@@ -34,6 +34,62 @@ loop. Strong viewpoint changes give no working DP oracle at all.
 
 ---
 
+## 2026-10-06 — Step F: which part to adapt with few demos (branch `step-f3`)
+
+- **Question:** from a stitched start, is fine-tuning only the map always best, or does also adapting the encoder or
+  (lightly) the controller help, depending on what changed (visuals vs task)?
+- **Setup:** Step R phase C, unchanged except for the trained part. Seed pair 1 (look 2 encoder s1 → controller s2;
+  training seed 1). Start = the Step R stitched start: nn_affine-PCA16 fitted on the same N demos (Step R's map files,
+  read from `labelstitch-r/results/20261005_step1b_stitch_stepR_map_*_p1_n*/`). N ∈ {10, 25} deployment-domain demos
+  (0..N-1) + the same 10 validation demos (400–409); 5k iterations (fixed budget, headline), lr 1e-4, 500 warm-up,
+  cosine, batch 256; evals every 1k (100 episodes, descriptive only) and at 5k (250 episodes).
+  Two combinations: **same task** (look 2 enc → cam0 ctrl, on look 2: a visual change) and **goal shift** (look 2
+  enc → cam0 goal ctrl, on the goal variant in look 2: a task change). Arms:
+  - map only: the Step R numbers for pair 1 (5k): same .488 / .496, goal .444 / .492 at N = 10 / 25;
+  - (a) map + encoder, controller frozen (`--train_part encoder`; PlainConv + map trained);
+  - (b) map + the denoiser's output side: its last up block and output conv (`--train_part map_ctrl_last`; 360k
+    parameters, ~6% of the U-Net; agreed 6 Oct over LoRA: the cleanest contrast with map-only, input side vs output
+    side, and no new dependency).
+  Encoder geometry after fine-tuning: NC1 and effective rank of z (before and after the map) on the deployment
+  domain's demos 0–99 with the chunk-cluster labels, against the start encoder.
+- **Decision rule (fixed before running):** noise = 2 × the binomial SE of the difference at 250 episodes (≈ .09 at
+  p ≈ .5). A variant "beats map-only" in a cell if it exceeds map-only by more than that. If it does in any cell,
+  replicate that variant on all 3 seed pairs; otherwise map-only is the default everywhere.
+- **Hypotheses:** (a) ≤ map-only on both combinations (within noise or below), with the encoder keeping its structure
+  (NC1 at most ~3, as encoder-only fine-tuning in Step 1b); (b) > map-only on the goal shift only, ≈ map-only on the
+  same task.
+- **Result** (`results/2026100?_stepF_ft_{enc,ctrl}_{same,goal}_p1_n{10,25}/`, geometry in
+  `results/20261007_stepF_geometry/`; success_once at the 5k budget, 250 episodes; in brackets % of the target oracle,
+  look 2 s1 .696 / goal look 2 s1 .800 as in Step R; Δ = arm − map-only, noise = 2 SE of the difference):
+
+  | combination | N | map only (Step R) | (a) map + encoder | Δ (a) | (b) map + last ctrl | Δ (b) | noise |
+  |---|---|---|---|---|---|---|---|
+  | same task | 10 | .488 (70%) | .380 (55%) | **−.108** | .492 (71%) | +.004 | .09 |
+  | same task | 25 | .496 (71%) | .492 (71%) | −.004 | .528 (76%) | +.032 | .09 |
+  | goal shift | 10 | .444 (56%) | .364 (46%) | −.080 | .424 (53%) | −.020 | .09 |
+  | goal shift | 25 | .492 (62%) | .436 (55%) | −.056 | .532 (67%) | +.040 | .09 |
+
+  Curves (0, 1k–4k at 100 episodes): (a) same .40 .45 .52 .36 .41 / .37 .45 .58 .46 .43, goal .24 .37 .36 .40 .32 /
+  .17 .57 .59 .47 .57; (b) same .55 .34 .49 .46 .50 / .33 .54 .69 .56 .59, goal .29 .32 .41 .42 .38 / .24 .48 .50
+  .55 .54 (N = 10 / 25).
+
+  Encoder geometry (NC1 / effective rank on the deployment domain's demos 0–99; before the map → after it): start
+  1.56 / 5.6 → 0.93 / 1.8 (same) and 1.53 / 5.8 → 1.18 / 3.3 (goal). Map + encoder: 1.95 / 6.9 (same, N = 10), 1.75 /
+  6.5 (same, 25), 1.65 / 7.5 (goal, 10), 1.54 / 6.8 (goal, 25) before the map; after the map 1.05–1.42. Map only and
+  (b) leave the encoder unchanged by construction; after the map 0.95–1.12.
+- **Takeaway: per the fixed rule, map-only stays the default everywhere; no replication on 3 pairs.**
+  - (a) map + encoder ≤ map-only in all 4 cells, below it beyond noise once (same task, N = 10): hypothesis
+    confirmed. The encoder keeps its structure (NC1 1.5–2.0, effective rank up from 5.6 to 6.5–7.5), so the loss is
+    not a collapse of the encoder as with end-to-end fine-tuning (NC1 ~10 in Step 1b); fine-tuning the encoder with
+    10–25 demos just adds variance without gain.
+  - (b) map + last controller layers ≈ map-only (−.02 to +.04, all inside the ±.09 noise), on both combinations alike:
+    hypothesis "(b) > map-only on the goal shift only" **rejected**. Its mean is slightly above map-only at N = 25 on
+    both (+.03, +.04): too small to resolve at 250 episodes on one pair, and not task-specific.
+  - **Rule for the paper: with 10–25 demos, fine-tune only the map: adding the encoder adds variance and no gain
+    (clearly worse once); adding the controller's last layers is equivalent within noise. Holds for a visual change
+    and a task change (one seed pair; ablation).** To go into PROJECT.md's Decisions when Step 3 closes and the
+    branch is merged.
+
 ## 2026-10-06 — Embodiment: nn_affine vs nn_orth at 1000 episodes (is the map-class flip real?)
 
 - **Question:** across robots, does nn_orth really beat nn_affine, or is the Step R flip pair 2 plus eval noise?
