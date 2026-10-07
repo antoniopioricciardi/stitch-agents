@@ -1,6 +1,6 @@
 # Label-aligned model stitching for autonomous agents — project brief
 
-_Last updated: 4 Oct 2026. Owner: Antonio._
+_Last updated: 7 Oct 2026. Owner: Antonio._
 
 ## Thesis (one line)
 
@@ -152,7 +152,7 @@ Novelty check (29 Sep 2026, ~10 targeted searches): no paper found that aligns i
 
 1. Does prototype alignment work post hoc on plain BC encoders, or is SupCon training required? *(Answered 2026-09-29 in Mario: SupCon on the latent is required; see Decisions.)*
 2. How many samples per action class are needed? *(Partly answered in Mario: 5 per class gives 73% of native in-game vs 88% with all; ≤100 random pairs per action is the adopted recipe.)*
-3. Does frozen DINO + adapter close the gap on its own? *(Mario: no, but upscaled NES frames are a weak test; redo in ManiSkill, Step 3.)* Also: does a pretrained encoder fine-tuned on a few demos provide the structure that 5–25 demos alone can't?
+3. Does frozen DINO + adapter close the gap on its own? *(Mario: no, but upscaled NES frames are a weak test; redo in ManiSkill, Step 3.)* Also: does a pretrained encoder fine-tuned on a few demos provide the structure that 5–25 demos alone can't? *(Answered 2026-10-07 in ManiSkill: no; off-the-shelf DINOv2 ViT-S stays below the oracle bar in our DP setup, so the few-demo question is not testable here. See Decisions.)*
 4. Are foundation-mined anchors reliable under task shift, or do we need few-shot? *(Partly superseded: goal shift and embodiment work with action-chunk pairs; actuation will test motion pairs first.)*
 5. Is an orthogonal map enough, or do we need affine/MLP? *(Answered 2026-10-04: affine. The affine paired ceiling reaches ~89% of native vs ~58% for orthogonal SAPS; an MLP adds nothing over affine.)*
 6. **How should continuous actions be labelled so that encoders stay alignable without losing within-action information?** (Step 1b.) *(Answered 2026-10-04 in ManiSkill: no encoder-side labels; plain DP encoders + label-only maps on continuous action pairs. See Decisions.)*
@@ -187,3 +187,5 @@ Novelty check (29 Sep 2026, ~10 targeted searches): no paper found that aligns i
 - 2026-10-06: **nn_affine stays the default map; no label-only map-class selection.** Raw, variance-matched and cosine criteria on held-out label pairs all pick nn_affine on 29–30 of 30 stitches (always-affine 76% of the ceiling vs 80% for a perfect per-stitch pick). The "noisy pairs make affine shrink" explanation is refuted (nn_affine keeps the same variance share in every shift).
 - 2026-10-06: **Diffusion Policy's denoising loss on held-out demos is not a proxy for closed-loop success** (it rises while success rises; sampled-chunk error is a weak selector too). Everything is judged in closed loop.
 - 2026-10-06 (protocol): **fine-tuning uses a fixed iteration budget chosen in advance** (5k for map-only; the final checkpoint for DP from scratch); early-stopped checkpoints are secondary numbers only; every low-data arm gets N training demos + the same 10 validation demos. Oracle acceptance = last-3 success ≥ 0.3 plus the three checks (hypothesis levels are not gates); a failed gate blocks only dependent jobs.
+- 2026-10-07 (Step F, ablation, one seed pair): **with 10–25 demos, fine-tune only the map.** From the stitched start, adding the encoder adds variance and no gain (clearly worse once); adding the controller's last layers (last U-Net up block + output conv) is equivalent within noise. Holds for a visual change and a task change.
+- 2026-10-07 (Step 3, closed, seed-1 pilot + diagnosis): **pretrained encoders do not replace task-trained ones here.** Baseline row: "Off-the-shelf DINOv2 ViT-S in ManiSkill's Diffusion Policy (frozen or fine-tuned, 126 or 224 px) stays below the oracle bar on PickCube in our setup, although its features locate the cube better than the oracle's task-trained encoder; the policy built on them is imprecise (2–4 cm from the cube vs 1.3 cm). Consistent with reports that frozen pretrained features underperform in Diffusion Policy (e.g. DINOv3-DP on PushT: 0.39 frozen vs 0.84 fine-tuned). Cause of the imprecision not diagnosed (time-boxed)." **The pretrained low-data route (a pretrained encoder fine-tuned on 5–25 demos, then stitched) is not testable in this setup**, since its 100-demo version already fails the oracle bar.

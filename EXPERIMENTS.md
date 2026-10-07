@@ -30,7 +30,9 @@ nn_affine stays the default. Limits: label alignment needs competent, structured
 demos cannot be stitched); with few target demos, the best entry is a stitched start with only the map fine-tuned:
 **60% / 74% of the target oracle with 10 / 25 demos, against 0–16% for DP from scratch** (3 seed pairs; goal shift and
 same task alike). DP's denoising loss on held-out demos is no proxy for success, so everything is judged in closed
-loop. Strong viewpoint changes give no working DP oracle at all.
+loop. Strong viewpoint changes give no working DP oracle at all. **Pretrained encoders are no shortcut here (Step 3):**
+off-the-shelf DINOv2 ViT-S in the same DP (frozen or fine-tuned, 126 or 224 px) stays below the oracle bar; its
+features locate the cube better than the task-trained encoder, but the policy built on them is imprecise.
 
 ---
 

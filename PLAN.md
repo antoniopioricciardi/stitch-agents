@@ -33,9 +33,11 @@ Each remaining step answers **one question**, with a **prompt** for Claude Code,
   - embodiment Panda → xArm: ceiling 56% of the xArm reference; nn_affine and nn_orth both work, no consistent winner (1000 episodes);
   - map-only fine-tuning: 60% / 74% of the target oracle with 10 / 25 demos (DP from scratch 0–16%), goal shift = same task;
   - no label-only criterion selects the map class; nn_affine stays the default.
+- **Step F — What to adapt with few demos (done, 7 Oct):** with 10–25 demos, fine-tune only the map (adding the encoder adds variance and no gain; adding the controller's last layers is equivalent within noise; visual and task change; one seed pair).
+- **Step 3 — Pretrained encoders (closed, 7 Oct):** off-the-shelf DINOv2 ViT-S in DP (frozen or fine-tuned, 126 or 224 px) stays below the oracle bar: it locates the cube well but the policy is imprecise; the pretrained low-data route is not testable in this setup.
 
 **Rough timeline for what remains (about 16 weeks):**
-- Weeks 1–2 (to ~18 Oct): Step R (done), Step F, Step 3
+- Weeks 1–2 (to ~18 Oct): Step R, Step F, Step 3 (all done by 7 Oct)
 - Weeks 3–4 (to ~1 Nov): Steps 5b and B
 - Weeks 5–6 (to ~15 Nov): Steps 7 and RL
 - Weeks 7–8 (to ~29 Nov): Step 6b, plus Step 8 if time allows
@@ -65,7 +67,9 @@ _Done: see "Where we are" and the Step R entry in EXPERIMENTS.md. **Split confir
 - **Exit:** combination table and data-efficiency curves with 3 seeds.
 - **Decision:** which combination results go into the main paper and which into the appendix.
 
-## Step F — Which part to adapt with few demos (small ablation)
+## Step F — Which part to adapt with few demos (small ablation) — done 7 Oct
+
+_Done: map-only stays the default for visual and task change (see "Where we are" and the Step F entry in EXPERIMENTS.md)._
 
 **Question:** given what changed (visuals vs task), is fine-tuning only the map always best, or does adapting the encoder or (lightly) the controller as well help?
 
@@ -80,7 +84,9 @@ Known so far: from a stitched start, map-only fine-tuning is the best arm; end-t
 - **Exit:** a small table: {map only, map + encoder, map + light controller} × {visual change, task change} × N.
 - **Decision:** a rule for the paper ("what to adapt, given what changed"), or confirmation that map-only is the right default everywhere. Ablation-sized: runs in a gap before Step 3's trainings.
 
-## Step 3 — "Why stitch?" and pretrained encoders
+## Step 3 — "Why stitch?" and pretrained encoders — closed 7 Oct
+
+_Closed after the seed-1 pilot and a time-boxed diagnosis: DINOv2 agents stay below the oracle bar, so (c) and the stitches are not interpretable; the baseline row is in PROJECT.md's Decisions and the Step 3 entry in EXPERIMENTS.md._
 
 **Question:** does a frozen or fine-tuned foundation encoder remove the need for stitching, or provide the structure that few demos can't?
 
