@@ -1,0 +1,9 @@
+{
+ "run_dir": "/home/ricc/projects/labelstitch-f3/results/20261007_step3_dp_dino_ft_cam0_s1",
+ "domain": "cam0",
+ "env_id": "StitchPickCubeLollipopNoGrasp-v1",
+ "n": 50,
+ "eval_seeds": "10000+i",
+ "fake_goal_seeds": "20000+i",
+ "grid": "first 3 failed true-goal episodes, every 10th step"
+}

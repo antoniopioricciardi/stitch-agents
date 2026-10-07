@@ -1,0 +1,18 @@
+{
+ "checkpoint": "/home/ricc/projects/labelstitch-f3/results/20261007_step3_dp_dino_ft_look2_n10_s1/runs/step3_dp_dino_ft_look2_n10_s1/checkpoints/19999.pt",
+ "full": {
+  "success_once": 0.0,
+  "success_at_end": 0.0,
+  "episodes": 250
+ },
+ "zeroed": {
+  "success_once": 0.0,
+  "success_at_end": 0.0,
+  "episodes": 250
+ },
+ "shuffled": {
+  "success_once": 0.008,
+  "success_at_end": 0.004,
+  "episodes": 250
+ }
+}

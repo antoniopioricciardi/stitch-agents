@@ -1,6 +1,6 @@
 """Blind check for a trained ManiSkill Diffusion Policy agent (third_party/maniskill_diffusion_policy, unmodified).
 
-Usage: uv run python scripts/eval_dp_blind.py <run_dir> <env_id> <demo_h5>
+Usage: uv run python scripts/eval_dp_blind.py <run_dir> <env_id> <demo_h5> [<out-tag>]
   run_dir: results/<run>/ (with runs/<name>/checkpoints/<final>.pt saved by run_dp.sh's --save_freq)
 
 Loads the final EMA agent and evaluates it with the baseline's own evaluate() and env construction, three ways:
@@ -22,6 +22,7 @@ import numpy as np
 import torch
 
 import train_rgbd  # the baseline script; its training code sits under `if __name__ == "__main__"`
+from stitch.models import swap_dino
 from diffusion_policy.evaluate import evaluate
 from diffusion_policy.make_env import make_eval_envs
 from mani_skill.utils.wrappers.flatten import FlattenRGBDObservationWrapper
@@ -34,7 +35,8 @@ SEED = 0
 # the guard is needed: the eval envs are forkserver workers, which re-import this script
 if __name__ == "__main__":
     RUN_DIR, ENV_ID, DEMOS = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
-    OUT = Path("results") / f"{date.today():%Y%m%d}_blind_{RUN_DIR.name.split('_', 1)[1]}"
+    TAG = f"_{sys.argv[4]}" if len(sys.argv) > 4 else ""  # e.g. "in_look2" when an agent is run in another domain (Step 3)
+    OUT = Path("results") / f"{date.today():%Y%m%d}_blind_{RUN_DIR.name.split('_', 1)[1]}{TAG}"
     OUT.mkdir(parents=True, exist_ok=True)
     dev = "cuda"
     torch.manual_seed(SEED), np.random.seed(SEED)
@@ -45,8 +47,9 @@ if __name__ == "__main__":
                       human_render_camera_configs=dict(shader_pack="default"), max_episode_steps=100)  # as in train_rgbd.py
     envs = make_eval_envs(ENV_ID, args.num_eval_envs, "physx_cpu", env_kwargs, dict(obs_horizon=args.obs_horizon),
                           video_dir=None, wrappers=[FlattenRGBDObservationWrapper])
-    agent = train_rgbd.Agent(envs, args).to(dev)
-    agent.load_state_dict(torch.load(ckpt)["ema_agent"])
+    sd = torch.load(ckpt)["ema_agent"]
+    agent = swap_dino(train_rgbd.Agent(envs, args).to(dev), sd)  # Step 3 agents have a DINO encoder
+    agent.load_state_dict(sd)
 
     # bank of visual features of random training frames: (N_BANK, 256)
     rng = np.random.default_rng(SEED)

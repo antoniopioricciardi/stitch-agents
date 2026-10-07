@@ -1,0 +1,8 @@
+{
+ "run_dir": "/home/ricc/projects/labelstitch-f3/results/20261007_step3_dp_dino224_frozen_cam0_s1",
+ "env_id": "stitch.envs:StitchPickCubeLollipopNoGrasp-v1",
+ "demos": "/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_demos_default_panda_cam0_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+ "n_episodes": 250,
+ "n_bank": 2048,
+ "seed": 0
+}

@@ -19,6 +19,7 @@ import numpy as np
 import torch
 
 from diffusion_policy.plain_conv import PlainConv
+from stitch.models import dino_from_sd
 
 TRAJ = "trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
 H5 = {"cam0": f"/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_demos_default_panda_cam0_lollipop/{TRAJ}",
@@ -95,7 +96,10 @@ if __name__ == "__main__":
     for run_dir, domain in zip(sys.argv[1::2], sys.argv[2::2]):
         ckpt = max(glob.glob(f"{run_dir}/runs/*/checkpoints/[0-9]*.pt"), key=lambda p: int(Path(p).stem))
         sd = torch.load(ckpt)["ema_agent"]
-        enc = PlainConv(in_channels=3, out_dim=256, pool_feature_map=True).cuda().eval()
+        if "visual_encoder.backbone.cls_token" in sd:  # Step 3 agents have a DINO encoder
+            enc = dino_from_sd(sd).eval()
+        else:
+            enc = PlainConv(in_channels=3, out_dim=256, pool_feature_map=True).cuda().eval()
         enc.load_state_dict({k[len("visual_encoder."):]: v for k, v in sd.items() if k.startswith("visual_encoder.")})
         rgb_f, cube_f, goal_f, demo_f = load(H5[domain], FIT)
         rgb_t, cube_t, goal_t, _ = load(H5[domain], TEST)

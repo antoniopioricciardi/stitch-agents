@@ -67,6 +67,7 @@ from diffusion_policy.utils import build_state_obs_extractor, convert_obs, load_
 from mani_skill.utils.wrappers.flatten import FlattenRGBDObservationWrapper
 from stitch.align import action_pairs, fit_action_pairs, fit_affine_paired, fit_identity, fit_procrustes_paired
 from stitch.labels import assign, frame_chunks, standardise
+from stitch.models import swap_dino
 
 ENV = {"cam0": "stitch.envs:StitchPickCubeLollipopNoGrasp-v1", "cam1": "stitch.envs:StitchPickCubeLollipopNoGraspCam1-v1",
        "cam2": "stitch.envs:StitchPickCubeLollipopNoGraspCam2-v1", "look1": "stitch.envs:StitchPickCubeLollipopNoGraspLook1-v1",
@@ -136,7 +137,7 @@ def load_agent(run_dir):
     spaces_s = type("E", (), dict(
         single_observation_space=spaces.Dict(state=spaces.Box(-np.inf, np.inf, (2, S)), rgb=spaces.Box(0, 255, (2, 128, 128, 3), np.uint8)),
         single_action_space=spaces.Box(-1, 1, (4,))))()
-    agent = train_rgbd.Agent(spaces_s, train_rgbd.Args()).to(DEV)
+    agent = swap_dino(train_rgbd.Agent(spaces_s, train_rgbd.Args()).to(DEV), sd)  # Step 3 agents have a DINO encoder
     agent.load_state_dict(sd)
     return agent.eval(), ckpt
 

@@ -15,6 +15,10 @@ The training loop is a copy of the `__main__` block of third_party/maniskill_dif
     the DP loss trains the encoder through the frozen denoiser) | map (only the affine map) | map_ctrl_last (Step F: the
     map + the denoiser's output side, i.e. its last up block and output conv, 360k parameters). --final_eval_episodes:
     episodes of the evaluation at total_iters (default: num_eval_episodes).
+  - pretrained encoder (Step 3): --encoder dino_frozen | dino_ft replaces PlainConv with stitch.models.DinoEncoder
+    (DINOv2 ViT-S/14 at --dino_size px (126 | 224) + a trainable adapter --dino_adapter cls | spatial, z still
+    (B, 256)), by assignment here: the
+    vendored Agent is untouched. dino_ft trains the backbone at --backbone_lr (default 1e-5), everything else at --lr.
   - early stopping (Step R, secondary number; the headline is the fixed budget total_iters): --val_demo_path (held-out
     demos, from scripts/stepR_val_demos.py) -> every val_freq iterations, on the EMA agent: L2 between the sampled
     executed chunk (fixed seed) and the demo chunk (the selection criterion), and the DP loss with fixed noise and
@@ -51,6 +55,7 @@ from diffusion_policy.evaluate import evaluate
 from diffusion_policy.make_env import make_eval_envs
 from diffusion_policy.utils import IterationBasedBatchSampler, build_state_obs_extractor, convert_obs, worker_init_fn
 from stitch.labels import CHUNK, assign
+from stitch.models import DinoEncoder
 
 
 @dataclass
@@ -67,6 +72,10 @@ class Args(train_rgbd.Args):
     final_eval_episodes: int = 0
     val_demo_path: str = ""
     val_freq: int = 500
+    encoder: str = "plainconv"
+    dino_adapter: str = "cls"
+    dino_size: int = 126
+    backbone_lr: float = 1e-5
 
 
 def supcon(e, y, tau=0.07):
@@ -171,6 +180,8 @@ if __name__ == "__main__":
     )
 
     agent = train_rgbd.Agent(envs, args).to(device)
+    if args.encoder != "plainconv":  # Step 3: encoder swap in glue code, the vendored Agent is untouched
+        agent.visual_encoder = DinoEncoder(args.dino_adapter, frozen=args.encoder == "dino_frozen", size=args.dino_size).to(device)
     ema_sd = lambda path: torch.load(path, map_location=device)["ema_agent"]
     if args.init_ckpt:  # fine-tune a trained agent
         agent.load_state_dict(ema_sd(args.init_ckpt))
@@ -199,11 +210,17 @@ if __name__ == "__main__":
         agent.noise_pred_net.up_modules[-1].requires_grad_(True)
         agent.noise_pred_net.final_conv.requires_grad_(True)
 
-    optimizer = optim.AdamW(params=[p for p in agent.parameters() if p.requires_grad], lr=args.lr, betas=(0.95, 0.999), weight_decay=1e-6)
+    # a pretrained backbone (Step 3, dino_ft) gets its own, lower learning rate
+    is_bb = lambda n: n.startswith("visual_encoder.backbone.")
+    groups = [dict(params=[p for n, p in agent.named_parameters() if p.requires_grad and not is_bb(n)])]
+    backbone = [p for n, p in agent.named_parameters() if p.requires_grad and is_bb(n)]
+    if backbone:
+        groups.append(dict(params=backbone, lr=args.backbone_lr))
+    optimizer = optim.AdamW(groups, lr=args.lr, betas=(0.95, 0.999), weight_decay=1e-6)
     lr_scheduler = get_scheduler(name="cosine", optimizer=optimizer, num_warmup_steps=500, num_training_steps=args.total_iters)
     ema = EMAModel(parameters=agent.parameters(), power=0.75)
-    # same structure as agent (incl. a map); a fresh Agent otherwise, as the vendored loop (keeps its RNG stream)
-    ema_agent = copy.deepcopy(agent) if args.init_map else train_rgbd.Agent(envs, args).to(device)
+    # same structure as agent (incl. a map or a DINO encoder); a fresh Agent otherwise, as the vendored loop (keeps its RNG stream)
+    ema_agent = copy.deepcopy(agent) if args.init_map or args.encoder != "plainconv" else train_rgbd.Agent(envs, args).to(device)
 
     # z of every encoder call during compute_loss: (B * obs_horizon, 256)
     feats = {}

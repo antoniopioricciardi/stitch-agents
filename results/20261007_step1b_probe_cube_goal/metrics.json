@@ -1,0 +1,258 @@
+{
+ "20261007_step3_dp_dino_ft_cam0_s1:cam0": {
+  "checkpoint": "/home/ricc/projects/labelstitch-f3/results/20261007_step3_dp_dino_ft_cam0_s1/runs/step3_dp_dino_ft_cam0_s1/checkpoints/49999.pt",
+  "domain": "cam0",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.82,
+    0.896,
+    0.865
+   ],
+   "r2_xyz_on_table": [
+    0.828,
+    0.89,
+    -1437.452
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    0.326,
+    0.384,
+    0.218
+   ],
+   "r2_xyz_on_table": [
+    0.24,
+    0.269,
+    0.121
+   ]
+  }
+ },
+ "20261007_step3_dp_dino_ft_look2_s1:look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-f3/results/20261007_step3_dp_dino_ft_look2_s1/runs/step3_dp_dino_ft_look2_s1/checkpoints/49999.pt",
+  "domain": "look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.01,
+   "r2_xyz_all": [
+    0.843,
+    0.911,
+    0.856
+   ],
+   "r2_xyz_on_table": [
+    0.854,
+    0.909,
+    -1383.58
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    0.137,
+    0.154,
+    0.254
+   ],
+   "r2_xyz_on_table": [
+    0.051,
+    0.025,
+    0.161
+   ]
+  }
+ },
+ "20261007_step3_dp_dino_frozen_cam0_s1:cam0": {
+  "checkpoint": "/home/ricc/projects/labelstitch-f3/results/20261007_step3_dp_dino_frozen_cam0_s1/runs/step3_dp_dino_frozen_cam0_s1/checkpoints/49999.pt",
+  "domain": "cam0",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 10,
+   "r2_xyz_all": [
+    0.806,
+    0.814,
+    0.779
+   ],
+   "r2_xyz_on_table": [
+    0.809,
+    0.801,
+    -1582.616
+   ]
+  },
+  "goal": {
+   "alpha": 10,
+   "r2_xyz_all": [
+    0.369,
+    0.418,
+    0.324
+   ],
+   "r2_xyz_on_table": [
+    0.324,
+    0.356,
+    0.294
+   ]
+  }
+ },
+ "20261007_step3_dp_dino_frozen_look2_s1:look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-f3/results/20261007_step3_dp_dino_frozen_look2_s1/runs/step3_dp_dino_frozen_look2_s1/checkpoints/49999.pt",
+  "domain": "look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 10,
+   "r2_xyz_all": [
+    0.761,
+    0.808,
+    0.75
+   ],
+   "r2_xyz_on_table": [
+    0.756,
+    0.786,
+    -1680.433
+   ]
+  },
+  "goal": {
+   "alpha": 10,
+   "r2_xyz_all": [
+    0.415,
+    0.417,
+    0.222
+   ],
+   "r2_xyz_on_table": [
+    0.369,
+    0.362,
+    0.18
+   ]
+  }
+ },
+ "20261007_step3_dp_dino_ft_look2_n5_s1:look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-f3/results/20261007_step3_dp_dino_ft_look2_n5_s1/runs/step3_dp_dino_ft_look2_n5_s1/checkpoints/19999.pt",
+  "domain": "look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.795,
+    0.833,
+    0.789
+   ],
+   "r2_xyz_on_table": [
+    0.811,
+    0.81,
+    -1462.434
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    0.274,
+    0.467,
+    0.255
+   ],
+   "r2_xyz_on_table": [
+    0.199,
+    0.399,
+    0.212
+   ]
+  }
+ },
+ "20261007_step3_dp_dino_ft_look2_n10_s1:look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-f3/results/20261007_step3_dp_dino_ft_look2_n10_s1/runs/step3_dp_dino_ft_look2_n10_s1/checkpoints/19999.pt",
+  "domain": "look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    0.778,
+    0.835,
+    0.743
+   ],
+   "r2_xyz_on_table": [
+    0.784,
+    0.81,
+    -1911.686
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    0.303,
+    0.414,
+    0.202
+   ],
+   "r2_xyz_on_table": [
+    0.227,
+    0.335,
+    0.134
+   ]
+  }
+ },
+ "20261007_step3_dp_dino_ft_look2_n25_s1:look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-f3/results/20261007_step3_dp_dino_ft_look2_n25_s1/runs/step3_dp_dino_ft_look2_n25_s1/checkpoints/19999.pt",
+  "domain": "look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.788,
+    0.866,
+    0.787
+   ],
+   "r2_xyz_on_table": [
+    0.794,
+    0.846,
+    -1559.348
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    0.246,
+    0.29,
+    0.118
+   ],
+   "r2_xyz_on_table": [
+    0.167,
+    0.192,
+    0.042
+   ]
+  }
+ },
+ "20261007_step3_dp_dino224_frozen_cam0_s1:cam0": {
+  "checkpoint": "/home/ricc/projects/labelstitch-f3/results/20261007_step3_dp_dino224_frozen_cam0_s1/runs/step3_dp_dino224_frozen_cam0_s1/checkpoints/49999.pt",
+  "domain": "cam0",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 10,
+   "r2_xyz_all": [
+    0.873,
+    0.887,
+    0.821
+   ],
+   "r2_xyz_on_table": [
+    0.878,
+    0.889,
+    -1403.268
+   ]
+  },
+  "goal": {
+   "alpha": 10,
+   "r2_xyz_all": [
+    0.529,
+    0.68,
+    0.344
+   ],
+   "r2_xyz_on_table": [
+    0.487,
+    0.647,
+    0.305
+   ]
+  }
+ }
+}

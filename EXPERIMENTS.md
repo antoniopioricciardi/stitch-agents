@@ -34,6 +34,163 @@ loop. Strong viewpoint changes give no working DP oracle at all.
 
 ---
 
+## 2026-10-06 — Step 3 pilot (seed 1): pretrained DINOv2 encoders, "why stitch?" (branch `step-f3`)
+
+- **Question:** does a frozen or fine-tuned foundation encoder remove the need for stitching, or provide the structure
+  that 5–25 demos alone can't?
+- **Encoder swap (glue code only; the vendored DP is untouched):** `stitch.models.DinoEncoder` replaces PlainConv by
+  assignment in `scripts/train_dp_supcon.py --encoder dino_frozen | dino_ft`. DINOv2 ViT-S/14 (torch.hub, local copy);
+  image 128 → 126 px (9 × 9 patches), ImageNet normalisation, backbone in bf16; a trainable adapter outputs z (B, 256),
+  so the controller input is unchanged. Fine-tuning: backbone lr 1e-5, everything else 1e-4 (cosine, 500 warm-up).
+  Measured cost per batch of 512 frames: frozen +48 ms, fine-tuned +154 ms (8 GB).
+- **Adapter choice, offline, before any training** (`scripts/step3_probe_adapter.py`): CLS token → Linear 256 vs patch
+  grid → 1×1 conv 32, ReLU → Linear 256, each with a linear cube (x, y) readout trained on frozen features (cam0 and
+  look 2, fit demos 0–89, validation 90–99, test 400–497). **Rule:** spatial if its mean on-table x/y R² over both
+  domains beats CLS by ≥ .05, else CLS. Chosen by the probe only, never by success; the choice is logged here before
+  training.
+- **Adapter probe result** (`results/20261006_step3_probe_adapter/`; test R² of cube x / y, on-table frames):
+
+  | domain | CLS adapter | spatial adapter | CLS ridge (reference) |
+  |---|---|---|---|
+  | cam0 | .76 / .69 | **.85 / .85** | .80 / .70 |
+  | look 2 | .70 / .72 | **.79 / .83** | .73 / .73 |
+  | mean | .72 | **.83** | |
+
+  **Choice: spatial adapter** (+.11 over CLS, rule ≥ .05). Frozen DINOv2 features already locate the cube about as
+  well as the trained PlainConv oracles (probe x / y .79 / .76 for the look 2 encoder in Step 1b; ridge, so not
+  strictly the same probe).
+- **Pilot runs (seed 1; DP recipe otherwise unchanged: default task, Panda, batch 256, 250 eval episodes):**
+  - (a) frozen backbone + adapter: cam0 and look 2, 100 demos, 50k iterations;
+  - (b) backbone fine-tuned: cam0 and look 2, 100 demos, 50k;
+  - (c) backbone fine-tuned on look 2 demos 0..N-1, N ∈ {5, 10, 25}, **20k iterations, fixed in advance** (a pretrained
+    backbone converges faster, and 50k on 5–25 demos mostly overfits; note: Step R's PlainConv-from-scratch arms used
+    50k), + the same 10 validation demos (400–409) for the secondary early-stopped number. Headline = the final 20k
+    checkpoint (last-3 at 10k / 15k / 20k).
+  - For every agent: native success (final, last-3), the three checks (blind, fake goal, cube/goal probe), NC1 /
+    effective rank of z.
+- **Pilot evaluations:**
+  1. the cam0 agents (a) and (b) run unchanged in look 2 (`eval_dp_blind.py ... in_look2`, "full" row);
+  2. stitch look 2 encoder → cam0 controller, (a) and (b), with identity, the affine paired ceiling and nn_affine.
+     **Caveat: seed 1 → seed 1** (only seed 1 exists in the pilot), against the s → s+1 convention; same-seed
+     stitches can look too good (identity especially). Pilot numbers only;
+  3. the N-demo encoders (c) → PlainConv cam0 controller s2 (the Step R controller), identity, affine ceiling,
+     nn_affine and nn_affine-PCA16, label maps fitted on the agent's own N demos (`--src-demos=N`), as in Step 1b's
+     few-demo test (PlainConv scratch encoders there: .05 / .05 / .11 stitched at N = 5 / 10 / 25, NC1 ≈ 9 / 9 / 3).
+  Then stop and report; seeds 2–3 are decided after the pilot.
+- **Hypotheses (drafted 6 Oct, before launching):**
+  - Native success: frozen + adapter below the PlainConv oracle (last-3 about .3–.6 on cam0; PlainConv cam0 s1 .79);
+    fine-tuned ≈ the PlainConv oracle.
+  - Unchanged in look 2: the frozen cam0 agent keeps ≥ 50% of its native success; the fine-tuned one < 30%.
+  - Few demos: the N-demo fine-tuned encoders are structured (NC1 < 3, vs ≈ 9 for PlainConv at N = 5 / 10) and
+    stitch at ≥ 50% of the affine ceiling.
+- **Surprise (7 Oct, 03:57): the fine-tuned cam0 agent fails** (success_once .124 at 50k, ≈ .12 last-3, vs PlainConv
+  cam0 .79) while its training loss ends lower than PlainConv's (.00012 vs .00029): the overfitting signature.
+- **Change of plan (7 Oct, decided after that report):** stop the look 2 fine-tuned run; run only the frozen runs and
+  the three checks on the fine-tuned cam0 and frozen agents; skip (c) and the stitch evaluations (they use the
+  fine-tuning setup that just failed, so they cannot be interpreted yet); stop and report. **The decision came after
+  the chain had already finished (12:29)**, so everything in the original chain ran, including (c) and the stitches.
+  Their outputs are kept but not interpreted until the fine-tuning failure is understood.
+- **Diagnosis hypothesis** (written 7 Oct 14:10, after the checks had run but **before any of their outputs was
+  read**): the fine-tuned agent overfits (it memorises the 100 demos; the DP baseline uses no image augmentation): its
+  cube probe on held-out frames is lower than PlainConv's, and the blind check shows it still uses the image. The
+  frozen agents cannot memorise through the backbone, so they pass the oracle bar (last-3 ≥ .3) if the encoder setup
+  itself is fine. If overfitting is confirmed, the likely fix is random-shift/crop augmentation (standard in
+  Diffusion Policy); not implemented until decided.
+- **Result: native agents and checks** (`results/20261007_step3_dp_dino_{ft,frozen}_{cam0,look2}_s1/`, blind
+  `results/20261007_blind_step3_*`, fake goal `results/20261007_step1b_fake_goal_*_step3_*`, probe
+  `results/20261007_step1b_probe_cube_goal/`; success_once, 250 episodes; fake-goal check "true" condition, 50
+  episodes: grasp rate and the TCP's closest approach to the cube; probe = ridge R² of cube x / y on held-out demos
+  400–497, cube on the table):
+
+  | agent | final (last-3) | blind full / zeroed / shuffled | grasped; closest to cube | probe cube x / y | final DP loss |
+  |---|---|---|---|---|---|
+  | DINO fine-tuned cam0 | .124 (.117) | .12 / .00 / .00 | .54; 2.9 cm | .83 / .89 | .00012 |
+  | DINO fine-tuned look 2 | .256 (.300) | .31 / .00 / .00 | .72; 2.1 cm | .85 / .91 | .00012 |
+  | DINO frozen cam0 | .084 (.055) | .05 / .00 / .00 | .44; 3.9 cm | .81 / .80 | .00020 |
+  | DINO frozen look 2 | .080 (.077) | .10 / .00 / .00 | .48; 4.1 cm | .76 / .79 | .00020 |
+  | PlainConv look 2 s1 (Step 1b) | .70 | | .84; 1.3 cm | .87 / .79 | .00023 |
+  | PlainConv cam0 (Step 2g / Step 1b) | .82 (.79) | .84 / .04 / .06 | | | .00029 (s2) |
+
+  Curves (every 5k): ft cam0 .00 .04 .04 .09 .05 .12 .12 .10 .12 .10 .12; ft look 2 .01 .08 .09 .19 .22 .27 .26 .24
+  .33 .32 .26; frozen cam0 .00 .01 .05 .02 .07 .07 .07 .04 .03 .05 .08; frozen look 2 .00 .02 .05 .06 .08 .08 .08 .08
+  .10 .06 .08.
+- **Takeaway: the overfitting hypothesis is rejected as the main cause; the DINO agents are imprecise, not blind.**
+  - Oracle bar (last-3 ≥ .3): only fine-tuned look 2 reaches it, just (.300); the other three fail.
+  - z still knows where the cube is (probe as good as PlainConv's), and the policies use the image (zeroed /
+    shuffled → 0): no shortcut on the state. Probe hypothesis ("lower than PlainConv") rejected.
+  - **The frozen agents fail worst** (.06 / .08) although a frozen backbone cannot memorise, and their final DP loss
+    is the same as PlainConv's (.00020 vs .00023): no overfitting signature there. Frozen-agent hypothesis ("pass the
+    bar if the encoder setup is fine") rejected, so the encoder setup itself is the suspect.
+  - The failure mode is precision: the DINO agents reach 2–4 cm from the cube (PlainConv 1.3 cm) and grasp 44–72%
+    of the time (PlainConv 84%); frozen is the least precise. A linear probe at R² ≈ .85 is still a few cm of
+    error, which is enough to miss a 4 cm cube.
+  - Candidate causes (not tested): (1) the 9 × 9 patch grid at 126 px, where one 14-px patch is about the size of the
+    cube; (2) the bf16 backbone (about 3 significant digits on features whose small changes encode position);
+    (3) overfitting adds to it for fine-tuning only (ft cam0 has the lowest loss and fails).
+- **Ran before the change of plan, not interpreted** (they use the setup that just failed): (c) few-demo
+  fine-tuned agents (`results/20261007_step3_dp_dino_ft_look2_n{5,10,25}_s1/`) with their checks, the cam0 agents
+  unchanged in look 2, and all stitch evaluations (`results/20261007_step1b_stitch_step3_*`). **Not interpreted:
+  oracles below the bar** (the agents behind them fail the oracle bar, so these numbers do not count under the
+  protocol).
+
+### 2026-10-07 — Step 3 diagnosis: is position detail lost at 126 px? (offline precision probe)
+
+- **Question:** do frozen DINOv2 features locate the cube precisely enough for a grasp, and does the input size
+  (126 vs 224 px) or the backbone precision (bf16 vs fp32) change that?
+- **Setup** (`scripts/step3_probe_precision.py`, no training of agents): frames with the cube on the table (z <
+  0.025 m), cam0 and look 2, fit demos 0–89, validation 90–99 (best epoch), test 400–497. A small MLP probe predicts
+  the cube's (x, y); **metric = error in cm** on the test frames (mean and median Euclidean x/y error). Features:
+  - frozen DINOv2 ViT-S/14 patch grid at 126 px (9 × 9) and 224 px (16 × 16), each in bf16 and fp32; probe head =
+    the spatial adapter (1×1 conv 32, ReLU, flatten, Linear 256), ReLU, Linear 2;
+  - reference: the PlainConv z (256) of the trained oracles look 2 s1 and cam0 s1 (own domain); probe head = Linear
+    256, ReLU, Linear 2.
+  Same training for all: Adam 1e-3, batch 512, 60 epochs, targets z-scored, seed 0.
+- **Decision rule (fixed 7 Oct, before running):** if 224 px (or fp32) gets within ~1.5× PlainConv's cm error (same
+  domain), train one frozen DINO agent at 224 px on cam0 (seed 1, 50k, the three checks), then stop and report. If no
+  setting gets close: stop and report, and the baseline row reads "off-the-shelf DINOv2 ViT-S features are too coarse
+  for this grasp". Time-box: the Step 3 diagnosis ends after this check (plus the one 224 px run if triggered).
+- **Hypotheses:** PlainConv errors about 0.5–1 cm; DINO at 126 px about 2× PlainConv or worse; 224 px reduces the DINO
+  error clearly (finer patches) and lands within 1.5× PlainConv; bf16 vs fp32 changes the error by < 10%.
+- **Result** (`results/20261007_step3_probe_precision/`; test frames with the cube on the table; mean (median)
+  Euclidean x/y error in cm):
+
+  | features | cam0 | look 2 |
+  |---|---|---|
+  | DINO 126 px bf16 | 2.25 (1.57) | 2.60 (2.02) |
+  | DINO 126 px fp32 | 2.19 (1.55) | 2.39 (1.81) |
+  | DINO 224 px bf16 | **1.56 (1.20)** | **1.99 (1.54)** |
+  | DINO 224 px fp32 | 1.74 (1.40) | 2.03 (1.59) |
+  | PlainConv oracle z (s1, own domain) | 4.70 (3.96) | 2.92 (2.48) |
+
+- **Takeaway: the premise of the check is refuted; frozen DINO locates the cube better than PlainConv's z does.**
+  - Hypotheses: PlainConv 0.5–1 cm rejected (2.9–4.7 cm); DINO 126 px ≥ 2× PlainConv rejected (it is better);
+    224 px reduces the DINO error confirmed (−31% cam0, −23% look 2); bf16 vs fp32 < 10% confirmed (fp32 is no
+    better at 224 px).
+  - So the absolute cube position on the table is not what separates the agents: the PlainConv policies grasp
+    precisely (1.3 cm closest approach) from a z that encodes it worse, and the DINO policies miss (2–4 cm) from
+    features that encode it better. What the controller needs is presumably relative and closed-loop (gripper–cube
+    offset as the gripper approaches), which a fixed-frame cube probe does not measure.
+  - Decision rule: it fires literally (every DINO setting is within 1.5× of PlainConv, because PlainConv is worse).
+    As fixed in advance: one frozen DINO agent at 224 px on cam0 (seed 1, 50k, bf16 since fp32 gives no gain, the
+    three checks), then stop and report. It also answers "the DINO setup was handicapped at 126 px".
+- **Result: frozen DINO at 224 px, cam0, seed 1** (`results/20261007_step3_dp_dino224_frozen_cam0_s1/`; 250 episodes):
+  success_once .072 final (last-3 .068), curve every 5k .00 .03 .04 .05 .06 .07 .05 .05 .06 .07 .07; blind full /
+  zeroed / shuffled .072 / .004 / .008; fake-goal check (true) success .08, grasped .60, closest approach 2.7 cm;
+  probe cube x / y .88 / .89 (on table); final DP loss .00013.
+- **Takeaway: 224 px does not fix it; the Step 3 diagnosis is closed (time-box).** Same failure as at 126 px (frozen
+  126 px: last-3 .055, 3.9 cm), slightly closer to the cube (2.7 cm) and a slightly better probe, still far below
+  the oracle bar (.3) and the PlainConv oracle (.79, 1.3 cm). The image is used (zeroed / shuffled → 0). Across the
+  five DINO agents (frozen / fine-tuned, 126 / 224 px, cam0 / look 2), only fine-tuned look 2 reaches the bar (.300,
+  borderline). Not diagnosed further: why features that locate the cube well give an imprecise policy (candidates:
+  closed-loop gripper–cube offset, the adapter, the conditioning scale; not tested).
+- **Step 3 closed (7 Oct). Baseline row (agreed wording):** "Off-the-shelf DINOv2 ViT-S in ManiSkill's Diffusion
+  Policy (frozen or fine-tuned, 126 or 224 px) stays below the oracle bar on PickCube in our setup, although its
+  features locate the cube better than the oracle's task-trained encoder; the policy built on them is imprecise (2–4
+  cm from the cube vs 1.3 cm). Consistent with reports that frozen pretrained features underperform in Diffusion
+  Policy (e.g. DINOv3-DP on PushT: 0.39 frozen vs 0.84 fine-tuned). Cause of the imprecision not diagnosed
+  (time-boxed)." The pretrained low-data route (c) is not testable in this setup (its 100-demo version already fails
+  the oracle bar); seeds 2–3 not run.
+
 ## 2026-10-06 — Step F: which part to adapt with few demos (branch `step-f3`)
 
 - **Question:** from a stitched start, is fine-tuning only the map always best, or does also adapting the encoder or

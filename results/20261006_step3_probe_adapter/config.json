@@ -1,0 +1,20 @@
+{
+ "fit": [
+  0,
+  89
+ ],
+ "val": [
+  90,
+  99
+ ],
+ "test": [
+  400,
+  497
+ ],
+ "epochs": 40,
+ "on_table_z": 0.025,
+ "h5": {
+  "cam0": "/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_demos_default_panda_cam0_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+  "look2": "/home/ricc/projects/labelstitch-1b/results/20261002_dp_ours_demos_default_panda_cam0_look2_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
+ }
+}
