@@ -34,7 +34,9 @@ H5 = {"cam0": f"/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_d
       "xarm_cam0": f"results/20261003_dp_ours_demos_default_xarm6_cam0_lollipop/{TRAJ}",
       "xarm_look2": f"results/20261003_dp_ours_demos_default_xarm6_cam0_look2_lollipop/{TRAJ}",
       "goal_cam0": f"results/20261003_dp_ours_demos_goal_panda_cam0_lollipop/{TRAJ}",
-      "goal_look2": f"results/20261003_dp_ours_demos_goal_panda_cam0_look2_lollipop/{TRAJ}"}
+      "goal_look2": f"results/20261003_dp_ours_demos_goal_panda_cam0_look2_lollipop/{TRAJ}",
+      "rot_cam0": f"results/20261008_dp_ours_demos_rotframe_panda_cam0_lollipop/{TRAJ}",
+      "rot_look2": f"results/20261008_dp_ours_demos_rotframe_panda_cam0_look2_lollipop/{TRAJ}"}
 FIT, TEST = range(0, 100), range(400, 498)
 ALPHAS = [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1, 10, 100, 1000]
 ON_TABLE_Z = 0.025  # cube half size 0.02: resting on the table

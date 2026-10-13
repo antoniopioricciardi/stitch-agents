@@ -38,7 +38,8 @@ ENV = {"cam0": "StitchPickCubeLollipopNoGrasp-v1", "cam1": "StitchPickCubeLollip
        "look2light1": "StitchPickCubeLollipopNoGraspLook2Light1-v1",
        "cam3": "StitchPickCubeLollipopNoGraspCam3-v1", "xarm_cam0": "StitchPickCubeLollipopNoGraspXarm-v1",
        "xarm_look2": "StitchPickCubeLollipopNoGraspLook2Xarm-v1", "goal_cam0": "StitchPickCubeLollipopNoGraspGoal-v1",
-       "goal_look2": "StitchPickCubeLollipopNoGraspLook2Goal-v1"}
+       "goal_look2": "StitchPickCubeLollipopNoGraspLook2Goal-v1",
+       "rot_cam0": "StitchPickCubeLollipopNoGraspRotframe-v1", "rot_look2": "StitchPickCubeLollipopNoGraspLook2Rotframe-v1"}
 N = 50
 GOAL = slice(-3, None)  # state = qpos, qvel, tcp_pose 7, goal_pos 3 (Panda 28-d, xArm6 + Robotiq 34-d)
 DEV = "cuda"

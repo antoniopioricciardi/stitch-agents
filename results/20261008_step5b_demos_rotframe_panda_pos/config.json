@@ -1,0 +1,5 @@
+{
+ "source": "/home/ricc/projects/labelstitch-step1/results/20260930_step1_demos_default_panda_pos/demos.npz",
+ "rot_deg": 45,
+ "control_mode": "pd_ee_delta_pos"
+}

@@ -36,6 +36,84 @@ features locate the cube better than the task-trained encoder, but the policy bu
 
 ---
 
+## 2026-10-07 — Step 5b pilot (seed pair 1): command-convention shift, motion-based pairs (branch `step-5b`)
+
+- **Question:** when the commands change meaning but the robot's motion does not, can pairs built from the robot's
+  actual motion replace action labels?
+- **Corrections to earlier entries (found 7 Oct, training-free):**
+  1. **In position mode, the ×0.5 actuation variant is an exact ×2 rescale of the default actions, with identical
+     trajectories.** The stored actuation demos (`labelstitch-step1/results/20260930_step1_demos_actuation_panda_pos/`)
+     have the same seeds, identical states and TCP paths (max difference 0.0), every arm action exactly 2.000× the
+     default one (no clipping) and identical gripper actions. The ×1.39 / ×1.91 phase ratios in the Step 1 entry came
+     from pose mode (`pd_ee_delta_pose`), where clipping occurs. So in our setup "actuation" changes only the scale of
+     the commands: motion pairs would equal same-task pairs by construction, and per-side z-scoring would turn
+     command pairs into motion pairs.
+  2. **With an open-loop planner plus conversion, any actuation variant leaves the trajectories unchanged.** The
+     converter tracks the same joint plan whatever the controller's bounds. Shifts that change behaviour (dynamics)
+     need a reactive expert, e.g. state-based PPO. Planned as an optional Step 5c after this pilot, not now.
+- **Redesign (agreed 8 Oct): a command-convention shift.** Task `rotframe` (`stitch/envs.py`): the agent's EE-delta
+  command is expressed in a frame rotated 45° about the vertical axis, and the env applies a = Rz(45°) c on x, y. The
+  robot moves exactly as in the default task; only the command frame differs, as between robots or controllers with
+  different coordinate conventions. A rotation is not undone by z-scoring, unlike the ×2 rescale.
+  - Demos: c = Rz(−45°) a_default (`scripts/step5b_rotframe_demos.py` → `results/20261008_step5b_demos_rotframe_panda_pos/`);
+    max |c| .36 / .34 / .42 on x / y / z, inside [−1, 1].
+  - **Replay check:** 498 / 498 succeed. Rotated vs default replay on 60 demos: TCP within 0.4 mm (median 1 µm). The
+    only larger state differences are transient velocities in contact (cube angular velocity, finger joint
+    velocities), the same size as default replay vs the stored states.
+  - DP exports: `results/20261008_dp_ours_demos_rotframe_panda_cam0{,_look2}_lollipop/`.
+- **Setup (seed pair 1):** look 2 default encoder s1 (`labelstitch-1b/results/20261003_step1b_dp_ref_look2_s1`) →
+  cam0 rotframe controller s2; deployed on the rotframe variant in look 2 (250 episodes). Yardstick: the look 2
+  rotframe reference s2. Both agents: 50k iterations, demos 0–99, three checks, oracle rule as in Protocols.
+  - Label fits: source = **look 2 default demos 0–49** (the encoder's own training data, default commands); target =
+    cam0 rotframe demos 50–99. Paired ceiling: affine on look 2 rotframe vs cam0 rotframe, demos 0–99, same demo and step.
+  - Rows: identity, the affine ceiling, and nn_affine on (i) command chunks, shared z-score (Step 1b label stats);
+    (i') command chunks, z-scored per side; (ii) motion chunks: 8 per-step TCP position changes from `tcp_pose`
+    (zero past the end), z-scored with stats pooled over both sides; (iii) motion + finger opening at t+1..t+8.
+  - Same-quantity checks for motion (logged by `scripts/step5b_stitch.py`): per-side mean / std of the motion per
+    dimension; motion chunks of the same seed in look 2 default vs cam0 rotframe (should be ~0). Pair quality per
+    pairing: motion error and TCP distance between paired frames (mm).
+- **Hypotheses:**
+  - (i) and (i') clearly below (ii) and (iii).
+  - (ii) ≈ the Step R same-task stitch (nn_affine 71% ± 9% of the ceiling; pair 1: 75%). This holds by construction:
+    the motion is the same as in the default task, so motion pairs are the pairs the same-task stitch would use.
+  - (ii) or (iii) ≥ 60% of the ceiling.
+  - Reported, not gates: both agents pass the oracle rule; ceiling ≈ the same-task ceiling (~68% of the reference).
+- **Agents** (`results/20261008_step5b_dp_ref_rot_{cam0,look2}_s2/`; chain `results/20261008_step5b_chain.sh`, run as
+  `step5b-pilot.service`; success_once final (last-3), 250 episodes; checks as in Step R). Both pass the oracle rule and
+  the three checks, and the controller passed the scripted gate:
+
+  | agent | success_once | blind full / zeroed | fake goal grasped true → fake | probe cube x / y |
+  |---|---|---|---|---|
+  | cam0 rotframe s2 (controller) | **.696 (.676)** | .66 / .04 | .84 → .82 | .78 / .65 |
+  | look 2 rotframe s2 (reference) | **.772 (.744)** | .76 / .03 | .88 → .94 | .79 / .70 |
+
+- **Stitch** (`results/20261008_step5b_stitch_p1/`; look 2 default encoder s1 → cam0 rotframe controller s2, on the
+  rotframe variant in look 2; success_once, 250 episodes; % of the affine ceiling; held-out z residual):
+
+  | map | success_once | % of ceiling | z residual | pair motion error (mm) |
+  |---|---|---|---|---|
+  | identity | .016 | 3% | 5.72 | — |
+  | affine paired ceiling | **.556** (72% of the reference) | 100% | 0.38 | — |
+  | (i) nn_affine, commands, shared z-score | .084 | 15% | 0.68 | 5.65 |
+  | (i') nn_affine, commands, per-side z-score | .080 | 14% | 0.69 | 5.86 |
+  | (ii) nn_affine, motion | **.360** | **65%** | 0.56 | 2.77 |
+  | (iii) nn_affine, motion + gripper | .356 | 64% | 0.55 | 2.85 |
+
+  Motion check: same seed, look 2 default vs cam0 rotframe: max motion-chunk difference 0.005 mm. Per-dimension motion
+  std 2.4 / 2.3 / 5.3 mm (source) vs 2.5 / 2.7 / 5.3 mm (target).
+- **Hypotheses:**
+  - Confirmed: (i) and (i') clearly below (ii) and (iii); command pairs are near blind level (zeroed blind .04).
+  - Confirmed: (ii) ≥ 60% of the ceiling (65%).
+  - Confirmed within noise: (ii) ≈ the Step R same-task stitch (71% ± 9%; pair 1 75%). The −10 points against pair 1
+    are inside the eval noise (±.09 at 250 episodes ≈ ±16 points of this ceiling).
+  - Confirmed: the ceiling is 72% of the reference (same task: ~68%). Both agents pass.
+  - Gripper state adds nothing ((iii) = (ii)).
+- **Takeaway (pilot, one seed pair):** under a command-convention shift (45° command frame), pairing by commanded
+  actions fails (14–15% of the ceiling, z-scored jointly or per side alike). Pairing by the robot's motion recovers
+  65%, as much as same-task stitching. By construction the motion here is identical to the default task's, so this
+  shows that motion pairs survive a change of command convention. It does not test a dynamics change (that needs
+  Step 5c's reactive expert).
+
 ## 2026-10-06 — Step 3 pilot (seed 1): pretrained DINOv2 encoders, "why stitch?" (branch `step-f3`)
 
 - **Question:** does a frozen or fine-tuned foundation encoder remove the need for stitching, or provide the structure

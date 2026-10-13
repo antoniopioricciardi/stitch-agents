@@ -47,7 +47,13 @@ TASKS = {
     "default": dict(friction=0.3, density=1000.0, arm_scale=1.0),
     "actuation": dict(friction=0.3, density=1000.0, arm_scale=0.5),
     "goal": dict(friction=0.3, density=1000.0, arm_scale=1.0),  # goal region moved to the robot's left, see below
+    "rotframe": dict(friction=0.3, density=1000.0, arm_scale=1.0),  # command frame rotated, see ROT_FRAME
 }
+# command-convention shift (Step 5b): the agent's EE-delta command c is expressed in a frame rotated 45 deg about the
+# vertical axis; the env turns it into the controller's command a = Rz(45 deg) c (x, y only). Same motion, other
+# command convention (robots or controllers with different coordinate conventions). Demos: c = Rz(-45 deg) a_default.
+_t = np.pi / 4
+ROT_FRAME = np.array([[np.cos(_t), -np.sin(_t)], [np.sin(_t), np.cos(_t)]], dtype=np.float32)
 # goal variant: goal y in [0.15, 0.25] instead of [-0.1, 0.1] (disjoint from the default), x and z as default.
 GOAL_Y = (0.15, 0.25)
 
@@ -101,6 +107,13 @@ class StitchPickCubeEnv(PickCubeEnv):
             arm = self.agent.controller.controllers["arm"]
             arm.action_space_low *= TASKS[task]["arm_scale"]
             arm.action_space_high *= TASKS[task]["arm_scale"]
+
+    def step(self, action):
+        if self.task == "rotframe":  # action (..., 4), numpy or torch; rows: a_xy = c_xy @ ROT_FRAME.T
+            R = ROT_FRAME if isinstance(action, np.ndarray) else torch.as_tensor(ROT_FRAME, dtype=action.dtype, device=action.device)
+            action = action.copy() if isinstance(action, np.ndarray) else action.clone()
+            action[..., :2] = action[..., :2] @ R.T
+        return super().step(action)
 
     @property
     def _default_sensor_configs(self):
@@ -199,6 +212,9 @@ register_env("StitchPickCubeLollipopNoGraspXarm-v1", max_episode_steps=160, goal
 register_env("StitchPickCubeLollipopNoGraspLook2Xarm-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, look=2, robot_uids="xarm6_robotiq")(StitchPickCubeEnv)
 register_env("StitchPickCubeLollipopNoGraspGoal-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, task="goal")(StitchPickCubeEnv)
 register_env("StitchPickCubeLollipopNoGraspLook2Goal-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, look=2, task="goal")(StitchPickCubeEnv)
+# command-convention shift (Step 5b): rotated command frame, cam0 and look 2
+register_env("StitchPickCubeLollipopNoGraspRotframe-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, task="rotframe")(StitchPickCubeEnv)
+register_env("StitchPickCubeLollipopNoGraspLook2Rotframe-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, look=2, task="rotframe")(StitchPickCubeEnv)
 # cam2 with the goal variant (goal y in GOAL_Y, disjoint from the cube area): "go to goal_pos" cannot find the cube
 register_env("StitchPickCubeLollipopNoGraspCam2Goal-v1", max_episode_steps=160, goal_marker="lollipop", grasp_in_state=False, cam=2, task="goal")(StitchPickCubeEnv)
 

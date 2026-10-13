@@ -1,0 +1,90 @@
+{
+ "checkpoints": {
+  "encoder": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_look2_s1/runs/step1b_dp_ref_look2_s1/checkpoints/49999.pt",
+  "controller": "/home/ricc/projects/labelstitch-5b/results/20261008_step5b_dp_ref_rot_cam0_s2/runs/step5b_dp_ref_rot_cam0_s2/checkpoints/49999.pt"
+ },
+ "checks": {
+  "motion_mean_mm": {
+   "source": [
+    -0.12683138251304626,
+    -0.03247932717204094,
+    -0.004753477405756712
+   ],
+   "target": [
+    0.0327298566699028,
+    0.0820825845003128,
+    0.16338416934013367
+   ]
+  },
+  "motion_std_mm": {
+   "source": [
+    2.366771936416626,
+    2.324451446533203,
+    5.2702131271362305
+   ],
+   "target": [
+    2.511758327484131,
+    2.6776158809661865,
+    5.302188873291016
+   ]
+  },
+  "same_seed_motion_maxdiff_mm": 0.004813075065612793,
+  "same_seed_cmd_maxdiff": 0.22204795479774475
+ },
+ "pairs": {
+  "cmd_shared": {
+   "motion_err_mm": 5.650895647704601,
+   "tcp_dist_mm": 75.0368982553482
+  },
+  "cmd_side": {
+   "motion_err_mm": 5.8648716658353806,
+   "tcp_dist_mm": 74.89069551229477
+  },
+  "motion": {
+   "motion_err_mm": 2.769153332337737,
+   "tcp_dist_mm": 66.85179471969604
+  },
+  "motion_grip": {
+   "motion_err_mm": 2.8544235974550247,
+   "tcp_dist_mm": 67.74904578924179
+  }
+ },
+ "aligners": {
+  "identity": {
+   "z_residual": 5.722812175750732,
+   "success_once": 0.016,
+   "success_at_end": 0.012,
+   "episodes": 250
+  },
+  "affine": {
+   "z_residual": 0.37571507692337036,
+   "success_once": 0.556,
+   "success_at_end": 0.38,
+   "episodes": 250
+  },
+  "nn_affine_cmd_shared": {
+   "z_residual": 0.6803058981895447,
+   "success_once": 0.084,
+   "success_at_end": 0.056,
+   "episodes": 250
+  },
+  "nn_affine_cmd_side": {
+   "z_residual": 0.689668595790863,
+   "success_once": 0.08,
+   "success_at_end": 0.044,
+   "episodes": 250
+  },
+  "nn_affine_motion": {
+   "z_residual": 0.557770848274231,
+   "success_once": 0.36,
+   "success_at_end": 0.264,
+   "episodes": 250
+  },
+  "nn_affine_motion_grip": {
+   "z_residual": 0.5546867251396179,
+   "success_once": 0.356,
+   "success_at_end": 0.22,
+   "episodes": 250
+  }
+ }
+}

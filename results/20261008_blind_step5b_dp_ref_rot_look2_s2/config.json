@@ -1,0 +1,8 @@
+{
+ "run_dir": "/home/ricc/projects/labelstitch-5b/results/20261008_step5b_dp_ref_rot_look2_s2",
+ "env_id": "stitch.envs:StitchPickCubeLollipopNoGraspLook2Rotframe-v1",
+ "demos": "/home/ricc/projects/labelstitch-5b/results/20261008_dp_ours_demos_rotframe_panda_cam0_look2_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+ "n_episodes": 250,
+ "n_bank": 2048,
+ "seed": 0
+}
