@@ -36,6 +36,119 @@ features locate the cube better than the task-trained encoder, but the policy bu
 
 ---
 
+## 2026-10-13 — Step 5b: motion pairs on the Step R combinations, and 5b replication on 3 seed pairs (branch `step-5b`)
+
+- **Questions:** (1) Can motion pairs replace action pairs as the default pairing rule? (2) Does the 5b pilot hold
+  over 3 seed pairs?
+- **Part 1, evals only** (`scripts/step5b_motion_stepR.py`). Step R's combinations, seed pairs (encoder s → controller
+  s+1), agents and protocol: goal shift (look 2 default encoder → cam0 goal controller) and embodiment (look 2 Panda
+  encoder → cam0 xArm controller); closed loop, 250 episodes.
+  - Maps: the affine ceiling and nn_affine from action pairs (Step R) vs motion pairs (5b), on the same frames, label
+    budget and demo halves. Source = deployment-domain demos 0–49, as in Step R. Embodiment also gets nn_orth with
+    both pairings.
+  - Secondary rows ("own"): source = the encoder's own look 2 default Panda demos 0–49, as in the 5b pilot. These
+    don't enter the decision.
+  - Action-pair maps are re-fitted and re-evaluated in the same run. They reproduce Step R's maps (held-out z
+    residual, embodiment pair 1: 0.670 / 1.050 / 0.426 vs Step R's 0.671 / 1.042 / 0.426 for nn_affine / nn_orth /
+    ceiling).
+- **Is motion the same quantity on both robots?** (Panda vs xArm default demos, look 2 and cam0, demos 0–99):
+  - Both robot bases are unrotated (Panda at x = −0.615, xArm at −0.522), and both controllers command the EE delta
+    in `root_translation`.
+  - TCP motion per step = 0.039 × the command on both robots (R² .994 Panda, .999 xArm).
+  - Per-step motion std 2.43 / 2.50 / 5.26 mm (Panda) vs 2.27 / 2.21 / 4.88 mm (xArm).
+
+  So yes, and in position mode the commands already mean the same motion on both robots.
+- **Hypotheses (part 1):**
+  - goal shift: motion ≈ action pairs (within noise);
+  - embodiment: motion ≥ action pairs. My expectation from the check above is ≈, since commands are already
+    motion-equivalent on both robots.
+- **Decision rule (fixed 13 Oct, before running):**
+  - Comparison: nn_affine, motion vs action pairs, mean success_once over 3 pairs, per combination.
+  - Noise: 2 × the SE of the difference of the means, SE = sqrt(Σ_pairs [p_m(1 − p_m) + p_a(1 − p_a)] / 250) / 3
+    (≈ .05 at p ≈ .4).
+  - If motion ≥ action − 2 SE on both combinations, **motion pairing becomes the method's default pairing rule** (it
+    also covers command-convention shifts). Otherwise action pairs stay the default, and motion pairs are the rule for
+    command-convention shifts only.
+- **Part 1 result** (`results/20261013_step5b_motion_stepR_{goal,emb}_p{1,2,3}/`; success_once, 250 episodes; % of
+  each pair's affine ceiling, mean ± std over 3 pairs):
+
+  | combination | ceiling (mean) | nn_affine action | nn_affine motion | nn_orth action | nn_orth motion | Δ affine motion − action (2 SE) |
+  |---|---|---|---|---|---|---|
+  | goal shift | .529 | 72 ± 8% (.380) | 64 ± 9% (.337) | — | — | −.043 (.049) |
+  | embodiment | .496 | 80 ± 17% (.399) | 79 ± 8% (.393) | 86 ± 20% (.421) | 86 ± 21% (.420) | −.005 (.050) |
+
+  Per pair (% of ceiling, action / motion): goal 81 / 74, 71 / 58, 65 / 60; embodiment nn_affine 92 / 83, 61 / 70,
+  86 / 84. Re-evaluated action pairs vs Step R's numbers: goal 72% vs 69%, embodiment 80% vs 70%. Within eval noise,
+  same maps. Pair motion error: action 2.6 / 2.5 mm vs motion 2.5 / 2.5 mm (goal / emb). With the deployment domain's
+  own demos on both sides, the two pairings pick nearly the same pairs.
+  - **Secondary, source = the encoder's own Panda default demos ("own"):**
+    - goal shift: action 62 ± 11% vs motion 65 ± 8%;
+    - embodiment, nn_affine: action **24 ± 10%** vs motion **52 ± 13%** (pair motion error 7.1 vs 3.0 mm);
+    - embodiment, nn_orth: action 51 ± 23% vs motion 98 ± 27%.
+
+    So with labels from a different robot, motion pairs are far better than action pairs, although the arm commands
+    have the same units on both robots. Likely cause, not checked: the gripper dimension of the chunk (Panda vs
+    Robotiq command conventions).
+  - **Hypotheses:**
+    - goal shift, motion ≈ action within noise: confirmed, but only just (−.043 vs 2 SE .049; motion is lower on all
+      3 pairs);
+    - embodiment, motion ≥ action: ≈ under Step R's protocol (−.005), as expected from the units check; clearly
+      better (+28 points) with the encoder's own demos.
+  - **Decision (rule fixed before running): motion is within noise on both combinations, so motion pairing becomes
+    the default pairing rule.** Caveat for the record: on the goal shift motion is consistently a few points lower
+    (−8 points of the ceiling on the mean), just inside the noise band.
+- **Part 2: 5b replication on seed pairs 2 and 3.**
+  - Train the cam0 rotframe controller and the look 2 rotframe reference at seeds 1 and 3: 50k iterations, three
+    checks each, oracle rule.
+  - Then the 5b stitch table for pair 2 (look 2 encoder s2 → controller s3) and pair 3 (s3 → s1).
+  - % of the reference uses the encoder's seed, as in Step R (pair 1 is re-based on the new s1 reference).
+- **Hypotheses (part 2):** over 3 pairs, (i) and (i') ≤ 25% of the ceiling, (ii) ≥ 55%; (ii) ≈ (iii); all four
+  agents pass.
+- **Crash and rerun:** the machine went down hard at ~13:00 on 13 Oct (journal ends with no shutdown; no OOM;
+  memory and load normal). Part 1 had finished. The cam0 rotframe s3 training stopped at 45k with no final
+  checkpoint; it was set aside as `results/20261013_step5b_dp_ref_rot_cam0_s3_crashed/`. Part 2 was rerun from
+  scratch (`results/20261013_step5b_part2_chain.sh`, `step5b-part2.service`).
+- **Part 2 agents** (success_once final (last-3), 250 episodes; all pass the oracle rule, the three checks and, for the
+  controllers, the scripted gate):
+
+  | agent | success_once | blind full / zeroed | fake goal grasped true → fake | probe cube x / y |
+  |---|---|---|---|---|
+  | cam0 rotframe s1 (controller) | .768 (.768) | .82 / .05 | .86 → .84 | .80 / .66 |
+  | cam0 rotframe s3 (controller) | .516 (.475) | .52 / .05 | .76 → .70 | .81 / .65 |
+  | look 2 rotframe s1 (reference) | .716 (.739) | .79 / .02 | .88 → .86 | .81 / .74 |
+  | look 2 rotframe s3 (reference) | .776 (.779) | .74 / .02 | .90 → .88 | .87 / .88 |
+
+- **Part 2 stitch, 3 seed pairs** (`results/20261008_step5b_stitch_p1/`, `results/20261013_step5b_stitch_p{2,3}/`;
+  look 2 default encoder s → cam0 rotframe controller s+1, on the rotframe variant in look 2; success_once, 250
+  episodes; % of the pair's affine ceiling):
+
+  | map | pair 1 | pair 2 | pair 3 | **mean ± std** |
+  |---|---|---|---|---|
+  | identity | .016 (3%) | .040 (9%) | .036 (7%) | 6 ± 3% |
+  | affine ceiling (% of the reference, encoder's seed) | .556 (78%) | .448 (58%) | .540 (70%) | 68 ± 10% of the ref. |
+  | (i) commands, shared z-score | .084 (15%) | .092 (21%) | .136 (25%) | 20 ± 5% |
+  | (i') commands, per-side z-score | .080 (14%) | .148 (33%) | .160 (30%) | 26 ± 10% |
+  | (ii) motion | .360 (65%) | .316 (71%) | .468 (87%) | **74 ± 11%** |
+  | (iii) motion + gripper | .356 (64%) | .276 (62%) | .444 (82%) | 69 ± 11% |
+
+  Pair 1's ceiling is now against the s1 reference (.716; it was 72% against s2 in the pilot). Pair motion error:
+  commands 5.7 / 5.9 mm, motion 2.8 / 2.9 mm. Same-seed motion check: 0.005 mm.
+- **Hypotheses (part 2):**
+  - Confirmed: (i) ≤ 25% (20%).
+  - Rejected, only just: (i') ≤ 25% (26%).
+  - Confirmed: (ii) ≥ 55% (74%); (ii) ≈ (iii) (74% vs 69%, within noise; the gripper adds nothing); all four
+    agents pass.
+- **Takeaway (Step 5b, 3 seed pairs):**
+  - Under a command-convention shift, pairing by the robot's motion recovers **74% ± 11% of the paired ceiling**.
+    That is as much as same-task stitching (Step R: 71% ± 9%). Pairing by commanded actions stays at 20–26%,
+    whether z-scored jointly or per side.
+  - On Step R's combinations, motion pairs are within noise of action pairs (goal shift only just: −.043 vs .049;
+    embodiment −.005). Per the fixed rule, **motion pairing becomes the default pairing rule.**
+  - One sentence for the paper: aligning by what the robot did covers command-convention shifts and costs nothing
+    measurable on goal and embodiment shifts. With labels from another robot, it is much better than action pairs
+    (52% vs 24%).
+  - Not tested: a shift that changes the dynamics (Step 5c, reactive expert).
+
 ## 2026-10-07 — Step 5b pilot (seed pair 1): command-convention shift, motion-based pairs (branch `step-5b`)
 
 - **Question:** when the commands change meaning but the robot's motion does not, can pairs built from the robot's

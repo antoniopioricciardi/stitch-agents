@@ -1,0 +1,9 @@
+{
+ "run_dir": "/home/ricc/projects/labelstitch-5b/results/20261013_step5b_dp_ref_rot_cam0_s1",
+ "domain": "rot_cam0",
+ "env_id": "StitchPickCubeLollipopNoGraspRotframe-v1",
+ "n": 50,
+ "eval_seeds": "10000+i",
+ "fake_goal_seeds": "20000+i",
+ "grid": "first 3 failed true-goal episodes, every 10th step"
+}

@@ -1,0 +1,130 @@
+{
+ "20261013_step5b_dp_ref_rot_cam0_s3:rot_cam0": {
+  "checkpoint": "/home/ricc/projects/labelstitch-5b/results/20261013_step5b_dp_ref_rot_cam0_s3/runs/step5b_dp_ref_rot_cam0_s3/checkpoints/49999.pt",
+  "domain": "rot_cam0",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.766,
+    0.626,
+    0.623
+   ],
+   "r2_xyz_on_table": [
+    0.811,
+    0.646,
+    -2782.546
+   ]
+  },
+  "goal": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.009,
+    -0.002,
+    0.079
+   ],
+   "r2_xyz_on_table": [
+    0.003,
+    -0.017,
+    0.013
+   ]
+  }
+ },
+ "20261013_step5b_dp_ref_rot_cam0_s1:rot_cam0": {
+  "checkpoint": "/home/ricc/projects/labelstitch-5b/results/20261013_step5b_dp_ref_rot_cam0_s1/runs/step5b_dp_ref_rot_cam0_s1/checkpoints/49999.pt",
+  "domain": "rot_cam0",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.758,
+    0.627,
+    0.553
+   ],
+   "r2_xyz_on_table": [
+    0.802,
+    0.655,
+    -3579.489
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    -0.001,
+    -0.053,
+    0.031
+   ],
+   "r2_xyz_on_table": [
+    -0.006,
+    -0.061,
+    -0.018
+   ]
+  }
+ },
+ "20261013_step5b_dp_ref_rot_look2_s1:rot_look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-5b/results/20261013_step5b_dp_ref_rot_look2_s1/runs/step5b_dp_ref_rot_look2_s1/checkpoints/49999.pt",
+  "domain": "rot_look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.727,
+    0.669,
+    0.488
+   ],
+   "r2_xyz_on_table": [
+    0.809,
+    0.74,
+    -3804.6
+   ]
+  },
+  "goal": {
+   "alpha": 1000,
+   "r2_xyz_all": [
+    -0.003,
+    -0.047,
+    -0.003
+   ],
+   "r2_xyz_on_table": [
+    -0.004,
+    -0.045,
+    -0.021
+   ]
+  }
+ },
+ "20261013_step5b_dp_ref_rot_look2_s3:rot_look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-5b/results/20261013_step5b_dp_ref_rot_look2_s3/runs/step5b_dp_ref_rot_look2_s3/checkpoints/49999.pt",
+  "domain": "rot_look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.809,
+    0.81,
+    0.473
+   ],
+   "r2_xyz_on_table": [
+    0.87,
+    0.88,
+    -4261.563
+   ]
+  },
+  "goal": {
+   "alpha": 1000,
+   "r2_xyz_all": [
+    -0.003,
+    -0.047,
+    -0.003
+   ],
+   "r2_xyz_on_table": [
+    -0.004,
+    -0.045,
+    -0.021
+   ]
+  }
+ }
+}
