@@ -20,6 +20,17 @@ def fit_procrustes_paired(Zs, Zt, **info):
     return Q.T, mu_t - mu_s @ Q
 
 
+def fit_similarity_paired(Zs, Zt, **info):
+    # Rows correspond. Similarity map z -> s (z - mu_s) Q + mu_t (orthogonal Q, one global scale s > 0), closed form
+    # (Umeyama 1991): Q = U V^T from svd((Zs - mu_s)^T (Zt - mu_t)) = U S V^T as in Procrustes, s = tr(S) / ||Zs - mu_s||_F^2.
+    # Between the orthogonal map (s = 1) and affine: it can shrink or grow z but not change its shape.
+    mu_s, mu_t = Zs.mean(0), Zt.mean(0)
+    U, S, Vt = np.linalg.svd((Zs - mu_s).T @ (Zt - mu_t))
+    Q = U @ Vt
+    s = S.sum() / ((Zs - mu_s) ** 2).sum()
+    return s * Q.T, mu_t - s * mu_s @ Q
+
+
 def fit_affine_paired(Zs, Zt, **info):
     # Paired affine least squares, no orthogonality (map-class ablation of SAPS): min ||Zs R^T + b - Zt||_F.
     # Solved on centred data: R^T = lstsq(Zs - mu_s, Zt - mu_t), b = mu_t - mu_s R^T.

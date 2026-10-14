@@ -17,16 +17,22 @@ SCIL + prototypes reaches 88% of native distance, the same as SCIL + SAPS, again
 Across levels (1-1 ↔ 1-2, no paired frames exist), SCIL + prototypes lets the other level's controller play
 (Nature CNN: 74% of native on 1-1, flags included) where BC + prototypes reaches 28–39%.
 
-**ManiSkill (Steps 1b and R, continuous control with Diffusion Policy).** The Mario mechanism does not carry over, but
+**ManiSkill (Steps 1b, R and 5b, continuous control with Diffusion Policy).** The Mario mechanism does not carry over, but
 label-only stitching does. SupCon on action-chunk clusters makes DP encoders more alignable but erases the cube position
 and destroys native control (a measured tradeoff; branch closed). Instead, plain DP encoders are already low-dimensional
 (effective rank 3–6), and a map fitted from **continuous action pairs** (nearest action chunks, no paired frames)
 stitches them: **nn_affine reaches 77% ± 10% of the paired ceiling** over 4 visual shifts × 3 seed pairs × 2 directions,
 where the paired ceiling must be **affine** (it recovers 80–104% of native; the orthogonal SAPS map only ~60%). Over 3
-seed pairs the same maps work across a goal shift (**nn_affine 69% ± 5% of the ceiling**; orthogonal maps 45–51%) and
-across robots (Panda encoder → xArm controller: ceiling 56% of the xArm oracle; **both nn_affine and nn_orth work, no
-consistent winner**, 77% vs 82% of the ceiling at 1000 episodes). No label-only criterion picks the map class, so
-nn_affine stays the default. Limits: label alignment needs competent, structured encoders (encoders trained on 5–25
+seed pairs the same maps work across a goal shift and across robots (Panda encoder → xArm controller: ceiling 56% of the
+xArm oracle). **Step 5b: the pairs should come from the robot's motion, not its commands.** Under a command-convention
+shift (45° rotated command frame, same motion), motion-chunk pairs recover **74% ± 11% of the ceiling** while command
+pairs stay at 20–26%; on goal and embodiment shifts motion pairs are within noise of action pairs, so **motion pairing is
+the default**. **Zero-shot fits use only each agent's own training data** (13 Oct protocol); under it (superseding Step
+R's numbers): goal shift motion 65% ± 8% (action 62%); across robots action pairs break (nn_affine 24%) and motion pairs
+do not. **The map class depends on the shift: affine within a robot, orthogonal across robots** (embodiment, 1000
+episodes, 3 / 3 pairs: nn_orth .475 = 93% ± 23% of the better paired map vs nn_affine 44% ± 14%; goal shift and visual
+shifts prefer affine). Motion pairs keep the main visual matrix (80% ± 9% of the ceiling vs 77% for action pairs); a
+single similarity map (orthogonal × one scale) fails everywhere, because its fitted scale shrinks z. Limits: label alignment needs competent, structured encoders (encoders trained on 5–25
 demos cannot be stitched); with few target demos, the best entry is a stitched start with only the map fine-tuned:
 **60% / 74% of the target oracle with 10 / 25 demos, against 0–16% for DP from scratch** (3 seed pairs; goal shift and
 same task alike). DP's denoising loss on held-out demos is no proxy for success, so everything is judged in closed
@@ -35,6 +41,126 @@ off-the-shelf DINOv2 ViT-S in the same DP (frozen or fine-tuned, 126 or 224 px) 
 features locate the cube better than the task-trained encoder, but the policy built on them is imprecise.
 
 ---
+
+## 2026-10-14 — One map class for every regime? Similarity map vs affine vs orthogonal (branch `step-5b`)
+
+- **Question:** can one map class replace "affine within a robot, orthogonal across robots"?
+- **Map:** `fit_similarity_paired` (`stitch/align.py`): z → s (z − μ_s) Q + μ_t, with Q orthogonal and one global
+  scale s (closed form, Umeyama). It lies between the orthogonal map (s = 1) and the affine one.
+- **Setup:** evals only, own-data motion pairs, 250 episodes, with nn_sim next to nn_affine and nn_orth.
+  - Main visual matrix (24 cells): nn_orth and nn_sim are new (`step5b_motion_matrix.py --maps=nn_orth,nn_sim`);
+    nn_affine is the 13 Oct run.
+  - Embodiment (3 pairs): nn_sim is new; nn_affine and nn_orth come from the 13 Oct own-data rows at 250 episodes.
+  - Goal shift (3 pairs): nn_orth and nn_sim are new; nn_affine comes from the 13 Oct own-data row.
+- **Embodiment reporting rule (13 Oct):** raw success, with the ceiling = the better of the two paired maps (affine
+  or orthogonal / SAPS). Both are evaluated here at 1000 episodes, so the 1000-episode table has 1000-episode
+  ceilings.
+- **Hypotheses:**
+  - The similarity map is within noise of the best class in the main matrix and on embodiment. It fixes the affine
+    map's shrinkage across robots and keeps more of the affine map's fit within a robot.
+  - Goal shift under the own-data protocol prefers affine (Step R: orthogonal maps 45–51% vs affine 69%).
+- **Decision rule (fixed 14 Oct, before running):**
+  - Per regime, best = the class with the higher mean success among nn_affine and nn_orth.
+  - nn_sim is within noise if mean(sim − best) ≥ −2 SE. In the matrix, d is in % of each cell's ceiling and
+    SE = std(d) / √24. For embodiment and goal (3 pairs), d is in success and
+    SE = sqrt(Σ_pairs [p_s(1 − p_s) + p_b(1 − p_b)] / 250) / 3.
+  - If nn_sim is within noise in all three regimes, **it becomes the single default map class**. Otherwise the rule
+    stays "affine within a robot, orthogonal across robots", plus what the goal shift shows.
+- **Result** (`results/20261014_step5b_motion_matrix_*_sim/`, `results/20261014_step5b_motion_stepR_{emb,goal}_p*_sim/`;
+  own-data motion pairs, 250 episodes):
+
+  | regime | nn_affine | nn_orth | nn_sim | best | sim − best (2 SE) | verdict |
+  |---|---|---|---|---|---|---|
+  | visual matrix (24 cells, % of ceiling) | **80% ± 9%** | 61% ± 18% | 35% ± 7% | affine | −44.7 pts (4.6) | fails |
+  | embodiment (success, 3 pairs) | .261 | **.483** | .151 | orth | −.332 (.044) | fails |
+  | goal shift (success, 3 pairs) | **.339** | .217 | .160 | affine | −.179 (.044) | fails |
+
+  - Per shift, visual matrix (affine / orth / sim, % of ceiling): look 1 83 / 76 / 38; look 2 77 / 50 / 30; look 2 +
+    light 1 83 / 55 / 37; cam3 78 / 62 / 35.
+  - Goal shift per pair: affine .352 / .312 / .352, orth .180 / .200 / .272, sim .144 / .124 / .212 (ceilings .488 /
+    .468 / .632).
+  - Embodiment per pair: sim .132 / .156 / .164.
+  - **Why the similarity map fails:** its fitted global scale is s = 0.37–0.58 (embodiment and goal, all pairs), so
+    it halves z toward the target mean. With noisy nearest-neighbour pairs the least-squares scale is diluted. The
+    orthogonal map keeps s = 1; the affine map is not limited to one shrinking scale.
+- **Hypotheses:**
+  - Rejected: nn_sim within noise of the best class (it is far below both other classes everywhere).
+  - Confirmed: under the own-data protocol, the goal shift prefers affine (.339 vs .217, +.121 vs 2 SE .046; 3 / 3
+    pairs).
+- **Decision (rule fixed before running): no single map class.** The rule stays **affine within a robot (visual
+  shifts and the goal shift), orthogonal across robots**.
+- **Embodiment, 1000-episode table under the reporting rule** (ceiling = the better of the affine and orthogonal /
+  SAPS paired maps, both at 1000 episodes; `results/20261014_step5b_motion_stepR_emb_p*_ceil1000/`):
+
+  | pair | affine paired | orth paired (SAPS) | ceiling | nn_affine | nn_orth |
+  |---|---|---|---|---|---|
+  | 1 | .573 | .405 | .573 | .279 (49%) | .384 (67%) |
+  | 2 | .441 | .477 | .477 | .133 (28%) | .515 (108%) |
+  | 3 | .505 | .453 | .505 | .272 (54%) | .525 (104%) |
+  | **mean** | | | .518 | .228 (44% ± 14%) | **.475 (93% ± 23%)** |
+
+  - nn_orth still exceeds the better paired map on pairs 2 and 3, by +.038 and +.020. Both are within the 1000-episode
+    noise (2 SE ≈ .044), so it is at the paired ceiling there, not above it.
+
+## 2026-10-13 (evening) — Motion pairs on the main visual matrix; embodiment map class under the own-data protocol (branch `step-5b`)
+
+- **Questions:** (1) Do motion pairs keep the main visual-shift result? (2) Under the own-data protocol, are
+  orthogonal maps better than affine maps across robots?
+- **(1) Main matrix** (`scripts/step5b_motion_matrix.py`). Step 1b's 4 shifts (look 1, look 2, look 2 + light 1,
+  cam3) × 3 seed pairs × 2 directions, with the same agents and directions as `step1b_matrix_table.py`.
+  - nn_affine on motion pairs. Source = the encoder's own demos 0–49, target = the controller's own demos 50–99,
+    which was already the own-data protocol.
+  - 250 episodes per cell. Identity, the affine ceiling and action-pair nn_affine are the existing Step 1b numbers
+    (`labelstitch-1b/results/20261003_step1b_matrix/`; nn_affine 77% ± 10% of the ceiling).
+  - **Hypothesis:** motion within noise of 77%.
+  - **Rule (fixed before running):** per cell, d = motion − action in % of the cell's ceiling. "Within noise" if
+    mean d ≥ −2 × SE(d), with SE = std(d) / √24.
+- **(2) Embodiment map class, own-data protocol, 1000 episodes** (`scripts/step5b_motion_stepR.py emb --maps=...
+  --episodes=1000`). nn_orth vs nn_affine on own-data motion pairs (source = look 2 default Panda demos 0–49,
+  target = the xArm controller's own cam0 demos 50–99), 3 pairs.
+  - At 250 episodes: nn_orth 98% ± 27% vs nn_affine 52% ± 13% of the ceiling.
+  - **Rule (as for the Step R re-test):** per pair, orth wins beyond noise if success_once(orth) − success_once(affine)
+    > 2 × sqrt([p_o(1 − p_o) + p_a(1 − p_a)] / 1000) (≈ .04). If orth wins on ≥ 2 of 3 pairs, report "orthogonal
+    maps are better across robots"; otherwise no consistent winner.
+  - **Hypothesis:** orth wins on ≥ 2 of 3 pairs (the 250-episode gap is +.17 / +.35 / +.28).
+- **Result (1), main matrix** (`results/20261013_step5b_motion_matrix_{shift}_p{1,2,3}/`; nn_affine on motion pairs, %
+  of each cell's Step 1b affine ceiling, 250 episodes):
+
+  | shift | dir | p1 | p2 | p3 | motion mean | action mean (Step 1b) |
+  |---|---|---|---|---|---|---|
+  | look 1 | fwd | 73% | 89% | 81% | 81% | 84% |
+  | look 1 | bwd | 78% | 98% | 76% | 84% | 79% |
+  | look 2 | fwd | 75% | 88% | 71% | 78% | 78% |
+  | look 2 | bwd | 70% | 79% | 78% | 76% | 75% |
+  | look 2 + light 1 | fwd | 77% | 91% | 75% | 81% | 75% |
+  | look 2 + light 1 | bwd | 79% | 85% | 88% | 84% | 79% |
+  | cam3 | fwd | 67% | 82% | 83% | 77% | 78% |
+  | cam3 | bwd | 70% | 101% | 63% | 78% | 70% |
+  | **all 24 cells** | | | | | **80% ± 9%** | 77% ± 10% |
+
+  - Mean d = +2.6 points (2 SE = 3.8); motion is above action in 13 / 24 cells.
+  - **Hypothesis confirmed: motion pairs are within noise of action pairs on the main matrix** (slightly above them
+    on the mean, not beyond noise).
+- **Result (2), embodiment map class** (`results/20261013_step5b_motion_stepR_emb_p{1,2,3}_own1000/`; own-data motion
+  pairs, success_once at 1000 episodes; % of the pair's ceiling, taken from the 250-episode runs):
+
+  | pair | nn_affine | nn_orth | orth − affine | 2 SE | verdict |
+  |---|---|---|---|---|---|
+  | 1 | .279 (52%) | .384 (72%) | +.105 | .042 | orth wins |
+  | 2 | .133 (28%) | .515 (110%) | +.382 | .038 | orth wins |
+  | 3 | .272 (56%) | .525 (108%) | +.253 | .042 | orth wins |
+  | **mean ± std** | 45 ± 15% | **97 ± 21%** | | | **3 / 3** |
+
+  - **Hypothesis confirmed; per the rule: orthogonal maps are better across robots** under the own-data protocol.
+    This reverses the target-combination protocol's "no consistent winner" (Step R, 1000 episodes).
+  - With source labels from another robot, the affine fit loses roughly half its success while the orthogonal map
+    reaches the affine ceiling. Not diagnosed: why the orthogonal constraint helps when the pairs come from
+    different robots' demos (pair motion error 3.0 vs 2.5 mm with same-robot labels).
+- **Takeaway:**
+  - Motion pairing as the default costs nothing on visual shifts (80% vs 77% of the ceiling, 24 cells).
+  - Across robots, under the own-data protocol, the map should be orthogonal (nn_orth 97% ± 21% of the ceiling vs
+    nn_affine 45% ± 15%; 3 / 3 pairs at 1000 episodes). The map class now depends on the shift: affine within a
+    robot, orthogonal across robots.
 
 ## 2026-10-13 — Step 5b: motion pairs on the Step R combinations, and 5b replication on 3 seed pairs (branch `step-5b`)
 

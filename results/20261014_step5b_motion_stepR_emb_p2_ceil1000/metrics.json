@@ -1,0 +1,60 @@
+{
+ "checkpoints": {
+  "encoder": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_look2_s2/runs/step1b_dp_ref_look2_s2/checkpoints/49999.pt",
+  "controller": "/home/ricc/projects/labelstitch-r/results/20261004_stepR_dp_ref_xarm_cam0_s3/runs/stepR_dp_ref_xarm_cam0_s3/checkpoints/99999.pt"
+ },
+ "checks": {
+  "motion_std_mm": {
+   "source": [
+    2.21535062789917,
+    2.0815742015838623,
+    4.935235023498535
+   ],
+   "target": [
+    2.337951898574829,
+    2.337692975997925,
+    4.872467994689941
+   ]
+  },
+  "motion_std_mm_own": {
+   "source": [
+    2.366771936416626,
+    2.324451446533203,
+    5.2702131271362305
+   ],
+   "target": [
+    2.337951898574829,
+    2.337692975997925,
+    4.872467994689941
+   ]
+  }
+ },
+ "pairs": {
+  "action": {
+   "motion_err_mm": 2.4728216230869293
+  },
+  "motion": {
+   "motion_err_mm": 2.4902212899178267
+  },
+  "action_own": {
+   "motion_err_mm": 7.123142015188932
+  },
+  "motion_own": {
+   "motion_err_mm": 3.028678707778454
+  }
+ },
+ "aligners": {
+  "affine": {
+   "z_residual": 0.6447112560272217,
+   "success_once": 0.441,
+   "success_at_end": 0.413,
+   "episodes": 1000
+  },
+  "saps": {
+   "z_residual": 1.357704997062683,
+   "success_once": 0.477,
+   "success_at_end": 0.439,
+   "episodes": 1000
+  }
+ }
+}

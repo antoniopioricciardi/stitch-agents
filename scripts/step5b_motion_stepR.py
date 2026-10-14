@@ -1,6 +1,7 @@
 """Step 5b follow-up: re-run the Step R combinations (goal shift, embodiment) with motion pairs instead of action pairs.
 
 Usage: uv run python scripts/step5b_motion_stepR.py <goal|emb> <pair> <encoder_run_dir> <controller_run_dir> [--episodes=250]
+       [--maps=a,b] (evaluate only these maps; default all) [--tag=x] (suffix for the output folder)
 Run from the repo root with PYTHONPATH=<repo>:<repo>/third_party/maniskill_diffusion_policy.
 
 Step R protocol (scripts/step1b_stitch.py, --only-dir=10): look 2 encoder -> cam0-side controller, deployed in look 2
@@ -11,9 +12,11 @@ on the controller's task / robot. Frames are the current frames t = 0..L-2 of ea
     the Step 5b pilot;
   - paired ceiling: affine on deployment vs controller domain, demos 0-99 (same demo and step = same state);
   - held-out z residual on the same paired sets, demos 400-497.
-Maps: affine (ceiling); nn_affine on action chunks (Step R's pairing: z-scored 8-step chunks, Step 1b label stats)
-and on motion chunks (8 per-step TCP position changes, z-scored per dimension with stats pooled over both sides; see
-scripts/step5b_stitch.py); embodiment also nn_orth on both. The same with "_own" for the secondary source.
+Maps: affine and saps (orthogonal) paired ceilings; nn_affine, nn_orth and nn_sim (similarity: orthogonal x one global
+scale + bias) on action chunks (Step R's pairing: z-scored 8-step chunks, Step 1b label stats) and on motion chunks (8
+per-step TCP position changes, z-scored per dimension with stats pooled over both sides; see scripts/step5b_stitch.py).
+The same with "_own" for the secondary source. --maps selects which are evaluated (the 13 Oct runs, before saps and
+nn_sim existed, evaluated affine + nn_affine for goal and affine + nn_affine + nn_orth for emb).
 Closed loop: the baseline's evaluate() on the deployment env, N_EPISODES episodes, final checkpoints.
 """
 import copy
@@ -32,7 +35,7 @@ from step1b_stitch import ENV_KWARGS, affine, encode, load_agent
 from diffusion_policy.evaluate import evaluate
 from diffusion_policy.make_env import make_eval_envs
 from mani_skill.utils.wrappers.flatten import FlattenRGBDObservationWrapper
-from stitch.align import fit_affine_paired, fit_procrustes_paired
+from stitch.align import fit_affine_paired, fit_procrustes_paired, fit_similarity_paired
 
 TRAJ = "trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
 R = "/home/ricc/projects/labelstitch-r/results"
@@ -50,9 +53,11 @@ DEV = "cuda"
 
 if __name__ == "__main__":
     COMBO, PAIR, ENC_RUN, CTRL_RUN = sys.argv[1:5]
-    N_EPISODES = int(next((a.split("=")[1] for a in sys.argv if a.startswith("--episodes=")), N_EPISODES))
+    opt = lambda k, d: next((a.split("=")[1] for a in sys.argv if a.startswith(f"--{k}=")), d)
+    N_EPISODES = int(opt("episodes", N_EPISODES))
+    TAG = opt("tag", "")
     DEP, CTL, DEPLOY_ENV = COMBOS[COMBO]
-    OUT = Path("results") / f"{date.today():%Y%m%d}_step5b_motion_stepR_{COMBO}_p{PAIR}"
+    OUT = Path("results") / f"{date.today():%Y%m%d}_step5b_motion_stepR_{COMBO}_p{PAIR}{TAG}"
     OUT.mkdir(parents=True, exist_ok=True)
     enc, enc_ckpt = load_agent(ENC_RUN)
     ctrl, ctrl_ckpt = load_agent(CTRL_RUN)
@@ -67,8 +72,8 @@ if __name__ == "__main__":
     Pu, Pv = encode(enc.visual_encoder, pu["rgb"]).cpu().numpy(), encode(ctrl.visual_encoder, pv["rgb"]).cpu().numpy()
     Hu, Hv = encode(enc.visual_encoder, hu["rgb"]), encode(ctrl.visual_encoder, hv["rgb"])
 
-    maps, pairs = {"affine": fit_affine_paired(Pu, Pv)}, {}
-    fits = {"nn_affine": fit_affine_paired, **({"nn_orth": fit_procrustes_paired} if COMBO == "emb" else {})}
+    maps, pairs = {"affine": fit_affine_paired(Pu, Pv), "saps": fit_procrustes_paired(Pu, Pv)}, {}
+    fits = {"nn_affine": fit_affine_paired, "nn_orth": fit_procrustes_paired, "nn_sim": fit_similarity_paired}
     for tag, S in src.items():
         Zs = encode(enc.visual_encoder, S["rgb"]).cpu().numpy()
         for kind, mode in (("action", "shared"), ("motion", "pooled")):
@@ -85,6 +90,8 @@ if __name__ == "__main__":
     envs = make_eval_envs(DEPLOY_ENV, 10, "physx_cpu", ENV_KWARGS, dict(obs_horizon=2), video_dir=None,
                           wrappers=[FlattenRGBDObservationWrapper])
     for name, (Rm, b) in maps.items():
+        if opt("maps", None) and name not in opt("maps", "").split(","):
+            continue
         T = affine(Rm, b)
         with torch.no_grad():
             resid = (((T(Hu) - Hv) ** 2).sum() / ((Hv - Hv.mean(0)) ** 2).sum()).item()

@@ -9,6 +9,7 @@ Each remaining step answers **one question**, with a **prompt** for Claude Code,
 - Oracles: accepted if last-3 success_once ≥ 0.3 (clearly above blind ≈ 0.05) plus the three checks (blind, fake goal, cube/goal probe). Hypothesis levels are reported, never used as gates.
 - Job chains: a failed gate blocks only the jobs that depend on that model; independent jobs keep running (order chains so independent phases come first).
 - Stitching: encoder seed s with controller seed s+1; label fits on disjoint demo halves (source 0–49, target 50–99); headline metric = % of the affine paired ceiling, per seed pair.
+- Zero-shot label fits use only each agent's own training data (encoder side: its own training demos; controller side: its own), never demos of the target combination. Fine-tuning arms use N target-combination demos by premise. Default pairing: motion chunks (Step 5b). Map class: affine within a robot, orthogonal across robots. Embodiment ceiling = the better of the affine and orthogonal paired maps (same episode count); report raw success too.
 - Fine-tuning: a fixed iteration budget chosen in advance is the headline (5k for map-only fine-tuning; final checkpoint for DP from scratch); early-stopped checkpoints (sampled-chunk error on 10 held-out validation demos) are secondary numbers only. Never select on evaluation success. Every low-data arm gets N training demos + the same 10 validation demos. (DP's held-out denoising loss is not a proxy for success: it rises while success rises.)
 - Pilots (one seed) are never conclusions; paper numbers use 3 seeds.
 
@@ -35,6 +36,13 @@ Each remaining step answers **one question**, with a **prompt** for Claude Code,
   - no label-only criterion selects the map class; nn_affine stays the default.
 - **Step F — What to adapt with few demos (done, 7 Oct):** with 10–25 demos, fine-tune only the map (adding the encoder adds variance and no gain; adding the controller's last layers is equivalent within noise; visual and task change; one seed pair).
 - **Step 3 — Pretrained encoders (closed, 7 Oct):** off-the-shelf DINOv2 ViT-S in DP (frozen or fine-tuned, 126 or 224 px) stays below the oracle bar: it locates the cube well but the policy is imprecise; the pretrained low-data route is not testable in this setup.
+- **Step 5b — Command-convention shift and motion pairs (done, 13–14 Oct; 3 seed pairs):**
+  - in position mode the ×0.5 actuation variant was an exact ×2 rescale with identical trajectories, so it was replaced by a 45° rotated EE-delta command frame (same motion, other convention);
+  - motion pairs (8-step TCP motion chunks) recover 74% ± 11% of the affine ceiling; command pairs 20–26%;
+  - **motion pairing is the default pairing rule** (within noise of action pairs on goal and embodiment shifts);
+  - **own-data protocol for zero-shot fits** (Protocols); Step R's combination numbers are superseded: goal shift motion 65% / action 62% of the ceiling (affine beats orthogonal); embodiment, action pairs break (24%), motion pairs work;
+  - **map class depends on the shift (14 Oct): affine within a robot, orthogonal across robots** (embodiment, 1000 episodes, 3 / 3 pairs: nn_orth .475 = 93% ± 23% of the better paired map vs nn_affine 44% ± 14%); a single similarity map fails everywhere (its global scale shrinks z);
+  - motion pairs keep the main visual matrix: 80% ± 9% of the ceiling (action pairs 77%).
 
 **Rough timeline for what remains (about 16 weeks):**
 - Weeks 1–2 (to ~18 Oct): Step R, Step F, Step 3 (all done by 7 Oct)
@@ -103,7 +111,9 @@ _Closed after the seed-1 pilot and a time-boxed diagnosis: DINOv2 agents stay be
   - If frozen + adapter transfers across our shifts as well as stitching, the paper emphasises combinations (task, embodiment) and the reuse of existing specialised agents.
   - If (c) stitches well, it becomes the low-data route: pretrained encoder + a few demos, then stitch.
 
-## Step 5b — Actuation combination (motion-based pairs)
+## Step 5b — Actuation combination (motion-based pairs) — done 13 Oct
+
+_Done as a command-convention shift (rotated command frame; the ×0.5 actuation variant was an exact rescale in position mode). Motion pairing is the default rule; see "Where we are" and EXPERIMENTS.md. A dynamics-changing shift needs a reactive expert (optional Step 5c)._
 
 **Question:** when commanded actions change meaning (EE-delta bounds ×0.5), can pairs built from the robot's actual motion replace action labels?
 

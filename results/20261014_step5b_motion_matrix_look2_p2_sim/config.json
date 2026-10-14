@@ -1,0 +1,25 @@
+{
+ "shift": "look2",
+ "pair": "p2",
+ "runs": {
+  "cam0": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_cam0_s2",
+  "look2": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_look2_s3"
+ },
+ "h5": {
+  "cam0": "/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_demos_default_panda_cam0_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5",
+  "look2": "/home/ricc/projects/labelstitch-1b/results/20261002_dp_ours_demos_default_panda_cam0_look2_lollipop/trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
+ },
+ "src_demos": [
+  0,
+  50
+ ],
+ "tgt_demos": [
+  50,
+  100
+ ],
+ "maps": [
+  "nn_orth",
+  "nn_sim"
+ ],
+ "n_episodes": 250
+}

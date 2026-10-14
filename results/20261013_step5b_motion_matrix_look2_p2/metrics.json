@@ -1,0 +1,28 @@
+{
+ "checkpoints": {
+  "cam0": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_cam0_s2/runs/step1b_dp_ref_cam0_s2/checkpoints/49999.pt",
+  "look2": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_look2_s3/runs/step1b_dp_ref_look2_s3/checkpoints/49999.pt"
+ },
+ "stitch": {
+  "fwd": {
+   "encoder": "cam0",
+   "controller": "look2",
+   "nn_affine_motion": {
+    "success_once": 0.432,
+    "success_at_end": 0.316,
+    "episodes": 250,
+    "pair_motion_err_mm": 2.7691388968378305
+   }
+  },
+  "bwd": {
+   "encoder": "look2",
+   "controller": "cam0",
+   "nn_affine_motion": {
+    "success_once": 0.324,
+    "success_at_end": 0.248,
+    "episodes": 250,
+    "pair_motion_err_mm": 2.7691388968378305
+   }
+  }
+ }
+}
