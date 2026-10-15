@@ -42,6 +42,35 @@ features locate the cube better than the task-trained encoder, but the policy bu
 
 ---
 
+## 2026-10-15 — Didactic notebook `notebooks/stitching_explained.ipynb` (branch `notebook`)
+
+- **What:** a 9-section notebook that shows the method on existing checkpoints and demos (no training):
+  - domains;
+  - z's PCA and effective rank;
+  - paired frames and the identity map;
+  - motion pairs;
+  - orthogonal / affine / paired maps;
+  - across robots;
+  - saliency;
+  - closed-loop clips;
+  - Mario t-SNE.
+
+  Agents: matrix pair 1 (cam0 s1 encoder → look 2 s2 controller) and embodiment pair 1 (look 2 s1 → xArm cam0 100k
+  s2). Figures and `config.json` are in `results/20261015_notebook/`. Headless run: 23 s on the GPU.
+- **Reproduces the logged numbers** (held-out z residual / pair motion error):
+  - pair 1: identity 5.41, nn_orth 0.80, nn_affine 0.59, paired affine 0.37; 2.77 mm;
+  - embodiment pair 1: nn_orth 1.25, nn_affine 0.97, paired affine 0.43 (Step 5b: 1.252 / 0.97 / 0.426); 3.03 mm.
+- **Clips (illustrative, not a measurement):** `scripts/notebook_rollouts.py`, pair 1 in cam0, 10 episodes per map,
+  one CPU env. Identity 0/10, nn_affine 7/10 success_once; initial states differ between maps.
+- **Observations, not tested:**
+  - Across robots, the orthogonal map wins in closed loop although its held-out residual is higher than affine's.
+    The affine map keeps only 48–80% of the target's std along the top 8 target principal directions; the orthogonal
+    map keeps ~85–90% on the top 4. This fits "affine shrinks z on noisy cross-robot pairs", but it is not a
+    diagnosis.
+  - The stored `obs/extra/is_grasped` is True at t = 0 in most demos (a leftover of the previous episode at reset).
+    Nothing in the method reads it (the state excludes it). The notebook's phases use the first gripper-close
+    command instead.
+
 ## 2026-10-14 — One map class for every regime? Similarity map vs affine vs orthogonal (branch `step-5b`)
 
 - **Question:** can one map class replace "affine within a robot, orthogonal across robots"?
