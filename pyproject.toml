@@ -14,3 +14,9 @@ dependencies = [
     "torchvision>=0.29.0",
     "wandb>=0.30.0",
 ]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+    "nbconvert>=7.17.2",
+]
