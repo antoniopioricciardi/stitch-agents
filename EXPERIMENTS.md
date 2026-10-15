@@ -42,6 +42,55 @@ features locate the cube better than the task-trained encoder, but the policy bu
 
 ---
 
+## 2026-10-15 — Is shrinkage why orthogonal beats affine across robots? nn_affine + rescale (branch `emb-rescale`)
+
+- **Question:** across robots, does nn_orth beat nn_affine because the affine fit shrinks z? (The notebook entry
+  below: nn_affine keeps 48–80% of the target's std along the top target directions, nn_orth ~85–90%.)
+- **Map `nn_rescale`:** nn_affine on own-data motion pairs, then each mapped dimension gets the mean and std of the
+  matched target frames, i.e. the fit pairs (`step1b_stitch.rescale(R, b, Zs, Zt[j])`). The affine fit already
+  matches the mean, so only the per-dimension scale changes.
+- **Setup:**
+  - Embodiment: the 3 pairs (look 2 Panda encoder s → cam0 xArm controller s+1), 250 episodes.
+    `scripts/step5b_motion_stepR.py emb <p> ... --maps=nn_affine_motion_own,nn_orth_motion_own,nn_rescale_motion_own
+    --tag=_rescale`. All three maps are re-evaluated in the same run.
+  - Then, only if the embodiment rule passes, the 24-cell visual matrix: `scripts/step5b_motion_matrix.py
+    --maps=nn_rescale --tag=_rescale`, against the 13 Oct nn_affine motion numbers.
+- **Decision rules (fixed before running):**
+  - Embodiment: d = success(nn_rescale) − success(nn_orth) per pair. Within noise if mean d ≥ −2 SE, with
+    SE = sqrt(Σ_pairs [p_r(1 − p_r) + p_o(1 − p_o)] / 250) / 3. If within noise: **shrinkage explains the orthogonal
+    map's win**, and the matrix runs.
+  - Matrix: d = nn_rescale − nn_affine in % of each cell's ceiling. Within noise if mean d ≥ −2 SE, with
+    SE = std(d) / √24. If within noise on both, nn_rescale is a **candidate** single default. The goal shift is
+    untested, and it would also have to pass there before adoption.
+- **Hypotheses:**
+  - Embodiment: nn_rescale beats nn_affine (it recovers part of the gap) but stays below nn_orth beyond noise (about
+    .35 vs .48). Per-dimension rescaling in z's coordinates only partly undoes a shrinkage that varies by principal
+    direction. And within a robot, affine + rescale did not help in Step 1b (look 1, one seed: 48% / 66% vs 64% / 70%
+    of the ceiling).
+  - Matrix (if run): below nn_affine, by the same Step 1b evidence.
+- **Result, embodiment** (`results/20261015_step5b_motion_stepR_emb_p{1,2,3}_rescale/`; success_once, 250 episodes,
+  all three maps in the same run; held-out z residual in brackets). Chain: `results/20261015_emb_rescale_chain.sh`,
+  13 min.
+
+  | pair | nn_affine | nn_orth | nn_rescale |
+  |---|---|---|---|
+  | 1 | .328 (0.97) | **.416** (1.25) | .316 (1.27) |
+  | 2 | .096 (1.27) | **.496** (2.20) | .188 (1.90) |
+  | 3 | .244 (1.13) | **.528** (1.59) | .320 (1.61) |
+  | **mean** | .223 | **.480** | .275 |
+
+  - nn_rescale − nn_orth = −.205 (2 SE .049): **fails the rule**, so the matrix was not run.
+  - nn_rescale − nn_affine = +.052 (2 SE .044): just above noise; higher on 2 of 3 pairs.
+  - The re-evaluated nn_affine / nn_orth agree with the 13 Oct 250-episode rows within eval noise (means .261 / .483
+    then).
+- **Hypotheses:** confirmed. nn_rescale lands between the two classes and stays far below nn_orth.
+- **Takeaway:** **per-dimension shrinkage is not why the orthogonal map wins across robots.** Restoring the target's
+  per-dimension std recovers about a fifth of the affine → orthogonal gap. Its held-out residual becomes as high as
+  the orthogonal map's (1.27 vs 1.25 on pair 1) while closed-loop success stays at the affine level. So neither the
+  residual nor the per-dimension spread separates the two classes here. Untested hypothesis (no further tests planned):
+  the orthogonal map wins because it preserves the angles and distances between latents. The rule stays affine
+  within a robot, orthogonal across robots.
+
 ## 2026-10-15 — Didactic notebook `notebooks/stitching_explained.ipynb` (branch `notebook`)
 
 - **What:** a 9-section notebook that shows the method on existing checkpoints and demos (no training):
