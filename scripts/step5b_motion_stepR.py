@@ -13,7 +13,8 @@ on the controller's task / robot. Frames are the current frames t = 0..L-2 of ea
   - paired ceiling: affine on deployment vs controller domain, demos 0-99 (same demo and step = same state);
   - held-out z residual on the same paired sets, demos 400-497.
 Maps: affine and saps (orthogonal) paired ceilings; nn_affine, nn_orth and nn_sim (similarity: orthogonal x one global
-scale + bias) on action chunks (Step R's pairing: z-scored 8-step chunks, Step 1b label stats) and on motion chunks (8
+scale + bias) and nn_rescale (nn_affine, then each mapped dimension given the mean and std of the matched target
+frames, i.e. the fit pairs; step1b_stitch.rescale) on action chunks (Step R's pairing: z-scored 8-step chunks, Step 1b label stats) and on motion chunks (8
 per-step TCP position changes, z-scored per dimension with stats pooled over both sides; see scripts/step5b_stitch.py).
 The same with "_own" for the secondary source. --maps selects which are evaluated (the 13 Oct runs, before saps and
 nn_sim existed, evaluated affine + nn_affine for goal and affine + nn_affine + nn_orth for emb).
@@ -31,7 +32,7 @@ import torch.nn as nn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import step5b_stitch as s5
-from step1b_stitch import ENV_KWARGS, affine, encode, load_agent
+from step1b_stitch import ENV_KWARGS, affine, encode, load_agent, rescale
 from diffusion_policy.evaluate import evaluate
 from diffusion_policy.make_env import make_eval_envs
 from mani_skill.utils.wrappers.flatten import FlattenRGBDObservationWrapper
@@ -73,7 +74,8 @@ if __name__ == "__main__":
     Hu, Hv = encode(enc.visual_encoder, hu["rgb"]), encode(ctrl.visual_encoder, hv["rgb"])
 
     maps, pairs = {"affine": fit_affine_paired(Pu, Pv), "saps": fit_procrustes_paired(Pu, Pv)}, {}
-    fits = {"nn_affine": fit_affine_paired, "nn_orth": fit_procrustes_paired, "nn_sim": fit_similarity_paired}
+    fits = {"nn_affine": fit_affine_paired, "nn_orth": fit_procrustes_paired, "nn_sim": fit_similarity_paired,
+            "nn_rescale": lambda Zs, Zt: rescale(*fit_affine_paired(Zs, Zt), Zs, Zt)}  # Zt = the matched target frames
     for tag, S in src.items():
         Zs = encode(enc.visual_encoder, S["rgb"]).cpu().numpy()
         for kind, mode in (("action", "shared"), ("motion", "pooled")):
