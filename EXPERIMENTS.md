@@ -87,8 +87,8 @@ features locate the cube better than the task-trained encoder, but the policy bu
 - **Takeaway:** **per-dimension shrinkage is not why the orthogonal map wins across robots.** Restoring the target's
   per-dimension std recovers about a fifth of the affine → orthogonal gap. Its held-out residual becomes as high as
   the orthogonal map's (1.27 vs 1.25 on pair 1) while closed-loop success stays at the affine level. So neither the
-  residual nor the per-dimension spread separates the two classes here. What the orthogonal constraint preserves
-  (likely the relative geometry: angles and distances between latents) is still undiagnosed. The rule stays affine
+  residual nor the per-dimension spread separates the two classes here. Untested hypothesis (no further tests planned):
+  the orthogonal map wins because it preserves the angles and distances between latents. The rule stays affine
   within a robot, orthogonal across robots.
 
 ## 2026-10-15 — Didactic notebook `notebooks/stitching_explained.ipynb` (branch `notebook`)
