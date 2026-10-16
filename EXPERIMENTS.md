@@ -202,6 +202,58 @@ features locate the cube better than the task-trained encoder, but the policy bu
   against 80% for motion pairs). Its correspondences are at chance on motion while its held-out residual looks
   reasonable, so the residual alone would not flag the failure. Main-table row for "unpaired geometric alignment".
 
+## 2026-10-16 — Step B: ILA (Invariance Through Latent Alignment) on one visual shift (branch `step-b`)
+
+- **Question:** does adapting the cam0 agent's own encoder to look 2 by latent distribution matching (Yoneda et al.,
+  RSS 2022; code `ripl/invariance-through-latent-alignment`) match stitching an existing look 2 encoder?
+- **Assumptions (what each method needs):** ILA adapts a copy of the cam0 encoder from **unpaired look 2 transitions
+  with actions** and needs no look 2 encoder. Our method stitches an existing look 2 encoder (nn_affine on motion
+  pairs). Both end with the cam0 controller playing look 2, so the outcomes are directly comparable. ILA uses
+  target-domain actions: not label-free in the GW sense, the same data type as our motion pairs.
+- **Port** (`scripts/stepB_ila.py`), following `ila/invr_thru_inf` with the defaults of its `config.py`:
+  - **Consistency terms in their default: inverse and forward dynamics, both on** (encoder lr 1e-6 each, heads
+    pretrained 2000 steps at lr 1e-3 on source latents, then frozen), plus the WGAN term (5 discriminator updates per
+    step, RMSprop lr 1e-6, weight clip .01; encoder RMSprop lr 1e-5), 10k adaptation steps, batch 256, hidden 600,
+    discriminator trunk Linear(256 → 50) + LayerNorm + tanh. Their launched sweeps differ from `config.py` (forward
+    term off in all of them; inverse term off or swept); `config.py` is the code's default, so it is used.
+  - Data, unpaired, our half split: source latents and source transitions for pretraining the heads = the original
+    cam0 encoder on cam0 demos 0–49; target transitions (o_t, a_t, o_t+1) = look 2 demos 50–99.
+  - **Deviation 1, no random-shift augmentation** (their default is on): our DP encoders were never trained with
+    augmentation, so shifted inputs would themselves be out of distribution.
+  - **Deviation 2, the ILA heads see standardised latents:** z is fed to the discriminator and both dynamics heads
+    as (z − μ_src) / s_src (per-dimension source mean, one global scale s_src = RMS of the per-dimension source stds;
+    per-dimension scaling blew up in the smoke test: some units are dead on cam0 frames, so their look 2 activations
+    were divided by ~1e-8). Reason: our z lies in [0, .034]
+    (per-dimension std .002), while their heads were built for LayerNorm + tanh latents in [−1, 1]; their forward
+    head ends in LayerNorm + tanh and could not fit raw z at all. A fixed invertible rescale; the controller still
+    reads the adapted encoder's raw z.
+- **Agents and cells:** cam0 oracle seed p (p = 1, 2, 3), i.e. the controller of matrix cell (look 2, p, bwd).
+  Arms: no adaptation (cam0 agent unchanged in look 2); ILA (final weights after 10k steps); nn_affine (motion) and
+  the paired ceiling from that cell. 250 episodes, closed loop in look 2. Logged: discriminator estimate
+  D(src) − D(tgt), inverse / forward losses (pretraining fit and on target), held-out z residual of the adapted
+  encoder on look 2 frames vs the original encoder on the same states in cam0 (demos 400–497; evaluation only).
+- **Decision rule:** d = nn_affine − ILA in % of the cell's ceiling, 3 cells, SE = std(d) / √3; ILA comparable if
+  mean d ≤ 2 SE, otherwise nn_affine wins.
+- **Hypothesis:** ILA lands above no adaptation (~10% of the ceiling) but below nn_affine (80%): distribution
+  matching can align the overall latent cloud without aligning which frame is which (GW's failure); ~30–45% of the
+  ceiling, with the dynamics terms doing most of the work.
+
+## 2026-10-16 — Step B: DART with the map-only fine-tuning budget (5k iterations) (branch `step-b`)
+
+- **Question:** is DART's blind-level result (entry below) only a consequence of its short one-shot fine-tunes
+  (1000 iterations, batch 64)?
+- **Setup:** as the entry below, but both fine-tunes (source and target) get map-only's budget: 5000 iterations,
+  batch 256 (map-only's batch at N ≥ 5), DP's lr schedule, final EMA weights. N ∈ {5, 10}, same task and goal shift,
+  3 seed pairs, same base agents and demos. Arms: target-only fine-tune (its final eval) and DART (merge .8), 250
+  episodes; map-only numbers unchanged (Step R, 5k budget).
+- **Decision rule:** as below (d = map-only − DART, 2 SE). The DART row in the baseline table reports both budgets.
+- **Hypotheses:**
+  - The longer budget helps the full fine-tunes: target-only ~.15 (N = 5) and ~.2 (N = 10), above zero-shot (.03–.04).
+    End-to-end fine-tuning from a stitched start destroyed encoder structure in Step 1b, but here the encoder starts
+    from a competent cam0 encoder and only has to adapt to a new look.
+  - DART within ±.05 of target-only (SAR ≈ .95: the source update shares most directions, so little is removed).
+  - Map-only still wins beyond noise at both N in both combinations (.29 / .45).
+
 ## 2026-10-16 — Step B: DART (one-shot weight arithmetic) on our DP agents vs map-only fine-tuning (branch `step-b`)
 
 - **Question:** with N demos of the target combination, does adapting one policy by DART's weight arithmetic (Kang et
