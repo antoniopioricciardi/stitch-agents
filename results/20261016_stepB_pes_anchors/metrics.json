@@ -1,0 +1,17 @@
+{
+ "n_frames": 7843,
+ "K256": {
+  "inertia": 69.32232666015625,
+  "cluster_size_min": 3,
+  "cluster_size_median": 28.0,
+  "cluster_size_max": 92,
+  "n_demos_used": 97
+ },
+ "K64": {
+  "inertia": 105.75375366210938,
+  "cluster_size_min": 17,
+  "cluster_size_median": 111.5,
+  "cluster_size_max": 272,
+  "n_demos_used": 44
+ }
+}

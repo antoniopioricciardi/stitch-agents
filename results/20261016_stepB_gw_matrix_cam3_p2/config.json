@@ -1,0 +1,11 @@
+{
+ "shift": "cam3",
+ "pair": "p2",
+ "runs": {
+  "cam0": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_cam0_s2",
+  "cam3": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_cam3_s3"
+ },
+ "maps": "results/20261016_stepB_gw_matrix",
+ "eps": 0.0005,
+ "n_episodes": 250
+}

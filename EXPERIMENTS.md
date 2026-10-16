@@ -39,8 +39,319 @@ same task alike). DP's denoising loss on held-out demos is no proxy for success,
 loop. Strong viewpoint changes give no working DP oracle at all. **Pretrained encoders are no shortcut here (Step 3):**
 off-the-shelf DINOv2 ViT-S in the same DP (frozen or fine-tuned, 126 or 224 px) stays below the oracle bar; its
 features locate the cube better than the task-trained encoder, but the policy built on them is imprecise.
+**Baselines (Step B, 16 Oct):** label-free GW stitches at 19–22% of the ceiling (its pairs are at chance on motion while
+its held-out residual looks reasonable), against 80% for motion pairs; ILA (adapting the cam0 encoder to look 2) stays
+at 11%, like no adaptation, against 76% for stitching on the same controller; DART leaves DP agents at blind level with
+5–10 target demos (≤ .06 at 1k or 5k fine-tuning iterations), where map-only fine-tuning reaches .29–.45 (it works from
+5 demos; N = 1 is at blind level for every arm). PeS could not be evaluated: its relative-representation interface
+leaves our DP agents below the oracle bar (6 / 6, .07–.15; centred .21).
 
 ---
+
+## 2026-10-16 — Step B: Perception Stitching (PeS) as a baseline in ManiSkill (branch `step-b`)
+
+- **Question:** how does PeS (Jian et al., TMLR 2024), the closest published method, compare with label-only
+  stitching (nn_affine on motion pairs) on our shifts and protocol?
+- **Why in ManiSkill (route B), not on their robomimic setup:** their demos, anchors and checkpoints are not released
+  (only Lift and Can can be rebuilt from robomimic PH), and their env pins torch 2.0.1 (no RTX 5070 Ti kernels).
+  A trimmed run on their setup only if a reviewer asks.
+- **PeS, reimplemented as glue code** (`stitch/models.py: PesEncoder`, `scripts/train_dp_supcon.py --encoder=pes`;
+  no vendored edits), following their paper and code:
+  - Anchors: k-means (K = 256) on the raw pixels of cam0 default-task training frames (demos 0–99); the anchor set is
+    the frame nearest each centre, stored as (demo, step) indices (`scripts/stepB_pes_anchors.py`).
+  - Each agent's anchors are those indices read from **its own domain's** demo file: the same states rendered in that
+    domain, i.e. the paired frames from replay that PeS requires. The goal variant only moves the goal's sampling
+    region, so a default-task state renders identically in it: the cam0 goal agent uses the cam0 anchor frames. One
+    anchor set therefore serves all six domains.
+  - Encoder: DP's PlainConv with a linear head of width K (their code sets the latent width to the anchor count), x =
+    L2-normalised output. The controller reads the cosine similarities of x to the K anchors, encoded by the current
+    encoder in the same forward pass (with gradient, as in their code): (B, K) per frame instead of z (B, 256).
+  - Loss: DP loss + 0.002 × disentanglement loss (mean |off-diagonal covariance| of x over the batch).
+  - Stitch: encoder agent u (with its own anchors) → controller agent v, **no map**: the relative representation is
+    meant to be directly compatible.
+  - **PeS cannot run across robots:** replay gives no paired anchor frames between a Panda and an xArm (their states
+    are different), so there is no embodiment row.
+- **Agents:** PeS agents in cam0, look 1, look 2, look 2 + light 1, cam3 and cam0 goal variant, seeds 1–3, 50k
+  iterations, 100 demos, all other DP settings as `run_dp.sh` (18 trainings). Ablation: K = 64 in cam0 and look 2,
+  seeds 1–3 (6 trainings). Oracle rule as usual (last-3 success_once ≥ .3 + blind, fake goal, cube/goal probe; the
+  probe reads the relative representation). A failing agent blocks only its own cells.
+- **Stitches:** the same seed pairs and directions as the 13 Oct motion matrix (pair p: cam0 seed p ↔ shift seed p+1,
+  p3 ↔ seed 1; fwd = cam0 encoder → shift controller, bwd = the reverse) and the goal shift (look 2 encoder seed s →
+  cam0 goal controller seed s+1, deployed on the goal variant in look 2). 250 episodes, final checkpoints.
+- **Rows per shift:** PeS stitch; nn_affine (motion pairs, plain-DP agents, 13 Oct runs); the paired affine ceiling
+  on plain-DP agents (Step 1b / 13 Oct); PeS native success. Headline: % of the plain-DP affine ceiling, per cell;
+  raw success alongside.
+- **Decision rule (fixed before running):** d = nn_affine − PeS stitch, in % of each cell's ceiling, over the 24
+  matrix cells (SE = std(d) / √24) and the 3 goal cells (SE = std(d) / √3). nn_affine beats PeS if mean d > 2 SE;
+  PeS beats nn_affine if mean d < −2 SE; otherwise "comparable". Reported per regime (matrix, goal).
+- **Sanity check of the reimplementation (look 2, 3 pairs, both directions):** PeS with K = 64 vs K = 256. Their
+  ablation (Stack, Table 11): 64 anchors 3.3% vs 256 anchors 92.6%. If K = 64 is not below K = 256 beyond 2 SE, the
+  reimplementation may not capture what makes PeS work, and the PeS rows get that caveat.
+- **Hypotheses:**
+  - PeS native: passes the oracle bar in all six domains, within ±.1 of plain DP (a cosine interface to 256 anchors
+    keeps most of z).
+  - PeS stitch: well above identity (7–10% of the ceiling) but below nn_affine: about 55% of the ceiling on the
+    matrix (nn_affine 80%), i.e. at the level of orthogonal paired SAPS (64%). Reason: relative representations are
+    invariant only to angle-preserving changes of x, and our encoders differ by more than that (the affine ceiling
+    reaches ~89% of native, orthogonal SAPS ~60%).
+  - Goal shift: PeS lower still (about 40% of the ceiling vs nn_affine 65%): the goal controller's anchors are
+    default-task states, outside its training distribution.
+  - K = 64 below K = 256 on stitching beyond noise; native success similar.
+- **300- and 3000-iteration code tests** (look 2, seed 1; `results/20261016_stepB_pes_test{300,3k}_log.txt`): training,
+  evals, checkpoints, stitching, K = 64 reload, probe and fake-goal check all run. At initialisation x is almost the
+  same for every frame (mean pairwise cosine .9995: PlainConv's features are non-negative with a large shared mean, so
+  after L2 normalisation the frame-dependent part is ~5% of x; their spatial-softmax keypoints are centred), and the
+  relative representation lies in [.996, 1]. Training spreads it (3k iterations: mean cosine .92, min .71) and the DP
+  loss stays close to plain DP's (.040 / .025 at 1k / 2k iterations vs .031 / .017, same domain and seed), so the
+  faithful version is kept (no centering). ~14 it/s, ~80 min per 50k run with evals.
+- **Chain:** `results/20261016_stepB_pes_chain.sh` (systemd unit `stepb-pes`, started 16 Oct 00:58, ~39 h).
+- **Interim (first agent, not a conclusion):** PeS cam0 seed 1 ends at last-3 success_once **.149** (.124 / .160 /
+  .164), below the oracle bar (.3); plain DP, same domain and seed: .79. The curve rises slowly (.10 at 15k, .16 at
+  35k–50k). The latent is no longer degenerate at 50k (mean pairwise cosine of x .43, min −.22; relative-representation
+  std over frames .20), so the slow start does not explain it. Open: whether the L2-normalised, anchor-relative
+  interface itself costs DP its precision (as the DINO encoders in Step 3).
+- **Interim, 5 agents:** all below the bar: cam0 s1–s3 .149 / .121 / .083, look 2 s1–s2 .121 / .069 (plain DP: .5–.8).
+  They do use vision (blind check: zeroed / shuffled ≤ .008). Chain stopped after look 2 s3 (decision 16 Oct:
+  diagnose before spending the remaining ~30 h).
+- **Diagnosis (cam0 seed 1, 50k, run_dp.sh settings; hypotheses written before running):**
+  - (a) `l2norm`: the controller reads only x = L2-normalised PlainConv output (no ReLU, as PeS), no anchors, no
+    disentanglement loss. Tests whether unit-norm z alone costs the precision.
+  - (b) `pes_centred`: PeS with x and the anchor latents centred on the anchors' mean before L2 normalisation and the
+    cosine (the centring option of relative representations; translation-invariant as well). Disentanglement loss as
+    PeS.
+  - **Hypotheses:** (a) passes the bar (≥ .5): unit norm leaves the direction of a 256-d z, which keeps enough. (b)
+    passes (≥ .3), since centring removes the shared component that dominates the cosines; the faithful version's
+    deficit is then about where the cosine is taken, not about relative representations per se.
+  - **Decision rule (fixed before running):** if (b) passes the bar (last-3 ≥ .3), the full PeS run uses
+    `pes_centred` (reported as "PeS, centred"; the faithful version's 5–6 agents reported as a note). If (b) fails:
+    PeS training is dropped; the faithful agents' result and the replay-anchor requirement are reported in prose. (a)
+    only explains the cause.
+  - Look 2 s3 (sixth faithful agent): .067. Units, one GPU job at a time: `stepb-pes-diag`
+    (`results/20261016_stepB_pes_diag_chain.sh`) → `stepb-queue2` (GW closed loop, DART, map-only N = 1) →
+    `stepb-pesc` (`results/20261016_stepB_pesc_chain.sh`: applies the rule above, then the full centred-PeS run,
+    names `stepB_pesc_*`; exits if (b) fails).
+  - Code note: the faithful runs first built a DINO encoder (the Step 3 swap fired for any non-default `--encoder`)
+    and replaced it with the PeS encoder before training. Harmless (it only shifted the init RNG stream); fixed
+    for the diagnosis runs.
+- **Diagnosis result** (`results/20261016_stepB_diag_{l2norm,pes_centred}_cam0_s1/`; cam0 seed 1, last-3 success_once):
+
+  | encoder (cam0 s1) | last 3 | mean | vs bar .3 |
+  |---|---|---|---|
+  | plain DP (Step 2) | — | .79 | passes |
+  | (a) l2norm: unit-norm x, no anchors | .580 / .536 / .580 | **.565** | passes |
+  | (b) pes_centred | .220 / .216 / .200 | **.212** | fails |
+  | PeS faithful | .124 / .160 / .164 | .149 | fails |
+
+  - Hypotheses: (a) confirmed (.565 ≥ .5, though below plain DP's .79); (b) **refuted**: centring helps (.21 vs .15)
+    but stays below the bar.
+  - **Rule applied: PeS training dropped** (`stepb-pesc` exited without training). The six faithful agents and the
+    replay-anchor requirement are reported in prose; no PeS stitch rows.
+- **Takeaway (paper wording):** in our Diffusion Policy setup, PeS's relative-representation interface leaves all
+  agents below the oracle bar (faithful 6 / 6 at .07–.15; centred .21); normalising z alone costs .79 → .565. PeS was
+  designed for BC-GMM policies with spatial-softmax encoders, so this may be specific to DP. PeS also needs paired
+  replay anchors and can't run across robots. A trimmed run on their robomimic setup (route A) is the fallback if a
+  reviewer asks.
+
+## 2026-10-16 — Step B: label-free Gromov–Wasserstein on the main visual matrix (branch `step-b`)
+
+- **Question:** does pure latent geometry (no labels anywhere) align DP encoders well enough to stitch, in closed
+  loop? GW was only tested offline on Mario latents (unreliable: label-blind cluster swaps; its objective gave no
+  failure signal).
+- **Setup** (`scripts/stepB_gw_matrix.py`): the 13 Oct motion matrix's 24 cells (4 shifts × 3 seed pairs × 2
+  directions, same agents and frame sets: source = the encoder's own demos 0–49, target = the controller's own demos
+  50–99). `fit_gw` as in Step 4: uniform random subsample of 1000 frames per side (no labels), entropic GW between the
+  [0, 1]-scaled distance matrices, ε ∈ {.0005, .001, .005}. Two maps from each plan, both label-free: barycentric
+  Procrustes (`gw_orth`, as Step 4) and barycentric affine least squares (`gw_affine`, our within-robot map class).
+- **Diagnostics (offline, use paired truth only for evaluation, never for fitting):** plan sharpness (effective number
+  of targets per source frame), plan motion error (L2 between a source frame's motion chunk and the plan-weighted
+  target motion chunk, mm; nn_affine's pairs: ~2.5–3 mm), GW objective, held-out z residual on paired frames (demos
+  400–497) next to identity, nn_affine (motion) and the paired affine ceiling.
+- **ε for closed loop (label-free rule, fixed before fitting):** the smallest ε whose Sinkhorn marginal error is
+  < .01 in every cell (sharpest converged plans). One ε for all cells.
+- **Closed loop:** gw_orth and gw_affine at that ε, 250 episodes per cell, queued on the GPU after the PeS chain's
+  trainings (one job at a time). % of each cell's affine ceiling, next to nn_affine (80% ± 9%) and identity.
+- **Decision rule:** d = nn_affine − best GW map, in % of the ceiling, 24 cells, SE = std(d) / √24. GW is "comparable"
+  if mean d ≤ 2 SE; otherwise nn_affine wins.
+- **Hypotheses:**
+  - GW is well below nn_affine: ~30% of the ceiling for gw_orth, ~25% for gw_affine (barycentres average targets, so
+    the affine fit shrinks z), above identity (~10%).
+  - Large spread across cells: when the plan's motion error is low (≲ 5 mm) GW approaches nn_orth (61%); otherwise it
+    stays near identity. Plan motion error predicts closed-loop success better than the GW objective.
+- **Fit (offline), done** (`results/20261016_stepB_gw_matrix/`, 24 cells, ~15 s per plan on 2 CPU threads):
+  - Numerics: in float32 the Sinkhorn kernel underflows to an all-zero plan at ε ≤ .001, so latents are cast to
+    float64 (method unchanged). Then every ε converges in every cell (max marginal error .0063 / .0004 / 2e-8).
+  - **ε by the rule: .0005** (median 48 effective targets per source frame; 152 at .001, 573 at .005).
+  - **GW plans are at chance on motion:** plan motion error 20.0 mm at every ε vs **22.3 mm for random pairs** and 2.8
+    mm for motion pairs. GW matches the latent geometry, but not frames where the robot does the same thing.
+  - Held-out z residual (mean ± std, 24 cells): identity 5.91 ± 2.10, gw_orth 1.28 ± .47, gw_affine .80 ± .13,
+    nn_affine .57 ± .08, paired ceiling .38 ± .07.
+  - **Together:** label-free geometry gets the correspondences wrong (chance-level pairs) while its held-out residual
+    still looks reasonable (far below identity, not far above nn_affine). So the residual alone would not flag GW's
+    failure. Likely reason, not checked: barycentric targets pull toward the target mean. Closed loop decides.
+- **Closed loop result** (`results/20261016_stepB_gw_matrix_{shift}_{pair}/`, ε .0005, 250 episodes; % of each cell's
+  affine ceiling, mean ± std over 24 cells; `scripts/stepB_table.py gw`):
+
+  | map | % of ceiling | nn_affine − map (2 SE) |
+  |---|---|---|
+  | identity | 10% ± 4% | |
+  | gw_orth | 19% ± 10% | +60.7 pts (4.8) |
+  | gw_affine | 22% ± 13% | +57.5 pts (5.8) |
+  | nn_affine (motion pairs) | **80% ± 9%** | |
+
+  - **Rule: nn_affine wins** over both GW maps, far beyond noise (24 / 24 cells for each map).
+  - Best GW cells: cam3 p3 fwd 59%, look 2 + light 1 p1 fwd 40%; only 2 / 24 cells ≥ 40%.
+  - Hypothesis 1 confirmed (≈30% / 25% predicted, 19% / 22% observed; gw_affine slightly above gw_orth, not the
+    predicted order). Hypothesis 2 **not supported**: plan motion error stays near chance in every cell (18.9–21.7
+    mm), and it does not predict which cells work (Spearman ρ with the better GW map −.30, p = .15; GW objective
+    +.11, p = .61; gw_affine held-out residual −.46, p = .02).
+- **Takeaway:** label-free GW on DP latents is barely above identity in closed loop (19–22% vs 10% of the ceiling,
+  against 80% for motion pairs). Its correspondences are at chance on motion while its held-out residual looks
+  reasonable, so the residual alone would not flag the failure. Main-table row for "unpaired geometric alignment".
+
+## 2026-10-16 — Step B: ILA (Invariance Through Latent Alignment) on one visual shift (branch `step-b`)
+
+- **Question:** does adapting the cam0 agent's own encoder to look 2 by latent distribution matching (Yoneda et al.,
+  RSS 2022; code `ripl/invariance-through-latent-alignment`) match stitching an existing look 2 encoder?
+- **Assumptions (what each method needs):** ILA adapts a copy of the cam0 encoder from **unpaired look 2 transitions
+  with actions** and needs no look 2 encoder. Our method stitches an existing look 2 encoder (nn_affine on motion
+  pairs). Both end with the cam0 controller playing look 2, so the outcomes are directly comparable. ILA uses
+  target-domain actions: not label-free in the GW sense, the same data type as our motion pairs.
+- **Port** (`scripts/stepB_ila.py`), following `ila/invr_thru_inf` with the defaults of its `config.py`:
+  - **Consistency terms in their default: inverse and forward dynamics, both on** (encoder lr 1e-6 each, heads
+    pretrained 2000 steps at lr 1e-3 on source latents, then frozen), plus the WGAN term (5 discriminator updates per
+    step, RMSprop lr 1e-6, weight clip .01; encoder RMSprop lr 1e-5), 10k adaptation steps, batch 256, hidden 600,
+    discriminator trunk Linear(256 → 50) + LayerNorm + tanh. Their launched sweeps differ from `config.py` (forward
+    term off in all of them; inverse term off or swept); `config.py` is the code's default, so it is used.
+  - Data, unpaired, our half split: source latents and source transitions for pretraining the heads = the original
+    cam0 encoder on cam0 demos 0–49; target transitions (o_t, a_t, o_t+1) = look 2 demos 50–99.
+  - **Deviation 1, no random-shift augmentation** (their default is on): our DP encoders were never trained with
+    augmentation, so shifted inputs would themselves be out of distribution.
+  - **Deviation 2, the ILA heads see standardised latents:** z is fed to the discriminator and both dynamics heads
+    as (z − μ_src) / s_src (per-dimension source mean, one global scale s_src = RMS of the per-dimension source stds;
+    per-dimension scaling blew up in the smoke test: some units are dead on cam0 frames, so their look 2 activations
+    were divided by ~1e-8). Reason: our z lies in [0, .034]
+    (per-dimension std .002), while their heads were built for LayerNorm + tanh latents in [−1, 1]; their forward
+    head ends in LayerNorm + tanh and could not fit raw z at all. A fixed invertible rescale; the controller still
+    reads the adapted encoder's raw z.
+- **Agents and cells:** cam0 oracle seed p (p = 1, 2, 3), i.e. the controller of matrix cell (look 2, p, bwd).
+  Arms: no adaptation (cam0 agent unchanged in look 2); ILA (final weights after 10k steps); nn_affine (motion) and
+  the paired ceiling from that cell. 250 episodes, closed loop in look 2. Logged: discriminator estimate
+  D(src) − D(tgt), inverse / forward losses (pretraining fit and on target), held-out z residual of the adapted
+  encoder on look 2 frames vs the original encoder on the same states in cam0 (demos 400–497; evaluation only).
+- **Decision rule:** d = nn_affine − ILA in % of the cell's ceiling, 3 cells, SE = std(d) / √3; ILA comparable if
+  mean d ≤ 2 SE, otherwise nn_affine wins.
+- **Hypothesis:** ILA lands above no adaptation (~10% of the ceiling) but below nn_affine (80%): distribution
+  matching can align the overall latent cloud without aligning which frame is which (GW's failure); ~30–45% of the
+  ceiling, with the dynamics terms doing most of the work.
+- **Result** (`results/20261016_stepB_ila_p{1,2,3}/`; success_once in look 2, 250 episodes, % of the cell's ceiling):
+
+  | pair (cam0 seed) | no adaptation | ILA | nn_affine (motion, look 2 encoder) | ceiling |
+  |---|---|---|---|---|
+  | p1 | .032 (5%) | .020 (3%) | .428 (70%) | .612 |
+  | p2 | .044 (11%) | .060 (15%) | .324 (79%) | .408 |
+  | p3 | .040 (9%) | .064 (14%) | .348 (78%) | .444 |
+  | **mean ± std** | 8% ± 2% | **11% ± 5%** | **76% ± 4%** | |
+
+  - **Rule: nn_affine wins** (d = +65.1 pts, 2 SE 1.3).
+  - Training diagnostics: the dynamics heads fit the source transitions (inverse R² .81 / 1.00 / 1.00, forward .60 /
+    .66 / .64); the WGAN estimate stays near 0 (≤ .004). Held-out z residual (adapted encoder on look 2 vs the
+    original on the same cam0 states): p2 1.59 → 1.06, p3 1.48 → 1.34, but p1 1.83 → **4.92** (its forward-dynamics
+    loss on target rose to 2.97 vs .46–.55): adaptation moved the latents toward cam0's on two pairs without making
+    them usable by the controller, and degraded them on one.
+  - Hypothesis **refuted on the level**: ILA is not above no adaptation beyond noise (11% vs 8%), let alone at
+    30–45%.
+- **Takeaway:** with its default configuration ported to our DP agents (two stated deviations), ILA does not adapt the
+  cam0 encoder to look 2 (11% of the ceiling, as without adaptation), while stitching the existing look 2 encoder with
+  motion pairs reaches 76% on the same controller. ILA's settings were tuned for DrQ/SVEA agents on DMC; a tuned port
+  is untested.
+
+## 2026-10-16 — Step B: DART with the map-only fine-tuning budget (5k iterations) (branch `step-b`)
+
+- **Question:** is DART's blind-level result (entry below) only a consequence of its short one-shot fine-tunes
+  (1000 iterations, batch 64)?
+- **Setup:** as the entry below, but both fine-tunes (source and target) get map-only's budget: 5000 iterations,
+  batch 256 (map-only's batch at N ≥ 5), DP's lr schedule, final EMA weights. N ∈ {5, 10}, same task and goal shift,
+  3 seed pairs, same base agents and demos. Arms: target-only fine-tune (its final eval) and DART (merge .8), 250
+  episodes; map-only numbers unchanged (Step R, 5k budget).
+- **Decision rule:** as below (d = map-only − DART, 2 SE). The DART row in the baseline table reports both budgets.
+- **Hypotheses:**
+  - The longer budget helps the full fine-tunes: target-only ~.15 (N = 5) and ~.2 (N = 10), above zero-shot (.03–.04).
+    End-to-end fine-tuning from a stitched start destroyed encoder structure in Step 1b, but here the encoder starts
+    from a competent cam0 encoder and only has to adapt to a new look.
+  - DART within ±.05 of target-only (SAR ≈ .95: the source update shares most directions, so little is removed).
+  - Map-only still wins beyond noise at both N in both combinations (.29 / .45).
+- **Result** (`results/20261016_stepB_dart5k_*`; success_once, 250 episodes, mean over 3 pairs; base = the target
+  fine-tune's iteration-0 eval; map-only unchanged):
+
+  | combination | N | base | target-only FT 1k / **5k** | DART 1k / **5k** | map-only | map − DART-5k (2 SE) |
+  |---|---|---|---|---|---|---|
+  | same task | 5 | .040 | .056 / **.025** | .049 / **.035** | .295 | +.260 (.036) |
+  | same task | 10 | .035 | .051 / **.052** | .036 / **.033** | .449 | +.416 (.039) |
+  | goal shift | 5 | .043 | .033 / **.016** | .029 / **.040** | .291 | +.251 (.036) |
+  | goal shift | 10 | .039 | .039 / **.056** | .015 / **.041** | .443 | +.401 (.039) |
+
+  - **Rule: map-only wins** at both N in both combinations, with either budget.
+  - The 5× budget does not help: every full fine-tune and every merge stays at the base's blind level (≤ .07 per pair),
+    SAR .97. Hypothesis 1 (target-only ~.15 / ~.2) **refuted**; hypotheses 2 (DART ≈ target-only) and 3 (map-only
+    wins) confirmed.
+- **Takeaway:** DART's blind-level result is not a budget artefact: with 5–10 target demos, full fine-tuning of a
+  competent cam0 DP agent does not adapt it to look 2 at 1k or 5k iterations, so the arithmetic has nothing useful to
+  merge. The paper's DART row reports both budgets.
+
+## 2026-10-16 — Step B: DART (one-shot weight arithmetic) on our DP agents vs map-only fine-tuning (branch `step-b`)
+
+- **Question:** with N demos of the target combination, does adapting one policy by DART's weight arithmetic (Kang et
+  al., arXiv 2607.00666) beat our stitched start + map-only fine-tuning?
+- **DART, ported** (`scripts/stepB_dart.py`; their `domain_arithmetic/dart.py`, merge scope "all", coefficient .8):
+  base = the controller-side oracle (whole agent); τ_src = (base fine-tuned on N source-domain demos) − base, τ_tgt =
+  (base fine-tuned on N target-domain demos) − base; per weight matrix (conv kernels flattened to (out, in·k), as
+  their patch-embedding reshape), keep τ_tgt minus its projection on the τ_src directions shared with τ_tgt (greedy
+  subspace selection, 99.75% energy cutoff, scaled by their SAR), merged = base + .8 × that; 1-D tensors: base +
+  .8 (τ_tgt − τ_src). Fine-tunes: full model, 1000 iterations, batch 64 (their one-shot settings), DP's lr schedule,
+  final EMA weights, demos 0..N−1.
+- **Combinations and pairs (Step R's, same agents):** same task (cam0 oracle seed s+1, deployed in look 2; source
+  demos cam0, target demos look 2) and goal shift (cam0 goal oracle seed s+1, deployed on the goal variant in look 2;
+  source goal cam0, target goal look 2). Training seed s. N ∈ {1, 5, 10}.
+- **Arms, 250 episodes each:** base zero-shot in the target (the target fine-tune's iteration-0 eval); target-only
+  fine-tune (naive one-shot); DART; map-only fine-tuning from the stitched start (look 2 encoder s → the same
+  controller; Step R numbers at N = 5, 10; **N = 1 added**, same recipe: nn_affine_pca16 on the N demos, 5k
+  map-only iterations, the same 10 validation demos; batch 64 at N = 1, since one demo has fewer frames than the
+  usual batch of 256).
+- **Decision rule:** per combination and N, d = map-only − DART (success_once, mean over 3 pairs),
+  SE = sqrt(Σ_pairs [p_m(1 − p_m) + p_d(1 − p_d)] / 250) / 3. Map-only wins if d > 2 SE, DART wins if d < −2 SE,
+  otherwise comparable.
+- **Hypotheses:**
+  - Base zero-shot in the target is near blind level (≤ .1): a cam0 encoder does not read look 2.
+  - DART ≥ target-only fine-tuning at N = 1 (their claim), both well below map-only: at N = 1, base ~.05,
+    target-only ~.15, DART ~.2, map-only ~.25; map-only wins at N = 1 and 5, gap shrinking by N = 10.
+  - The goal shift is harder for DART than the same task (the target fine-tune has to change both what is seen and
+    where to go).
+- **Result** (`results/20261016_stepB_dart_*`, `results/20261016_stepB_dart_ft_{src,tgt}_*`, `results/20261016_stepB_ft_map_*_n1`;
+  map-only N = 5, 10 from Step R, `labelstitch-r/results/2026100*_stepR_ft_map_*`; success_once, 250 episodes, mean
+  over 3 pairs; map-only at the fixed 5k budget):
+
+  | combination | N | base zero-shot | target-only FT | DART | map-only FT | map − DART (2 SE) |
+  |---|---|---|---|---|---|---|
+  | same task | 1 | .047 | .028 | .028 | .049 | +.021 (.020) |
+  | same task | 5 | .040 | .056 | .049 | **.295** | +.245 (.037) |
+  | same task | 10 | .041 | .051 | .036 | **.449** | +.413 (.039) |
+  | goal shift | 1 | .033 | .007 | .024 | .055 | +.031 (.020) |
+  | goal shift | 5 | .028 | .033 | .029 | **.291** | +.261 (.035) |
+  | goal shift | 10 | .036 | .039 | .015 | **.443** | +.428 (.037) |
+
+  - **Rule: map-only wins** at every N in both combinations (at N = 1 just beyond 2 SE, both arms at blind level).
+  - DART never beats its own target fine-tune, and neither leaves the base's zero-shot level (≤ .06): with their
+    one-shot budget (1000 iterations, batch 64), full fine-tuning does not adapt a cam0 DP agent to look 2, so the
+    arithmetic has nothing useful to merge. SAR ≈ .95 everywhere (the source and target updates share most
+    directions).
+  - Hypotheses: base ≤ .1 confirmed; DART ≥ target-only at N = 1 confirmed only trivially (.028 vs .028 / .024 vs
+    .007, all at blind level); map-only at N = 1 **refuted** (.05, predicted ~.25): one demo is not enough for the map
+    either; the useful range starts at 5 demos.
+- **Takeaway:** map-only fine-tuning works from 5 demos (N = 1 is at blind level for every arm). With 5–10 target
+  demos, the stitched start + map-only fine-tuning reaches .29–.45, while DART on the
+  same agents and demos stays at blind level (≤ .05). Caveat for the paper: DART's recipe was tuned for a pretrained
+  VLA; a longer fine-tuning budget for DP (e.g. 5k iterations, as map-only) is untested, and DART is bounded by what
+  its fine-tunes learn.
 
 ## 2026-10-15 — Is shrinkage why orthogonal beats affine across robots? nn_affine + rescale (branch `emb-rescale`)
 

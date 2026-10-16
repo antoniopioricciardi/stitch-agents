@@ -19,6 +19,12 @@ The training loop is a copy of the `__main__` block of third_party/maniskill_dif
     (DINOv2 ViT-S/14 at --dino_size px (126 | 224) + a trainable adapter --dino_adapter cls | spatial, z still
     (B, 256)), by assignment here: the
     vendored Agent is untouched. dino_ft trains the backbone at --backbone_lr (default 1e-5), everything else at --lr.
+  - Perception Stitching (Step B): --encoder pes replaces PlainConv with stitch.models.PesEncoder (relative
+    representation to K anchor frames; K + the denoiser's conditioning width follow from the anchor file), anchors =
+    the (demo, step) indices of --pes_anchors (scripts/stepB_pes_anchors.py) read from --pes_anchor_h5 (this agent's
+    own domain; default --demo-path). loss = DP loss + disent_weight (0.002, as PeS) * disentanglement loss on x.
+    Diagnosis variants: --encoder pes_centred (x and anchor latents centred on the anchors' mean before the cosine);
+    --encoder l2norm (stitch.models.L2Encoder: L2-normalised PlainConv output, no anchors, no disentanglement loss).
   - early stopping (Step R, secondary number; the headline is the fixed budget total_iters): --val_demo_path (held-out
     demos, from scripts/stepR_val_demos.py) -> every val_freq iterations, on the EMA agent: L2 between the sampled
     executed chunk (fixed seed) and the demo chunk (the selection criterion), and the DP loss with fixed noise and
@@ -36,6 +42,7 @@ from dataclasses import dataclass
 from functools import partial
 
 import gymnasium as gym
+import h5py
 import numpy as np
 import torch
 import torch.nn as nn
@@ -55,7 +62,7 @@ from diffusion_policy.evaluate import evaluate
 from diffusion_policy.make_env import make_eval_envs
 from diffusion_policy.utils import IterationBasedBatchSampler, build_state_obs_extractor, convert_obs, worker_init_fn
 from stitch.labels import CHUNK, assign
-from stitch.models import DinoEncoder
+from stitch.models import DinoEncoder, L2Encoder, disentanglement_loss, pes_agent
 
 
 @dataclass
@@ -76,6 +83,9 @@ class Args(train_rgbd.Args):
     dino_adapter: str = "cls"
     dino_size: int = 126
     backbone_lr: float = 1e-5
+    pes_anchors: str = ""
+    pes_anchor_h5: str = ""
+    disent_weight: float = 0.002
 
 
 def supcon(e, y, tau=0.07):
@@ -180,8 +190,15 @@ if __name__ == "__main__":
     )
 
     agent = train_rgbd.Agent(envs, args).to(device)
-    if args.encoder != "plainconv":  # Step 3: encoder swap in glue code, the vendored Agent is untouched
+    if args.encoder.startswith("dino"):  # Step 3: encoder swap in glue code, the vendored Agent is untouched
         agent.visual_encoder = DinoEncoder(args.dino_adapter, frozen=args.encoder == "dino_frozen", size=args.dino_size).to(device)
+    if args.encoder == "l2norm":  # Step B diagnosis
+        agent.visual_encoder = L2Encoder().to(device)
+    if args.encoder in ("pes", "pes_centred"):  # Step B: the anchor states rendered in this agent's own domain, (K, 3, 128, 128) uint8
+        ia = np.load(args.pes_anchors)
+        with h5py.File(args.pes_anchor_h5 or args.demo_path, "r") as f:
+            anchors = np.stack([f[f"traj_{d}/obs/sensor_data/base_camera/rgb"][s] for d, s in zip(ia["demo"], ia["step"])])
+        agent = pes_agent(agent, torch.from_numpy(anchors).permute(0, 3, 1, 2).contiguous(), args.encoder == "pes_centred")
     ema_sd = lambda path: torch.load(path, map_location=device)["ema_agent"]
     if args.init_ckpt:  # fine-tune a trained agent
         agent.load_state_dict(ema_sd(args.init_ckpt))
@@ -311,6 +328,9 @@ if __name__ == "__main__":
             y = assign(((action_seq[:, s:s + CHUNK] - a_mean) / a_std).reshape(B, -1), centroids)
         sc = supcon(z, y, args.supcon_tau)
         total_loss = dp_loss + args.supcon_weight * sc if args.supcon_weight > 0 else dp_loss
+        if args.encoder in ("pes", "pes_centred"):
+            dis = disentanglement_loss(agent.visual_encoder.x)  # x of every frame of the batch, (B * obs_horizon, K)
+            total_loss = total_loss + args.disent_weight * dis
         timings["forward"] += time.time() - last_tick
 
         if iteration % args.log_freq == 0:
@@ -318,6 +338,9 @@ if __name__ == "__main__":
             g_sc = grad_norm(args.supcon_weight * sc, enc_params) if args.supcon_weight > 0 else 0.0
             for k, v in dict(dp=dp_loss.item(), supcon=sc.item(), grad_enc_dp=g_dp, grad_enc_supcon=g_sc).items():
                 writer.add_scalar(f"losses/{k}", v, iteration)
+            if args.encoder in ("pes", "pes_centred"):
+                writer.add_scalar("losses/disent", dis.item(), iteration)
+                print(f"iter {iteration}: disent {dis.item():.4g}", flush=True)
             print(f"iter {iteration}: dp {dp_loss.item():.5f} supcon {sc.item():.4f} | encoder grad norm: "
                   f"dp {g_dp:.4g} supcon(x{args.supcon_weight}) {g_sc:.4g}", flush=True)
 

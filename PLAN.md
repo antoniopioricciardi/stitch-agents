@@ -43,6 +43,12 @@ Each remaining step answers **one question**, with a **prompt** for Claude Code,
   - **own-data protocol for zero-shot fits** (Protocols); Step R's combination numbers are superseded: goal shift motion 65% / action 62% of the ceiling (affine beats orthogonal); embodiment, action pairs break (24%), motion pairs work;
   - **map class depends on the shift (14 Oct): affine within a robot, orthogonal across robots** (embodiment, 1000 episodes, 3 / 3 pairs: nn_orth .475 = 93% ± 23% of the better paired map vs nn_affine 44% ± 14%); a single similarity map fails everywhere (its global scale shrinks z);
   - motion pairs keep the main visual matrix: 80% ± 9% of the ceiling (action pairs 77%).
+- **Step B — Baselines (done, 16 Oct; 3 seed pairs; EXPERIMENTS.md):**
+  - **PeS** (reimplemented in ManiSkill, faithful to their code): its relative-representation interface leaves our DP agents below the oracle bar (faithful 6 / 6 at .07–.15; centred .21; normalising z alone .79 → .565), so PeS stitching could not be evaluated; designed for BC-GMM + spatial softmax, so this may be specific to DP; it also needs paired replay anchors and can't run across robots. Trimmed run on their robomimic setup only if a reviewer asks;
+  - **GW** (label-free, main matrix, 24 cells): 19% / 22% of the ceiling (orthogonal / affine), identity 10%, nn_affine 80%; its pairs are at chance on motion (20.0 vs 22.3 mm random, 2.8 mm motion pairs) while its held-out residual looks reasonable;
+  - **ILA** (cam0 encoder adapted to look 2, their default terms: WGAN + inverse + forward dynamics): 11% ± 5% of the ceiling, no adaptation 8%, nn_affine on the same controller 76%;
+  - **DART** (weight arithmetic, same task and goal shift): blind level (≤ .06) at N ∈ {1, 5, 10} with 1k fine-tunes and at N ∈ {5, 10} with 5k; map-only fine-tuning .29 / .45 at N = 5 / 10 (**works from 5 demos; N = 1 is at blind level for every arm**);
+  - cited, not run: Dynamics Cycle-Consistency (state-based TD3 code, does not port), HGA (no code; authors contacted), Latent Functional Maps (no official code; dropped).
 
 **Rough timeline for what remains (about 16 weeks):**
 - Weeks 1–2 (to ~18 Oct): Step R, Step F, Step 3 (all done by 7 Oct)
@@ -130,10 +136,15 @@ _Done as a command-convention shift (rotated command frame; the ×0.5 actuation 
 
 **Question:** how does label-only stitching compare with the closest published methods?
 
-> 1. **Perception Stitching (Jian et al., TMLR 2024; code: generalroboticslab/PerceptionStitching).** Preferred: run our label-only stitching on their robomimic setup (their tasks and camera configurations, their BC policies, retrained if needed), against their reported PeS numbers and their anchor requirement (trajectory replay). Fallback: implement PeS (relative representations + disentanglement loss) as a baseline in our ManiSkill setup. Propose which before starting.
-> 2. **Unpaired geometric alignment** on the main matrix (one seed pair per shift is enough): GW, and HGA or Latent Functional Maps if code is available. Same label budget rule (label-free methods use no labels anywhere).
+_Done 16 Oct: see "Where we are" and the Step B entries in EXPERIMENTS.md. ILA ran on one visual shift; Latent Functional Maps dropped (cited)._
+
+_Scoped 16 Oct (EXPERIMENTS.md): PeS's demos, anchors and checkpoints are not released and its env does not run on our GPU, so PeS is reimplemented in ManiSkill (route B); a trimmed run on their robomimic setup only if a reviewer asks. Order: 1, 2 (CPU, in parallel), 5, then 4 (ILA) and LFM if time allows (cut LFM first)._
+
+> 1. **Perception Stitching (Jian et al., TMLR 2024; code: generalroboticslab/PerceptionStitching), in our ManiSkill setup.** Faithful to their paper and code, as glue code (no vendored edits): 256 k-means anchors from cam0 demo frames, the same indices as paired frames in each other domain (replayed states); the controller reads the cosine similarities to the anchors, encoded by the current encoder; disentanglement loss at weight 0.002; zero-shot stitching with no map. The 4 visual shifts + goal shift, 3 seeds, our protocol and oracle rule. Rows per shift: PeS stitch, nn_affine on plain DP agents, the paired affine ceiling, PeS native. Sanity check: K = 64 vs 256 anchors on one shift (their ablation: fewer anchors hurt). PeS cannot run across robots (no paired anchors from replay).
+> 2. **Unpaired geometric alignment** on the main matrix (one seed pair per shift is enough): GW; Latent Functional Maps (no official code: implement from the paper) only if time allows. HGA: no code released; cite (authors contacted for code). Same label budget rule (label-free methods use no labels anywhere).
 > 3. **Retraining baselines**, already partly in Step R: controller retrained on N demos; DP from scratch.
-> 4. **For task/actuation shift:** Dynamics Cycle-Consistency (Zhang et al., ICLR 2021; code: sjtuzq/Cycle_Dynamics) on the actuation or goal combination, if its code runs on our setup within a few days; otherwise cite and explain. ILA (latent distribution matching at deployment) on one visual shift.
+> 4. **For task/actuation shift:** Dynamics Cycle-Consistency (Zhang et al., ICLR 2021): cite and explain (its code is state-based TD3 on HalfCheetah with mujoco-py; porting it means rewriting it). ILA (Yoneda et al., RSS 2022; latent distribution matching at deployment) on one visual shift, if time allows: port its WGAN + inverse-dynamics losses onto the DP encoder.
+> 5. **DART (Kang et al., arXiv 2607.00666, one-shot VLA adaptation by subspace-aligned weight arithmetic) on our DP agents.** Base = the source oracle; full fine-tunes on 1 source and 1 target demo; their merge (per-matrix SVD; conv weights flattened to 2D), ported to torch. Visual shifts and goal shift (not embodiment: Panda and xArm agents have different state sizes). N in {1, 5, 10}, next to map-only fine-tuning from the stitched start, with N = 1 added to our curve.
 
 - **Exit:** a baseline table for the paper.
 - **Decision:** which baselines go in the main table, which in the appendix.

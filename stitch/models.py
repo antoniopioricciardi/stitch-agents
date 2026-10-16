@@ -109,3 +109,77 @@ def swap_dino(agent, sd):
     if "visual_encoder.backbone.cls_token" in sd:
         agent.visual_encoder = dino_from_sd(sd)
     return agent
+
+
+class PesEncoder(nn.Module):
+    # Step B: Perception Stitching (Jian et al., TMLR 2024) on the DP baseline's PlainConv, as in their code
+    # (nn_modules/resnet18_LSTMgmm_view13rgb_rel_model_ver1_out_xtask.py): x = L2-normalised encoder output of width K
+    # (their latent width = the anchor count; PlainConv's last ReLU is dropped, their fc has none), and the controller
+    # reads the cosine similarities of x to the K anchor frames, encoded by the same encoder in the same forward pass
+    # (with gradient). rgb (B, 3, 128, 128) in [0, 1] -> relative representation (B, K).
+    # anchors: (K, 3, 128, 128) uint8, this agent's own domain's frames of the shared anchor states (a buffer, so they
+    # travel with the checkpoint and a stitch uses the encoder's own anchors). self.x keeps x (B, K) of the last call
+    # for the disentanglement loss.
+    # centred=True (Step B diagnosis, not PeS's code): x and the anchor latents are centred on the anchors' mean before
+    # the normalisation (the centring option of relative representations); stored as a buffer so loaders see it.
+    def __init__(self, anchors, centred=False):
+        super().__init__()
+        from diffusion_policy.plain_conv import PlainConv  # the vendored baseline (PYTHONPATH), as for every DP script
+        self.net = PlainConv(in_channels=3, out_dim=len(anchors), pool_feature_map=True, last_act=False)
+        self.register_buffer("anchors", anchors)
+        if centred:
+            self.register_buffer("centred", torch.ones(()))
+        self.is_centred = centred
+        self.x = None
+
+    def forward(self, rgb):
+        h = self.net(torch.cat([rgb, self.anchors.float() / 255.0]))
+        if self.is_centred:
+            h = h - h[len(rgb):].mean(0, keepdim=True)
+        h = F.normalize(h, dim=1)
+        self.x = h[:len(rgb)]
+        return self.x @ h[len(rgb):].T
+
+
+class L2Encoder(nn.Module):
+    # Step B diagnosis: PeS's encoder without anchors. rgb (B, 3, 128, 128) -> x (B, 256) = L2-normalised PlainConv
+    # output (no last ReLU, as PesEncoder)
+    def __init__(self, d=256):
+        super().__init__()
+        from diffusion_policy.plain_conv import PlainConv
+        self.net = PlainConv(in_channels=3, out_dim=d, pool_feature_map=True, last_act=False)
+
+    def forward(self, rgb):
+        return F.normalize(self.net(rgb), dim=1)
+
+
+def disentanglement_loss(x):
+    # PeS's L_disent (their Eq. 5 and code): mean |off-diagonal covariance| of x (N, K) over the batch
+    xc = x - x.mean(0, keepdim=True)
+    cov = xc.T @ xc / (len(x) - 1)
+    return cov[~torch.eye(len(cov), dtype=torch.bool, device=x.device)].abs().mean()
+
+
+def pes_agent(agent, anchors, centred=False):
+    # put a PesEncoder with these anchors in place of PlainConv; with K != 256 the denoiser is rebuilt for the new
+    # conditioning width obs_horizon * (K + S) (the vendored Agent hard-codes a 256-d visual feature)
+    import train_rgbd
+    from diffusion_policy.conditional_unet1d import ConditionalUnet1D
+    dev = next(agent.parameters()).device
+    K = len(anchors)
+    agent.visual_encoder = PesEncoder(anchors, centred).to(dev)
+    if K != 256:
+        a = train_rgbd.Args()
+        S = agent.noise_pred_net.down_modules[0][0].cond_encoder[1].in_features - a.diffusion_step_embed_dim  # = horizon * (256 + S)
+        S = S // agent.obs_horizon - 256
+        agent.noise_pred_net = ConditionalUnet1D(input_dim=agent.act_dim, global_cond_dim=agent.obs_horizon * (K + S),
+                                                 diffusion_step_embed_dim=a.diffusion_step_embed_dim, down_dims=a.unet_dims,
+                                                 n_groups=a.n_groups).to(dev)
+    return agent
+
+
+def swap_pes(agent, sd):
+    # before agent.load_state_dict(sd): if the checkpoint is a PeS agent (Step B), give it a PesEncoder (and denoiser)
+    if "visual_encoder.anchors" in sd:
+        agent = pes_agent(agent, sd["visual_encoder.anchors"], "visual_encoder.centred" in sd)
+    return agent

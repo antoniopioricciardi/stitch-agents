@@ -22,7 +22,7 @@ import numpy as np
 import torch
 
 import train_rgbd  # the baseline script; its training code sits under `if __name__ == "__main__"`
-from stitch.models import swap_dino
+from stitch.models import swap_dino, swap_pes
 from diffusion_policy.evaluate import evaluate
 from diffusion_policy.make_env import make_eval_envs
 from mani_skill.utils.wrappers.flatten import FlattenRGBDObservationWrapper
@@ -49,6 +49,7 @@ if __name__ == "__main__":
                           video_dir=None, wrappers=[FlattenRGBDObservationWrapper])
     sd = torch.load(ckpt)["ema_agent"]
     agent = swap_dino(train_rgbd.Agent(envs, args).to(dev), sd)  # Step 3 agents have a DINO encoder
+    agent = swap_pes(agent, sd)  # Step B: PeS agents (zeroed / shuffled act on the relative representation)
     agent.load_state_dict(sd)
 
     # bank of visual features of random training frames: (N_BANK, 256)
