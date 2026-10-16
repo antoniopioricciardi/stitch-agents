@@ -28,7 +28,7 @@ from PIL import Image
 
 import train_rgbd
 import stitch.envs  # noqa: F401 (registers the env ids)
-from stitch.models import swap_dino
+from stitch.models import swap_dino, swap_pes
 
 ENV = {"cam0": "StitchPickCubeLollipopNoGrasp-v1", "cam1": "StitchPickCubeLollipopNoGraspCam1-v1",
        "cam2": "StitchPickCubeLollipopNoGraspCam2-v1", "look1": "StitchPickCubeLollipopNoGraspLook1-v1",
@@ -100,6 +100,7 @@ if __name__ == "__main__":
     ckpt = max(glob.glob(f"{RUN_DIR}/runs/*/checkpoints/[0-9]*.pt"), key=lambda p: int(Path(p).stem))
     sd = torch.load(ckpt)["ema_agent"]
     agent = swap_dino(train_rgbd.Agent(fake_vec, train_rgbd.Args()).to(DEV), sd)  # Step 3 agents have a DINO encoder
+    agent = swap_pes(agent, sd)  # Step B: PeS agents
     agent.load_state_dict(sd)
     agent.eval()
 

@@ -1,0 +1,37 @@
+{
+ "shifts": [
+  "look1",
+  "look2",
+  "look2light1",
+  "cam3"
+ ],
+ "pairs": [
+  "p1",
+  "p2",
+  "p3"
+ ],
+ "eps": [
+  0.0005,
+  0.001,
+  0.005
+ ],
+ "n_sub": 1000,
+ "seed": 0,
+ "src_demos": [
+  0,
+  50
+ ],
+ "tgt_demos": [
+  50,
+  100
+ ],
+ "paired_demos": [
+  0,
+  100
+ ],
+ "heldout_demos": [
+  400,
+  498
+ ],
+ "labels": "none (GW is label-free; motion only in diagnostics)"
+}

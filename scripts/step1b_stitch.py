@@ -67,7 +67,7 @@ from diffusion_policy.utils import build_state_obs_extractor, convert_obs, load_
 from mani_skill.utils.wrappers.flatten import FlattenRGBDObservationWrapper
 from stitch.align import action_pairs, fit_action_pairs, fit_affine_paired, fit_identity, fit_procrustes_paired
 from stitch.labels import assign, frame_chunks, standardise
-from stitch.models import swap_dino
+from stitch.models import swap_dino, swap_pes
 
 ENV = {"cam0": "stitch.envs:StitchPickCubeLollipopNoGrasp-v1", "cam1": "stitch.envs:StitchPickCubeLollipopNoGraspCam1-v1",
        "cam2": "stitch.envs:StitchPickCubeLollipopNoGraspCam2-v1", "look1": "stitch.envs:StitchPickCubeLollipopNoGraspLook1-v1",
@@ -77,16 +77,16 @@ ENV = {"cam0": "stitch.envs:StitchPickCubeLollipopNoGrasp-v1", "cam1": "stitch.e
        "goal_cam0": "stitch.envs:StitchPickCubeLollipopNoGraspGoal-v1", "goal_look2": "stitch.envs:StitchPickCubeLollipopNoGraspLook2Goal-v1"}
 TRAJ = "trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
 H5 = {"cam0": f"/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_demos_default_panda_cam0_lollipop/{TRAJ}",
-      "cam1": f"results/20261001_dp_ours_demos_default_panda_cam1_lollipop/{TRAJ}",
-      "cam2": f"results/20261001_dp_ours_demos_default_panda_cam2_lollipop/{TRAJ}",
-      "look1": f"results/20261001_dp_ours_demos_default_panda_cam0_look1_lollipop/{TRAJ}",
-      "look2": f"results/20261002_dp_ours_demos_default_panda_cam0_look2_lollipop/{TRAJ}",
-      "look2light1": f"results/20261002_dp_ours_demos_default_panda_cam0_look2_light1_lollipop/{TRAJ}",
-      "cam3": f"results/20261002_dp_ours_demos_default_panda_cam3_lollipop/{TRAJ}",
-      "xarm_cam0": f"results/20261003_dp_ours_demos_default_xarm6_cam0_lollipop/{TRAJ}",
-      "xarm_look2": f"results/20261003_dp_ours_demos_default_xarm6_cam0_look2_lollipop/{TRAJ}",
-      "goal_cam0": f"results/20261003_dp_ours_demos_goal_panda_cam0_lollipop/{TRAJ}",
-      "goal_look2": f"results/20261003_dp_ours_demos_goal_panda_cam0_look2_lollipop/{TRAJ}"}
+      "cam1": f"/home/ricc/projects/labelstitch-1b/results/20261001_dp_ours_demos_default_panda_cam1_lollipop/{TRAJ}",
+      "cam2": f"/home/ricc/projects/labelstitch-1b/results/20261001_dp_ours_demos_default_panda_cam2_lollipop/{TRAJ}",
+      "look1": f"/home/ricc/projects/labelstitch-1b/results/20261001_dp_ours_demos_default_panda_cam0_look1_lollipop/{TRAJ}",
+      "look2": f"/home/ricc/projects/labelstitch-1b/results/20261002_dp_ours_demos_default_panda_cam0_look2_lollipop/{TRAJ}",
+      "look2light1": f"/home/ricc/projects/labelstitch-1b/results/20261002_dp_ours_demos_default_panda_cam0_look2_light1_lollipop/{TRAJ}",
+      "cam3": f"/home/ricc/projects/labelstitch-1b/results/20261002_dp_ours_demos_default_panda_cam3_lollipop/{TRAJ}",
+      "xarm_cam0": f"/home/ricc/projects/labelstitch-1b/results/20261003_dp_ours_demos_default_xarm6_cam0_lollipop/{TRAJ}",
+      "xarm_look2": f"/home/ricc/projects/labelstitch-1b/results/20261003_dp_ours_demos_default_xarm6_cam0_look2_lollipop/{TRAJ}",
+      "goal_cam0": f"/home/ricc/projects/labelstitch-1b/results/20261003_dp_ours_demos_goal_panda_cam0_lollipop/{TRAJ}",
+      "goal_look2": f"/home/ricc/projects/labelstitch-1b/results/20261003_dp_ours_demos_goal_panda_cam0_look2_lollipop/{TRAJ}"}
 FIT_DEMOS = range(0, 100)
 HELDOUT_DEMOS = range(400, 498)
 N_OFF = 2000
@@ -131,13 +131,16 @@ def load_agent(run_dir):
     # the Agent only needs the spaces (no eval-env workers): state (2, S), rgb (2, 128, 128, 3), action in [-1, 1]^4
     ckpt = max(glob.glob(str(Path(run_dir) / "runs/*/checkpoints/[0-9]*.pt")), key=lambda p: int(Path(p).stem))
     sd = torch.load(ckpt, map_location=DEV)["ema_agent"]
-    # state size S from the U-Net's FiLM input: cond = diffusion step embedding (64) + obs_horizon * (256 + S)
+    # state size S from the U-Net's FiLM input: cond = diffusion step embedding (64) + obs_horizon * (K + S), K = 256
+    # (PlainConv, DINO) or the anchor count (PeS, Step B)
     cond = sd["noise_pred_net.down_modules.0.0.cond_encoder.1.weight"].shape[1]
-    S = (cond - 64) // 2 - 256
+    K = len(sd["visual_encoder.anchors"]) if "visual_encoder.anchors" in sd else 256
+    S = (cond - 64) // 2 - K
     spaces_s = type("E", (), dict(
         single_observation_space=spaces.Dict(state=spaces.Box(-np.inf, np.inf, (2, S)), rgb=spaces.Box(0, 255, (2, 128, 128, 3), np.uint8)),
         single_action_space=spaces.Box(-1, 1, (4,))))()
     agent = swap_dino(train_rgbd.Agent(spaces_s, train_rgbd.Args()).to(DEV), sd)  # Step 3 agents have a DINO encoder
+    agent = swap_pes(agent, sd)  # Step B: PeS agents
     agent.load_state_dict(sd)
     return agent.eval(), ckpt
 

@@ -19,24 +19,24 @@ import numpy as np
 import torch
 
 from diffusion_policy.plain_conv import PlainConv
-from stitch.models import dino_from_sd
+from stitch.models import PesEncoder, dino_from_sd
 
 TRAJ = "trajectory.rgb.pd_ee_delta_pos.physx_cpu.h5"
 H5 = {"cam0": f"/home/ricc/projects/labelstitch-step1/results/20260930_dp_ours_demos_default_panda_cam0_lollipop/{TRAJ}",
-      "cam1": f"results/20261001_dp_ours_demos_default_panda_cam1_lollipop/{TRAJ}",
-      "cam2": f"results/20261001_dp_ours_demos_default_panda_cam2_lollipop/{TRAJ}",
-      "look1": f"results/20261001_dp_ours_demos_default_panda_cam0_look1_lollipop/{TRAJ}",
-      "cam2goal": f"results/20261002_dp_ours_demos_goal_panda_cam2_lollipop/{TRAJ}",
-      "look2": f"results/20261002_dp_ours_demos_default_panda_cam0_look2_lollipop/{TRAJ}",
-      "light1": f"results/20261002_dp_ours_demos_default_panda_cam0_light1_lollipop/{TRAJ}",
-      "look2light1": f"results/20261002_dp_ours_demos_default_panda_cam0_look2_light1_lollipop/{TRAJ}",
-      "cam3": f"results/20261002_dp_ours_demos_default_panda_cam3_lollipop/{TRAJ}",
-      "xarm_cam0": f"results/20261003_dp_ours_demos_default_xarm6_cam0_lollipop/{TRAJ}",
-      "xarm_look2": f"results/20261003_dp_ours_demos_default_xarm6_cam0_look2_lollipop/{TRAJ}",
-      "goal_cam0": f"results/20261003_dp_ours_demos_goal_panda_cam0_lollipop/{TRAJ}",
-      "goal_look2": f"results/20261003_dp_ours_demos_goal_panda_cam0_look2_lollipop/{TRAJ}",
-      "rot_cam0": f"results/20261008_dp_ours_demos_rotframe_panda_cam0_lollipop/{TRAJ}",
-      "rot_look2": f"results/20261008_dp_ours_demos_rotframe_panda_cam0_look2_lollipop/{TRAJ}"}
+      "cam1": f"/home/ricc/projects/labelstitch-1b/results/20261001_dp_ours_demos_default_panda_cam1_lollipop/{TRAJ}",
+      "cam2": f"/home/ricc/projects/labelstitch-1b/results/20261001_dp_ours_demos_default_panda_cam2_lollipop/{TRAJ}",
+      "look1": f"/home/ricc/projects/labelstitch-1b/results/20261001_dp_ours_demos_default_panda_cam0_look1_lollipop/{TRAJ}",
+      "cam2goal": f"/home/ricc/projects/labelstitch-1b/results/20261002_dp_ours_demos_goal_panda_cam2_lollipop/{TRAJ}",
+      "look2": f"/home/ricc/projects/labelstitch-1b/results/20261002_dp_ours_demos_default_panda_cam0_look2_lollipop/{TRAJ}",
+      "light1": f"/home/ricc/projects/labelstitch-1b/results/20261002_dp_ours_demos_default_panda_cam0_light1_lollipop/{TRAJ}",
+      "look2light1": f"/home/ricc/projects/labelstitch-1b/results/20261002_dp_ours_demos_default_panda_cam0_look2_light1_lollipop/{TRAJ}",
+      "cam3": f"/home/ricc/projects/labelstitch-1b/results/20261002_dp_ours_demos_default_panda_cam3_lollipop/{TRAJ}",
+      "xarm_cam0": f"/home/ricc/projects/labelstitch-1b/results/20261003_dp_ours_demos_default_xarm6_cam0_lollipop/{TRAJ}",
+      "xarm_look2": f"/home/ricc/projects/labelstitch-1b/results/20261003_dp_ours_demos_default_xarm6_cam0_look2_lollipop/{TRAJ}",
+      "goal_cam0": f"/home/ricc/projects/labelstitch-1b/results/20261003_dp_ours_demos_goal_panda_cam0_lollipop/{TRAJ}",
+      "goal_look2": f"/home/ricc/projects/labelstitch-1b/results/20261003_dp_ours_demos_goal_panda_cam0_look2_lollipop/{TRAJ}",
+      "rot_cam0": f"/home/ricc/projects/labelstitch-5b/results/20261008_dp_ours_demos_rotframe_panda_cam0_lollipop/{TRAJ}",
+      "rot_look2": f"/home/ricc/projects/labelstitch-5b/results/20261008_dp_ours_demos_rotframe_panda_cam0_look2_lollipop/{TRAJ}"}
 FIT, TEST = range(0, 100), range(400, 498)
 ALPHAS = [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1, 10, 100, 1000]
 ON_TABLE_Z = 0.025  # cube half size 0.02: resting on the table
@@ -100,6 +100,8 @@ if __name__ == "__main__":
         sd = torch.load(ckpt)["ema_agent"]
         if "visual_encoder.backbone.cls_token" in sd:  # Step 3 agents have a DINO encoder
             enc = dino_from_sd(sd).eval()
+        elif "visual_encoder.anchors" in sd:  # Step B: PeS agents; the probe reads the relative representation
+            enc = PesEncoder(sd["visual_encoder.anchors"]).cuda().eval()
         else:
             enc = PlainConv(in_channels=3, out_dim=256, pool_feature_map=True).cuda().eval()
         enc.load_state_dict({k[len("visual_encoder."):]: v for k, v in sd.items() if k.startswith("visual_encoder.")})

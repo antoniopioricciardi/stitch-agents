@@ -86,7 +86,8 @@ Note: a friction/mass variant was dropped. It did not change the expert's action
   - frozen DINOv2/v3 (+ small adapter) + controller
   - ILA
   - unpaired geometric alignment: GW, HGA, Latent Functional Maps, vec2vec-style
-  - Dynamics Cycle-Consistency (Zhang et al. 2021), for task/actuation shift
+  - Dynamics Cycle-Consistency (Zhang et al. 2021), for task/actuation shift (cited and explained; its code is state-based TD3 and does not port)
+  - DART (Kang et al., arXiv 2607.00666, ECCV 2026 submission): one-shot adaptation of a single policy by subspace-aligned weight arithmetic (base + one-demo fine-tunes in source and target). Run on our DP agents, against map-only fine-tuning at the same N.
 - **Should have:** Perception Stitching, R3L, DrQ-v2/SVEA, A Stitch in Time (CARLA part).
 - **Nice to have:** HPT / Devin et al., PoCo, fixed-simplex coordinated training (upper bound for training-time protocols).
 

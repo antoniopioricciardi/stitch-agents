@@ -1,0 +1,194 @@
+{
+ "20261016_stepB_pes_k256_cam0_s1:cam0": {
+  "checkpoint": "/home/ricc/projects/labelstitch-b/results/20261016_stepB_pes_k256_cam0_s1/runs/stepB_pes_k256_cam0_s1/checkpoints/49999.pt",
+  "domain": "cam0",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.0001,
+   "r2_xyz_all": [
+    0.798,
+    0.62,
+    0.73
+   ],
+   "r2_xyz_on_table": [
+    0.839,
+    0.667,
+    -2386.273
+   ]
+  },
+  "goal": {
+   "alpha": 10,
+   "r2_xyz_all": [
+    0.023,
+    -0.013,
+    0.104
+   ],
+   "r2_xyz_on_table": [
+    -0.024,
+    -0.052,
+    0.053
+   ]
+  }
+ },
+ "20261016_stepB_pes_k256_cam0_s2:cam0": {
+  "checkpoint": "/home/ricc/projects/labelstitch-b/results/20261016_stepB_pes_k256_cam0_s2/runs/stepB_pes_k256_cam0_s2/checkpoints/49999.pt",
+  "domain": "cam0",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.01,
+   "r2_xyz_all": [
+    0.795,
+    0.629,
+    0.65
+   ],
+   "r2_xyz_on_table": [
+    0.851,
+    0.688,
+    -2645.199
+   ]
+  },
+  "goal": {
+   "alpha": 0.1,
+   "r2_xyz_all": [
+    0.113,
+    0.076,
+    0.152
+   ],
+   "r2_xyz_on_table": [
+    0.06,
+    0.04,
+    0.106
+   ]
+  }
+ },
+ "20261016_stepB_pes_k256_cam0_s3:cam0": {
+  "checkpoint": "/home/ricc/projects/labelstitch-b/results/20261016_stepB_pes_k256_cam0_s3/runs/stepB_pes_k256_cam0_s3/checkpoints/49999.pt",
+  "domain": "cam0",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.771,
+    0.707,
+    0.69
+   ],
+   "r2_xyz_on_table": [
+    0.821,
+    0.749,
+    -2837.136
+   ]
+  },
+  "goal": {
+   "alpha": 10,
+   "r2_xyz_all": [
+    0.201,
+    0.14,
+    0.208
+   ],
+   "r2_xyz_on_table": [
+    0.159,
+    0.103,
+    0.148
+   ]
+  }
+ },
+ "20261016_stepB_pes_k256_look2_s1:look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-b/results/20261016_stepB_pes_k256_look2_s1/runs/stepB_pes_k256_look2_s1/checkpoints/49999.pt",
+  "domain": "look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    0.791,
+    0.752,
+    0.695
+   ],
+   "r2_xyz_on_table": [
+    0.864,
+    0.804,
+    -2587.506
+   ]
+  },
+  "goal": {
+   "alpha": 10,
+   "r2_xyz_all": [
+    0.011,
+    0.044,
+    0.089
+   ],
+   "r2_xyz_on_table": [
+    -0.051,
+    0.013,
+    0.049
+   ]
+  }
+ },
+ "20261016_stepB_pes_k256_look2_s2:look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-b/results/20261016_stepB_pes_k256_look2_s2/runs/stepB_pes_k256_look2_s2/checkpoints/49999.pt",
+  "domain": "look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.0001,
+   "r2_xyz_all": [
+    0.816,
+    0.76,
+    0.581
+   ],
+   "r2_xyz_on_table": [
+    0.868,
+    0.791,
+    -3389.658
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    0.152,
+    0.087,
+    0.113
+   ],
+   "r2_xyz_on_table": [
+    0.108,
+    0.013,
+    0.08
+   ]
+  }
+ },
+ "20261016_stepB_pes_k256_look2_s3:look2": {
+  "checkpoint": "/home/ricc/projects/labelstitch-b/results/20261016_stepB_pes_k256_look2_s3/runs/stepB_pes_k256_look2_s3/checkpoints/49999.pt",
+  "domain": "look2",
+  "n_fit": 7843,
+  "n_test": 7839,
+  "cube": {
+   "alpha": 0.001,
+   "r2_xyz_all": [
+    0.729,
+    0.775,
+    0.566
+   ],
+   "r2_xyz_on_table": [
+    0.797,
+    0.782,
+    -3780.803
+   ]
+  },
+  "goal": {
+   "alpha": 1,
+   "r2_xyz_all": [
+    0.344,
+    0.31,
+    0.23
+   ],
+   "r2_xyz_on_table": [
+    0.315,
+    0.251,
+    0.156
+   ]
+  }
+ }
+}
