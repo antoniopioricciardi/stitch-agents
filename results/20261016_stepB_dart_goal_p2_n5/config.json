@@ -1,0 +1,10 @@
+{
+ "base": "/home/ricc/projects/labelstitch-r/results/20261004_stepR_dp_ref_goal_cam0_s3",
+ "src_ft": "/home/ricc/projects/labelstitch-b/results/20261016_stepB_dart_ft_src_goal_p2_n5",
+ "tgt_ft": "/home/ricc/projects/labelstitch-b/results/20261016_stepB_dart_ft_tgt_goal_p2_n5",
+ "env": "stitch.envs:StitchPickCubeLollipopNoGraspLook2Goal-v1",
+ "coef": 0.8,
+ "energy": 0.9975,
+ "n_episodes": 250,
+ "merge_scope": "all"
+}

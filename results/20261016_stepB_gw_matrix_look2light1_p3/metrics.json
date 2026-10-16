@@ -1,0 +1,37 @@
+{
+ "checkpoints": {
+  "cam0": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_cam0_s3/runs/step1b_dp_ref_cam0_s3/checkpoints/49999.pt",
+  "look2light1": "/home/ricc/projects/labelstitch-1b/results/20261003_step1b_dp_ref_look2light1_s1/runs/step1b_dp_ref_look2light1_s1/checkpoints/49999.pt"
+ },
+ "eps": 0.0005,
+ "stitch": {
+  "fwd": {
+   "encoder": "cam0",
+   "controller": "look2light1",
+   "gw_orth": {
+    "success_once": 0.084,
+    "success_at_end": 0.052,
+    "episodes": 250
+   },
+   "gw_affine": {
+    "success_once": 0.052,
+    "success_at_end": 0.036,
+    "episodes": 250
+   }
+  },
+  "bwd": {
+   "encoder": "look2light1",
+   "controller": "cam0",
+   "gw_orth": {
+    "success_once": 0.12,
+    "success_at_end": 0.092,
+    "episodes": 250
+   },
+   "gw_affine": {
+    "success_once": 0.128,
+    "success_at_end": 0.104,
+    "episodes": 250
+   }
+  }
+ }
+}

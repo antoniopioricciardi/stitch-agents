@@ -127,6 +127,24 @@ features locate the cube better than the task-trained encoder, but the policy bu
   - Code note: the faithful runs first built a DINO encoder (the Step 3 swap fired for any non-default `--encoder`)
     and replaced it with the PeS encoder before training. Harmless (it only shifted the init RNG stream); fixed
     for the diagnosis runs.
+- **Diagnosis result** (`results/20261016_stepB_diag_{l2norm,pes_centred}_cam0_s1/`; cam0 seed 1, last-3 success_once):
+
+  | encoder (cam0 s1) | last 3 | mean | vs bar .3 |
+  |---|---|---|---|
+  | plain DP (Step 2) | — | .79 | passes |
+  | (a) l2norm: unit-norm x, no anchors | .580 / .536 / .580 | **.565** | passes |
+  | (b) pes_centred | .220 / .216 / .200 | **.212** | fails |
+  | PeS faithful | .124 / .160 / .164 | .149 | fails |
+
+  - Hypotheses: (a) confirmed (.565 ≥ .5, though below plain DP's .79); (b) **refuted**: centring helps (.21 vs .15)
+    but stays below the bar.
+  - **Rule applied: PeS training dropped** (`stepb-pesc` exited without training). The six faithful agents and the
+    replay-anchor requirement are reported in prose; no PeS stitch rows.
+- **Takeaway (paper wording):** in our Diffusion Policy setup, PeS's relative-representation interface leaves all
+  agents below the oracle bar (faithful 6 / 6 at .07–.15; centred .21); normalising z alone costs .79 → .565. PeS was
+  designed for BC-GMM policies with spatial-softmax encoders, so this may be specific to DP. PeS also needs paired
+  replay anchors and can't run across robots. A trimmed run on their robomimic setup (route A) is the fallback if a
+  reviewer asks.
 
 ## 2026-10-16 — Step B: label-free Gromov–Wasserstein on the main visual matrix (branch `step-b`)
 
@@ -164,7 +182,25 @@ features locate the cube better than the task-trained encoder, but the policy bu
   - **Together:** label-free geometry gets the correspondences wrong (chance-level pairs) while its held-out residual
     still looks reasonable (far below identity, not far above nn_affine). So the residual alone would not flag GW's
     failure. Likely reason, not checked: barycentric targets pull toward the target mean. Closed loop decides.
-- **Closed loop:** queued (`results/20261016_stepB_queue2.sh`, unit `stepb-queue2`, starts when `stepb-pes` ends).
+- **Closed loop result** (`results/20261016_stepB_gw_matrix_{shift}_{pair}/`, ε .0005, 250 episodes; % of each cell's
+  affine ceiling, mean ± std over 24 cells; `scripts/stepB_table.py gw`):
+
+  | map | % of ceiling | nn_affine − map (2 SE) |
+  |---|---|---|
+  | identity | 10% ± 4% | |
+  | gw_orth | 19% ± 10% | +60.7 pts (4.8) |
+  | gw_affine | 22% ± 13% | +57.5 pts (5.8) |
+  | nn_affine (motion pairs) | **80% ± 9%** | |
+
+  - **Rule: nn_affine wins** over both GW maps, far beyond noise (24 / 24 cells for each map).
+  - Best GW cells: cam3 p3 fwd 59%, look 2 + light 1 p1 fwd 40%; only 2 / 24 cells ≥ 40%.
+  - Hypothesis 1 confirmed (≈30% / 25% predicted, 19% / 22% observed; gw_affine slightly above gw_orth, not the
+    predicted order). Hypothesis 2 **not supported**: plan motion error stays near chance in every cell (18.9–21.7
+    mm), and it does not predict which cells work (Spearman ρ with the better GW map −.30, p = .15; GW objective
+    +.11, p = .61; gw_affine held-out residual −.46, p = .02).
+- **Takeaway:** label-free GW on DP latents is barely above identity in closed loop (19–22% vs 10% of the ceiling,
+  against 80% for motion pairs). Its correspondences are at chance on motion while its held-out residual looks
+  reasonable, so the residual alone would not flag the failure. Main-table row for "unpaired geometric alignment".
 
 ## 2026-10-16 — Step B: DART (one-shot weight arithmetic) on our DP agents vs map-only fine-tuning (branch `step-b`)
 
@@ -194,6 +230,32 @@ features locate the cube better than the task-trained encoder, but the policy bu
     target-only ~.15, DART ~.2, map-only ~.25; map-only wins at N = 1 and 5, gap shrinking by N = 10.
   - The goal shift is harder for DART than the same task (the target fine-tune has to change both what is seen and
     where to go).
+- **Result** (`results/20261016_stepB_dart_*`, `results/20261016_stepB_dart_ft_{src,tgt}_*`, `results/20261016_stepB_ft_map_*_n1`;
+  map-only N = 5, 10 from Step R, `labelstitch-r/results/2026100*_stepR_ft_map_*`; success_once, 250 episodes, mean
+  over 3 pairs; map-only at the fixed 5k budget):
+
+  | combination | N | base zero-shot | target-only FT | DART | map-only FT | map − DART (2 SE) |
+  |---|---|---|---|---|---|---|
+  | same task | 1 | .047 | .028 | .028 | .049 | +.021 (.020) |
+  | same task | 5 | .040 | .056 | .049 | **.295** | +.245 (.037) |
+  | same task | 10 | .041 | .051 | .036 | **.449** | +.413 (.039) |
+  | goal shift | 1 | .033 | .007 | .024 | .055 | +.031 (.020) |
+  | goal shift | 5 | .028 | .033 | .029 | **.291** | +.261 (.035) |
+  | goal shift | 10 | .036 | .039 | .015 | **.443** | +.428 (.037) |
+
+  - **Rule: map-only wins** at every N in both combinations (at N = 1 just beyond 2 SE, both arms at blind level).
+  - DART never beats its own target fine-tune, and neither leaves the base's zero-shot level (≤ .06): with their
+    one-shot budget (1000 iterations, batch 64), full fine-tuning does not adapt a cam0 DP agent to look 2, so the
+    arithmetic has nothing useful to merge. SAR ≈ .95 everywhere (the source and target updates share most
+    directions).
+  - Hypotheses: base ≤ .1 confirmed; DART ≥ target-only at N = 1 confirmed only trivially (.028 vs .028 / .024 vs
+    .007, all at blind level); map-only at N = 1 **refuted** (.05, predicted ~.25): one demo is not enough for the map
+    either; the useful range starts at 5 demos.
+- **Takeaway:** map-only fine-tuning works from 5 demos (N = 1 is at blind level for every arm). With 5–10 target
+  demos, the stitched start + map-only fine-tuning reaches .29–.45, while DART on the
+  same agents and demos stays at blind level (≤ .05). Caveat for the paper: DART's recipe was tuned for a pretrained
+  VLA; a longer fine-tuning budget for DP (e.g. 5k iterations, as map-only) is untested, and DART is bounded by what
+  its fine-tunes learn.
 
 ## 2026-10-15 — Is shrinkage why orthogonal beats affine across robots? nn_affine + rescale (branch `emb-rescale`)
 

@@ -1,0 +1,11 @@
+{
+ "shift": "look2light1",
+ "pair": "p1",
+ "runs": {
+  "cam0": "/home/ricc/projects/labelstitch-step1/results/20261001_step2g_dp_core_nograsp_50k_s1",
+  "look2light1": "/home/ricc/projects/labelstitch-1b/results/20261002_step1b_dp_ref_look2light1_s2"
+ },
+ "maps": "results/20261016_stepB_gw_matrix",
+ "eps": 0.0005,
+ "n_episodes": 250
+}
