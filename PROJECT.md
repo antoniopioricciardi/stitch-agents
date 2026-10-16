@@ -1,6 +1,6 @@
 # Label-aligned model stitching for autonomous agents — project brief
 
-_Last updated: 14 Oct 2026. Owner: Antonio._
+_Last updated: 16 Oct 2026. Owner: Antonio._
 
 ## Thesis (one line)
 
@@ -84,11 +84,11 @@ Note: a friction/mass variant was dropped. It did not change the expert's action
   - controller retraining with N demos
   - SAPS with paired anchors (the ceiling)
   - frozen DINOv2/v3 (+ small adapter) + controller
-  - ILA
-  - unpaired geometric alignment: GW, HGA, Latent Functional Maps, vec2vec-style
+  - ILA (run, Step B: 11% of the ceiling on cam0 → look 2, like no adaptation)
+  - unpaired geometric alignment: GW (run, Step B: 19–22% of the ceiling); HGA (no code released; cited, authors contacted); Latent Functional Maps (no official code; cited); vec2vec-style
   - Dynamics Cycle-Consistency (Zhang et al. 2021), for task/actuation shift (cited and explained; its code is state-based TD3 and does not port)
-  - DART (Kang et al., arXiv 2607.00666, ECCV 2026 submission): one-shot adaptation of a single policy by subspace-aligned weight arithmetic (base + one-demo fine-tunes in source and target). Run on our DP agents, against map-only fine-tuning at the same N.
-- **Should have:** Perception Stitching, R3L, DrQ-v2/SVEA, A Stitch in Time (CARLA part).
+  - DART (Kang et al., arXiv 2607.00666, ECCV 2026 submission): one-shot adaptation of a single policy by subspace-aligned weight arithmetic (base + one-demo fine-tunes in source and target). Run on our DP agents, against map-only fine-tuning at the same N (Step B: blind level at 1k and 5k iterations).
+- **Should have:** Perception Stitching (reimplemented in ManiSkill, Step B: its agents fail the oracle bar in our DP setup; not evaluable as a stitch), R3L, DrQ-v2/SVEA, A Stitch in Time (CARLA part).
 - **Nice to have:** HPT / Devin et al., PoCo, fixed-simplex coordinated training (upper bound for training-time protocols).
 
 ## Environments (recommended)
@@ -198,3 +198,6 @@ Novelty check (29 Sep 2026, ~10 targeted searches): no paper found that aligns i
 - 2026-10-14 (embodiment, own-data motion pairs, 1000 episodes, 3 / 3 pairs): **the map class depends on the shift: affine within a robot, orthogonal across robots.** nn_orth 97% ± 21% vs nn_affine 45% ± 15% of the affine ceiling (raw success .475 vs .228; 93% ± 23% vs 44% ± 14% of the better paired map at 1000 episodes). Within a robot affine stays best (visual matrix: affine 80%, orthogonal 61% of the ceiling; goal shift: affine .339 vs orthogonal .217).
 - 2026-10-14: **one similarity map (orthogonal × one global scale) is not a single default class.** It is far below both other classes everywhere (visual 35% of the ceiling; embodiment .151; goal .160): its least-squares scale (0.37–0.58), fitted on noisy nearest-neighbour pairs, shrinks z toward the target mean.
 - 2026-10-14 (reporting rule, embodiment): give raw success, with the ceiling = the better of the two paired maps (affine or orthogonal / SAPS) evaluated at the same number of episodes. A label map may still sit above it within eval noise.
+- 2026-10-16 (Step B, closed): **baselines.** In our Diffusion Policy setup, PeS's relative-representation interface leaves all agents below the oracle bar (faithful 6 / 6 at .07–.15; centred .21); normalising z alone costs .79 → .565. PeS was designed for BC-GMM policies with spatial-softmax encoders, so this may be specific to DP. PeS also needs paired replay anchors and can't run across robots. Label-free GW: 19–22% of the ceiling vs 80% for motion pairs (pairs at chance on motion while the held-out residual looks reasonable: the residual alone does not flag a wrong alignment). ILA: 11% (no adaptation 8%) vs 76% for stitching on the same controller. DART: blind level with 5–10 target demos at 1k or 5k fine-tuning iterations, vs .29–.45 for map-only fine-tuning.
+- 2026-10-16 (low-data claim): **map-only fine-tuning works from 5 demos; N = 1 is at blind level for every arm** (map-only, DART, target-only fine-tuning).
+- 2026-10-16: Dynamics Cycle-Consistency cited and explained (state-based TD3 code, does not port); HGA cited (no code; authors contacted); Latent Functional Maps dropped and cited.

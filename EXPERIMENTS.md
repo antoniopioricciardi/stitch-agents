@@ -39,6 +39,12 @@ same task alike). DP's denoising loss on held-out demos is no proxy for success,
 loop. Strong viewpoint changes give no working DP oracle at all. **Pretrained encoders are no shortcut here (Step 3):**
 off-the-shelf DINOv2 ViT-S in the same DP (frozen or fine-tuned, 126 or 224 px) stays below the oracle bar; its
 features locate the cube better than the task-trained encoder, but the policy built on them is imprecise.
+**Baselines (Step B, 16 Oct):** label-free GW stitches at 19–22% of the ceiling (its pairs are at chance on motion while
+its held-out residual looks reasonable), against 80% for motion pairs; ILA (adapting the cam0 encoder to look 2) stays
+at 11%, like no adaptation, against 76% for stitching on the same controller; DART leaves DP agents at blind level with
+5–10 target demos (≤ .06 at 1k or 5k fine-tuning iterations), where map-only fine-tuning reaches .29–.45 (it works from
+5 demos; N = 1 is at blind level for every arm). PeS could not be evaluated: its relative-representation interface
+leaves our DP agents below the oracle bar (6 / 6, .07–.15; centred .21).
 
 ---
 
@@ -237,6 +243,27 @@ features locate the cube better than the task-trained encoder, but the policy bu
 - **Hypothesis:** ILA lands above no adaptation (~10% of the ceiling) but below nn_affine (80%): distribution
   matching can align the overall latent cloud without aligning which frame is which (GW's failure); ~30–45% of the
   ceiling, with the dynamics terms doing most of the work.
+- **Result** (`results/20261016_stepB_ila_p{1,2,3}/`; success_once in look 2, 250 episodes, % of the cell's ceiling):
+
+  | pair (cam0 seed) | no adaptation | ILA | nn_affine (motion, look 2 encoder) | ceiling |
+  |---|---|---|---|---|
+  | p1 | .032 (5%) | .020 (3%) | .428 (70%) | .612 |
+  | p2 | .044 (11%) | .060 (15%) | .324 (79%) | .408 |
+  | p3 | .040 (9%) | .064 (14%) | .348 (78%) | .444 |
+  | **mean ± std** | 8% ± 2% | **11% ± 5%** | **76% ± 4%** | |
+
+  - **Rule: nn_affine wins** (d = +65.1 pts, 2 SE 1.3).
+  - Training diagnostics: the dynamics heads fit the source transitions (inverse R² .81 / 1.00 / 1.00, forward .60 /
+    .66 / .64); the WGAN estimate stays near 0 (≤ .004). Held-out z residual (adapted encoder on look 2 vs the
+    original on the same cam0 states): p2 1.59 → 1.06, p3 1.48 → 1.34, but p1 1.83 → **4.92** (its forward-dynamics
+    loss on target rose to 2.97 vs .46–.55): adaptation moved the latents toward cam0's on two pairs without making
+    them usable by the controller, and degraded them on one.
+  - Hypothesis **refuted on the level**: ILA is not above no adaptation beyond noise (11% vs 8%), let alone at
+    30–45%.
+- **Takeaway:** with its default configuration ported to our DP agents (two stated deviations), ILA does not adapt the
+  cam0 encoder to look 2 (11% of the ceiling, as without adaptation), while stitching the existing look 2 encoder with
+  motion pairs reaches 76% on the same controller. ILA's settings were tuned for DrQ/SVEA agents on DMC; a tuned port
+  is untested.
 
 ## 2026-10-16 — Step B: DART with the map-only fine-tuning budget (5k iterations) (branch `step-b`)
 
@@ -253,6 +280,23 @@ features locate the cube better than the task-trained encoder, but the policy bu
     from a competent cam0 encoder and only has to adapt to a new look.
   - DART within ±.05 of target-only (SAR ≈ .95: the source update shares most directions, so little is removed).
   - Map-only still wins beyond noise at both N in both combinations (.29 / .45).
+- **Result** (`results/20261016_stepB_dart5k_*`; success_once, 250 episodes, mean over 3 pairs; base = the target
+  fine-tune's iteration-0 eval; map-only unchanged):
+
+  | combination | N | base | target-only FT 1k / **5k** | DART 1k / **5k** | map-only | map − DART-5k (2 SE) |
+  |---|---|---|---|---|---|---|
+  | same task | 5 | .040 | .056 / **.025** | .049 / **.035** | .295 | +.260 (.036) |
+  | same task | 10 | .035 | .051 / **.052** | .036 / **.033** | .449 | +.416 (.039) |
+  | goal shift | 5 | .043 | .033 / **.016** | .029 / **.040** | .291 | +.251 (.036) |
+  | goal shift | 10 | .039 | .039 / **.056** | .015 / **.041** | .443 | +.401 (.039) |
+
+  - **Rule: map-only wins** at both N in both combinations, with either budget.
+  - The 5× budget does not help: every full fine-tune and every merge stays at the base's blind level (≤ .07 per pair),
+    SAR .97. Hypothesis 1 (target-only ~.15 / ~.2) **refuted**; hypotheses 2 (DART ≈ target-only) and 3 (map-only
+    wins) confirmed.
+- **Takeaway:** DART's blind-level result is not a budget artefact: with 5–10 target demos, full fine-tuning of a
+  competent cam0 DP agent does not adapt it to look 2 at 1k or 5k iterations, so the arithmetic has nothing useful to
+  merge. The paper's DART row reports both budgets.
 
 ## 2026-10-16 — Step B: DART (one-shot weight arithmetic) on our DP agents vs map-only fine-tuning (branch `step-b`)
 

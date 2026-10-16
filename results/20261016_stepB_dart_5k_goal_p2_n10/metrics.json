@@ -1,0 +1,289 @@
+{
+ "checkpoints": {
+  "base": "/home/ricc/projects/labelstitch-r/results/20261004_stepR_dp_ref_goal_cam0_s3/runs/stepR_dp_ref_goal_cam0_s3/checkpoints/49999.pt",
+  "src": "/home/ricc/projects/labelstitch-b/results/20261016_stepB_dart5k_ft_src_goal_p2_n10/runs/stepB_dart5k_ft_src_goal_p2_n10/checkpoints/4999.pt",
+  "tgt": "/home/ricc/projects/labelstitch-b/results/20261016_stepB_dart5k_ft_tgt_goal_p2_n10/runs/stepB_dart5k_ft_tgt_goal_p2_n10/checkpoints/4999.pt"
+ },
+ "success_once": 0.032,
+ "success_at_end": 0.032,
+ "episodes": 250,
+ "sar_mean": 0.9695699239511438,
+ "sar_min": 0.7793775104974215,
+ "per_tensor": {
+  "visual_encoder.cnn.0.weight": {
+   "sar": 0.8904135063791111,
+   "kept": 16,
+   "cols": 16
+  },
+  "visual_encoder.cnn.3.weight": {
+   "sar": 0.9969412469401306,
+   "kept": 32,
+   "cols": 32
+  },
+  "visual_encoder.cnn.6.weight": {
+   "sar": 0.9891314447586524,
+   "kept": 64,
+   "cols": 64
+  },
+  "visual_encoder.cnn.9.weight": {
+   "sar": 0.9689498059110341,
+   "kept": 128,
+   "cols": 128
+  },
+  "visual_encoder.cnn.12.weight": {
+   "sar": 0.8145679682535353,
+   "kept": 105,
+   "cols": 128
+  },
+  "visual_encoder.fc.0.weight": {
+   "sar": 0.7793775104974215,
+   "kept": 94,
+   "cols": 128
+  },
+  "noise_pred_net.mid_modules.0.blocks.0.block.0.weight": {
+   "sar": 0.9915702013229961,
+   "kept": 254,
+   "cols": 256
+  },
+  "noise_pred_net.mid_modules.0.blocks.1.block.0.weight": {
+   "sar": 0.9955059609781698,
+   "kept": 255,
+   "cols": 256
+  },
+  "noise_pred_net.mid_modules.0.cond_encoder.1.weight": {
+   "sar": 0.9258738573437436,
+   "kept": 476,
+   "cols": 512
+  },
+  "noise_pred_net.mid_modules.1.blocks.0.block.0.weight": {
+   "sar": 0.9955918172867705,
+   "kept": 255,
+   "cols": 256
+  },
+  "noise_pred_net.mid_modules.1.blocks.1.block.0.weight": {
+   "sar": 0.996673518636,
+   "kept": 256,
+   "cols": 256
+  },
+  "noise_pred_net.mid_modules.1.cond_encoder.1.weight": {
+   "sar": 0.9279269965581396,
+   "kept": 477,
+   "cols": 512
+  },
+  "noise_pred_net.diffusion_step_encoder.1.weight": {
+   "sar": 0.8748185888255011,
+   "kept": 47,
+   "cols": 64
+  },
+  "noise_pred_net.diffusion_step_encoder.3.weight": {
+   "sar": 0.9646664287717888,
+   "kept": 63,
+   "cols": 64
+  },
+  "noise_pred_net.up_modules.0.0.blocks.0.block.0.weight": {
+   "sar": 0.9980479059441628,
+   "kept": 128,
+   "cols": 128
+  },
+  "noise_pred_net.up_modules.0.0.blocks.1.block.0.weight": {
+   "sar": 0.9969921169650846,
+   "kept": 128,
+   "cols": 128
+  },
+  "noise_pred_net.up_modules.0.0.cond_encoder.1.weight": {
+   "sar": 0.9647120466014991,
+   "kept": 247,
+   "cols": 256
+  },
+  "noise_pred_net.up_modules.0.0.residual_conv.weight": {
+   "sar": 0.9967129234783008,
+   "kept": 128,
+   "cols": 128
+  },
+  "noise_pred_net.up_modules.0.1.blocks.0.block.0.weight": {
+   "sar": 0.9958311147444688,
+   "kept": 128,
+   "cols": 128
+  },
+  "noise_pred_net.up_modules.0.1.blocks.1.block.0.weight": {
+   "sar": 0.9969066769929104,
+   "kept": 128,
+   "cols": 128
+  },
+  "noise_pred_net.up_modules.0.1.cond_encoder.1.weight": {
+   "sar": 0.9683133543021417,
+   "kept": 248,
+   "cols": 256
+  },
+  "noise_pred_net.up_modules.0.2.conv.weight": {
+   "sar": 0.9916150560670116,
+   "kept": 128,
+   "cols": 128
+  },
+  "noise_pred_net.up_modules.1.0.blocks.0.block.0.weight": {
+   "sar": 0.9986808410350314,
+   "kept": 64,
+   "cols": 64
+  },
+  "noise_pred_net.up_modules.1.0.blocks.1.block.0.weight": {
+   "sar": 0.9959459779500569,
+   "kept": 64,
+   "cols": 64
+  },
+  "noise_pred_net.up_modules.1.0.cond_encoder.1.weight": {
+   "sar": 0.9883551010181768,
+   "kept": 127,
+   "cols": 128
+  },
+  "noise_pred_net.up_modules.1.0.residual_conv.weight": {
+   "sar": 0.9969435155831341,
+   "kept": 64,
+   "cols": 64
+  },
+  "noise_pred_net.up_modules.1.1.blocks.0.block.0.weight": {
+   "sar": 0.996300900985541,
+   "kept": 64,
+   "cols": 64
+  },
+  "noise_pred_net.up_modules.1.1.blocks.1.block.0.weight": {
+   "sar": 0.9955631013838995,
+   "kept": 64,
+   "cols": 64
+  },
+  "noise_pred_net.up_modules.1.1.cond_encoder.1.weight": {
+   "sar": 0.9906035240304009,
+   "kept": 127,
+   "cols": 128
+  },
+  "noise_pred_net.up_modules.1.2.conv.weight": {
+   "sar": 0.9980523726831404,
+   "kept": 64,
+   "cols": 64
+  },
+  "noise_pred_net.down_modules.0.0.blocks.0.block.0.weight": {
+   "sar": 0.9650813620497243,
+   "kept": 20,
+   "cols": 20
+  },
+  "noise_pred_net.down_modules.0.0.blocks.1.block.0.weight": {
+   "sar": 0.9969442214519343,
+   "kept": 64,
+   "cols": 64
+  },
+  "noise_pred_net.down_modules.0.0.cond_encoder.1.weight": {
+   "sar": 0.9883034402463146,
+   "kept": 127,
+   "cols": 128
+  },
+  "noise_pred_net.down_modules.0.0.residual_conv.weight": {
+   "sar": 0.995601315188828,
+   "kept": 4,
+   "cols": 4
+  },
+  "noise_pred_net.down_modules.0.1.blocks.0.block.0.weight": {
+   "sar": 0.9945276058603477,
+   "kept": 64,
+   "cols": 64
+  },
+  "noise_pred_net.down_modules.0.1.blocks.1.block.0.weight": {
+   "sar": 0.9970956644232322,
+   "kept": 64,
+   "cols": 64
+  },
+  "noise_pred_net.down_modules.0.1.cond_encoder.1.weight": {
+   "sar": 0.9894878962617751,
+   "kept": 128,
+   "cols": 128
+  },
+  "noise_pred_net.down_modules.0.2.conv.weight": {
+   "sar": 0.9958431575918193,
+   "kept": 64,
+   "cols": 64
+  },
+  "noise_pred_net.down_modules.1.0.blocks.0.block.0.weight": {
+   "sar": 0.9814501473768691,
+   "kept": 126,
+   "cols": 128
+  },
+  "noise_pred_net.down_modules.1.0.blocks.1.block.0.weight": {
+   "sar": 0.9948803186826685,
+   "kept": 128,
+   "cols": 128
+  },
+  "noise_pred_net.down_modules.1.0.cond_encoder.1.weight": {
+   "sar": 0.9720607168110279,
+   "kept": 249,
+   "cols": 256
+  },
+  "noise_pred_net.down_modules.1.0.residual_conv.weight": {
+   "sar": 0.9824406220868102,
+   "kept": 62,
+   "cols": 64
+  },
+  "noise_pred_net.down_modules.1.1.blocks.0.block.0.weight": {
+   "sar": 0.9878004079841488,
+   "kept": 127,
+   "cols": 128
+  },
+  "noise_pred_net.down_modules.1.1.blocks.1.block.0.weight": {
+   "sar": 0.9939806612034878,
+   "kept": 128,
+   "cols": 128
+  },
+  "noise_pred_net.down_modules.1.1.cond_encoder.1.weight": {
+   "sar": 0.9713422762607294,
+   "kept": 249,
+   "cols": 256
+  },
+  "noise_pred_net.down_modules.1.2.conv.weight": {
+   "sar": 0.9547163767957142,
+   "kept": 123,
+   "cols": 128
+  },
+  "noise_pred_net.down_modules.2.0.blocks.0.block.0.weight": {
+   "sar": 0.9402840152838196,
+   "kept": 244,
+   "cols": 256
+  },
+  "noise_pred_net.down_modules.2.0.blocks.1.block.0.weight": {
+   "sar": 0.9916197592533449,
+   "kept": 254,
+   "cols": 256
+  },
+  "noise_pred_net.down_modules.2.0.cond_encoder.1.weight": {
+   "sar": 0.9159884727002782,
+   "kept": 470,
+   "cols": 512
+  },
+  "noise_pred_net.down_modules.2.0.residual_conv.weight": {
+   "sar": 0.8367581596157599,
+   "kept": 100,
+   "cols": 128
+  },
+  "noise_pred_net.down_modules.2.1.blocks.0.block.0.weight": {
+   "sar": 0.9847308709905895,
+   "kept": 253,
+   "cols": 256
+  },
+  "noise_pred_net.down_modules.2.1.blocks.1.block.0.weight": {
+   "sar": 0.9937041181601729,
+   "kept": 255,
+   "cols": 256
+  },
+  "noise_pred_net.down_modules.2.1.cond_encoder.1.weight": {
+   "sar": 0.9225146793868402,
+   "kept": 473,
+   "cols": 512
+  },
+  "noise_pred_net.final_conv.0.block.0.weight": {
+   "sar": 0.9976494033758866,
+   "kept": 64,
+   "cols": 64
+  },
+  "noise_pred_net.final_conv.1.weight": {
+   "sar": 0.9999547660428298,
+   "kept": 4,
+   "cols": 4
+  }
+ }
+}

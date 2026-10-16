@@ -43,6 +43,12 @@ Each remaining step answers **one question**, with a **prompt** for Claude Code,
   - **own-data protocol for zero-shot fits** (Protocols); Step R's combination numbers are superseded: goal shift motion 65% / action 62% of the ceiling (affine beats orthogonal); embodiment, action pairs break (24%), motion pairs work;
   - **map class depends on the shift (14 Oct): affine within a robot, orthogonal across robots** (embodiment, 1000 episodes, 3 / 3 pairs: nn_orth .475 = 93% ± 23% of the better paired map vs nn_affine 44% ± 14%); a single similarity map fails everywhere (its global scale shrinks z);
   - motion pairs keep the main visual matrix: 80% ± 9% of the ceiling (action pairs 77%).
+- **Step B — Baselines (done, 16 Oct; 3 seed pairs; EXPERIMENTS.md):**
+  - **PeS** (reimplemented in ManiSkill, faithful to their code): its relative-representation interface leaves our DP agents below the oracle bar (faithful 6 / 6 at .07–.15; centred .21; normalising z alone .79 → .565), so PeS stitching could not be evaluated; designed for BC-GMM + spatial softmax, so this may be specific to DP; it also needs paired replay anchors and can't run across robots. Trimmed run on their robomimic setup only if a reviewer asks;
+  - **GW** (label-free, main matrix, 24 cells): 19% / 22% of the ceiling (orthogonal / affine), identity 10%, nn_affine 80%; its pairs are at chance on motion (20.0 vs 22.3 mm random, 2.8 mm motion pairs) while its held-out residual looks reasonable;
+  - **ILA** (cam0 encoder adapted to look 2, their default terms: WGAN + inverse + forward dynamics): 11% ± 5% of the ceiling, no adaptation 8%, nn_affine on the same controller 76%;
+  - **DART** (weight arithmetic, same task and goal shift): blind level (≤ .06) at N ∈ {1, 5, 10} with 1k fine-tunes and at N ∈ {5, 10} with 5k; map-only fine-tuning .29 / .45 at N = 5 / 10 (**works from 5 demos; N = 1 is at blind level for every arm**);
+  - cited, not run: Dynamics Cycle-Consistency (state-based TD3 code, does not port), HGA (no code; authors contacted), Latent Functional Maps (no official code; dropped).
 
 **Rough timeline for what remains (about 16 weeks):**
 - Weeks 1–2 (to ~18 Oct): Step R, Step F, Step 3 (all done by 7 Oct)
@@ -129,6 +135,8 @@ _Done as a command-convention shift (rotated command frame; the ×0.5 actuation 
 ## Step B — Baselines
 
 **Question:** how does label-only stitching compare with the closest published methods?
+
+_Done 16 Oct: see "Where we are" and the Step B entries in EXPERIMENTS.md. ILA ran on one visual shift; Latent Functional Maps dropped (cited)._
 
 _Scoped 16 Oct (EXPERIMENTS.md): PeS's demos, anchors and checkpoints are not released and its env does not run on our GPU, so PeS is reimplemented in ManiSkill (route B); a trimmed run on their robomimic setup only if a reviewer asks. Order: 1, 2 (CPU, in parallel), 5, then 4 (ILA) and LFM if time allows (cut LFM first)._
 

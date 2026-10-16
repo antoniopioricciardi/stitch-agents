@@ -1,0 +1,35 @@
+{
+ "pair": "p1",
+ "seed": 1,
+ "cam0_run": "/home/ricc/projects/labelstitch-step1/results/20261001_step2g_dp_core_nograsp_50k_s1",
+ "steps": 10000,
+ "pretrain_steps": 2000,
+ "batch": 256,
+ "lr": {
+  "gan_enc": 1e-05,
+  "gan_disc": 1e-06,
+  "invm": 1e-06,
+  "fwdm": 1e-06,
+  "pretrain": 0.001
+ },
+ "n_discr": 5,
+ "clip": 0.01,
+ "hidden": 600,
+ "feat": 50,
+ "src_demos": [
+  0,
+  50
+ ],
+ "tgt_demos": [
+  50,
+  100
+ ],
+ "augment": false,
+ "heads_input": "(z - mu_src) / s_src, s_src = RMS of per-dim source stds",
+ "terms": [
+  "wgan",
+  "inverse",
+  "forward"
+ ],
+ "n_episodes": 250
+}

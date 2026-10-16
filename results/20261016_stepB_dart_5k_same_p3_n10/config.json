@@ -1,0 +1,10 @@
+{
+ "base": "/home/ricc/projects/labelstitch-step1/results/20261001_step2g_dp_core_nograsp_50k_s1",
+ "src_ft": "/home/ricc/projects/labelstitch-b/results/20261016_stepB_dart5k_ft_src_same_p3_n10",
+ "tgt_ft": "/home/ricc/projects/labelstitch-b/results/20261016_stepB_dart5k_ft_tgt_same_p3_n10",
+ "env": "stitch.envs:StitchPickCubeLollipopNoGraspLook2-v1",
+ "coef": 0.8,
+ "energy": 0.9975,
+ "n_episodes": 250,
+ "merge_scope": "all"
+}
